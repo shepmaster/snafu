@@ -6,7 +6,7 @@ use std::{fs, io, path::{Path, PathBuf}};
 
 #[derive(Debug, MyError)]
 enum Error {
-    #[my_error::display("Could not open config file at {}: {}", self.filename.display(), self.source)]
+    #[my_error::display("Could not open config file at {}: {}", filename.display(), source)]
     OpenConfig { filename: PathBuf, source: io::Error },
     SaveConfig { source: io::Error },
     MissingUser,

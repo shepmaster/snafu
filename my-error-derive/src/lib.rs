@@ -111,7 +111,7 @@ fn generate_my_error(enum_info: EnumInfo) -> proc_macro2::TokenStream {
     let enum_name = enum_info.name;
 
     let generated_variant_support = enum_info.variants.iter().map(|variant| {
-        let VariantInfo { name: variant_name, source_field, user_fields, display_format } = variant;
+        let VariantInfo { name: variant_name, source_field, user_fields, .. } = variant;
 
         let generic_names: Vec<_> = (0..)
             .map(|i| Ident::new(&format!("T{}", i), Span::call_site()))
@@ -176,63 +176,30 @@ fn generate_my_error(enum_info: EnumInfo) -> proc_macro2::TokenStream {
             }
         };
 
-        let display_struct_name = format!("{}Display", variant_name);
-        let display_struct_name = Ident::new(&display_struct_name, Span::call_site());
-        let has_fields = !user_fields.is_empty() || !source_field.is_none();
-        let lifetime = if has_fields { quote!{ <'a> } } else { quote!{} };
-
-        let variant_display_struct = {
-            let fields = user_fields.iter().chain(source_field).map(|f| {
-                let Field { name, ty } = f;
-                quote!{ #name: &'a #ty }
-            });
-
-            quote! {
-                #[allow(dead_code)]
-                struct #display_struct_name #lifetime {
-                    #(#fields),*
-                }
-            }
-        };
-
-        let variant_display_impl = {
-            let format = match display_format {
-                Some(fmt) => {
-                    let inner = &fmt.elems;
-                    quote! { #inner }
-                }
-                None => quote! { stringify!(#variant_name) },
-            };
-
-            quote! {
-                impl#lifetime core::fmt::Display for #display_struct_name#lifetime {
-                    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-                        write!(f, #format)
-                    }
-                }
-            }
-        };
-
         quote! {
             #variant_selector_struct
             #enum_from_variant_selector_impl
-            #variant_display_struct
-            #variant_display_impl
         }
     });
 
     let variants = enum_info.variants.iter().map(|variant| {
-        let VariantInfo { name: variant_name, user_fields, source_field, .. } = variant;
+        let VariantInfo { name: variant_name, user_fields, source_field, display_format, .. } = variant;
 
-        let display_struct_name = format!("{}Display", variant_name);
-        let display_struct_name = Ident::new(&display_struct_name, Span::call_site());
+        let format = match display_format {
+            Some(fmt) => {
+                let inner = &fmt.elems;
+                quote! { #inner }
+            }
+            None => quote! { stringify!(#variant_name) },
+        };
+
 
         let field_names = user_fields.iter().chain(source_field).map(|f| &f.name);
         let field_names = quote! { #(#field_names),* };
 
         quote! {
             #enum_name::#variant_name { #field_names } => {
-                #display_struct_name { #field_names }.fmt(f)
+                write!(f, #format)
             }
         }
     });
@@ -240,6 +207,7 @@ fn generate_my_error(enum_info: EnumInfo) -> proc_macro2::TokenStream {
     let display_impl = quote! {
         impl core::fmt::Display for #enum_name {
             fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+                #[allow(unused_variables)]
                 match self {
                     #(#variants)*
                 }
