@@ -6,12 +6,12 @@ use quote::quote;
 use syn;
 
 /// ```rust
-/// #[derive(MyError)]
+/// #[derive(Snafu)]
 /// enum Error {
-///     #[my_error::source(io::Error)]
-///     //#[my_error::display("Could not open config at {}: {}", self.filename.display(), self.source)]
+///     #[snafu::source(io::Error)]
+///     //#[snafu::display("Could not open config at {}: {}", self.filename.display(), self.source)]
 ///     OpenConfig { filename: PathBuf },
-///     #[my_error::source(io::Error)]
+///     #[snafu::source(io::Error)]
 ///     SaveConfig {},
 ///     MissingUser,
 /// }
@@ -19,8 +19,8 @@ use syn;
 /// # Terminology
 /// - "selector"
 /// ```
-#[proc_macro_derive(MyError, attributes(my_error::display, my_error_display_compat))]
-pub fn my_error_derive(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(Snafu, attributes(snafu::display, snafu_display_compat))]
+pub fn snafu_derive(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).expect("Could not parse type to derive Error for");
 
     impl_hello_macro(ast)
@@ -49,11 +49,11 @@ struct Field {
 }
 
 fn impl_hello_macro(ty: syn::DeriveInput) -> TokenStream {
-    let info = parse_my_error_information(ty);
-    generate_my_error(info).into()
+    let info = parse_snafu_information(ty);
+    generate_snafu(info).into()
 }
 
-fn parse_my_error_information(ty: syn::DeriveInput) -> EnumInfo {
+fn parse_snafu_information(ty: syn::DeriveInput) -> EnumInfo {
     use syn::{Data, Fields, Expr, Meta, NestedMeta, Lit};
 
     let enum_ = match ty.data {
@@ -67,7 +67,7 @@ fn parse_my_error_information(ty: syn::DeriveInput) -> EnumInfo {
         let name = variant.ident;
 
         let display_format = variant.attrs.into_iter().map(|attr| {
-            if is_my_error_display(&attr.path) {
+            if is_snafu_display(&attr.path) {
                 let expr: Expr = syn::parse2(attr.tts).expect("Need expression");
                 let expr: Box<dyn quote::ToTokens> = match expr {
                     Expr::Tuple(expr_tuple) => Box::new(expr_tuple.elems),
@@ -75,7 +75,7 @@ fn parse_my_error_information(ty: syn::DeriveInput) -> EnumInfo {
                     _ => panic!("Requires a parenthesized format string and optional values"),
                 };
                 DisplayFormat::Direct(expr)
-            } else if attr.path.is_ident("my_error_display_compat") {
+            } else if attr.path.is_ident("snafu_display_compat") {
                 let meta = attr.parse_meta().expect("Improperly formed attribute");
                 let meta = match meta {
                     Meta::List(list) => list,
@@ -136,13 +136,13 @@ fn parse_my_error_information(ty: syn::DeriveInput) -> EnumInfo {
     EnumInfo { name, variants }
 }
 
-fn is_my_error_display(p: &syn::Path) -> bool{
-    let parts = ["my_error", "display"];
+fn is_snafu_display(p: &syn::Path) -> bool{
+    let parts = ["snafu", "display"];
     p.segments.iter().zip(&parts).map(|(a, b)| a.ident == b).all(|b| b)
 }
 
 
-fn generate_my_error(enum_info: EnumInfo) -> proc_macro2::TokenStream {
+fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
     use syn::Ident;
     use proc_macro2::Span;
 
@@ -182,7 +182,7 @@ fn generate_my_error(enum_info: EnumInfo) -> proc_macro2::TokenStream {
                 let Field { name: source_name, ty: source_ty } = source_field;
 
                 let other_ty = quote! {
-                    my_error::Context<#source_ty, #selector_name>
+                    snafu::Context<#source_ty, #selector_name>
                 };
 
                 let where_clauses = generic_names.iter().zip(user_fields).map(|(gen_ty, f)| {

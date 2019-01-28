@@ -1,16 +1,16 @@
 #![feature(unrestricted_attribute_tokens)]
 
-use my_error::ResultExt;
-use my_error_derive::MyError;
+use snafu::ResultExt;
+use snafu_derive::Snafu;
 use std::{fs, io, path::{Path, PathBuf}};
 
-#[derive(Debug, MyError)]
+#[derive(Debug, Snafu)]
 enum Error {
-    #[my_error_display_compat("Could not open config file at {}: {}", "filename.display()", "source")]
+    #[snafu_display_compat("Could not open config file at {}: {}", "filename.display()", "source")]
     OpenConfig { filename: PathBuf, source: io::Error },
-    #[my_error::display("Could not open config file at {}", source)]
+    #[snafu::display("Could not open config file at {}", source)]
     SaveConfig { source: io::Error },
-    #[my_error::display("No user available")]
+    #[snafu::display("No user available")]
     MissingUser,
 }
 

@@ -1,5 +1,5 @@
 [package]
-name = "my-error"
+name = "snafu"
 version = "0.1.0"
 authors = ["Jake Goulding <jake.goulding@gmail.com>"]
 edition = "2018"
