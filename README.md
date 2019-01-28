@@ -1,5 +1,3 @@
-Distinct errors for the same underlying cause error type
+# SNAFU
 
-Made for use in libraries.
-
-Result type alias
+**S**ituation **N**ormal: **A**ll **F**ouled **U**p

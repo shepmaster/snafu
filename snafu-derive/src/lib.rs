@@ -5,20 +5,8 @@ use crate::proc_macro::TokenStream;
 use quote::quote;
 use syn;
 
-/// ```rust
-/// #[derive(Snafu)]
-/// enum Error {
-///     #[snafu::source(io::Error)]
-///     //#[snafu::display("Could not open config at {}: {}", self.filename.display(), self.source)]
-///     OpenConfig { filename: PathBuf },
-///     #[snafu::source(io::Error)]
-///     SaveConfig {},
-///     MissingUser,
-/// }
-///
-/// # Terminology
-/// - "selector"
-/// ```
+/// See the crate-level documentation for SNAFU which contains tested
+/// examples of this macro.
 #[proc_macro_derive(Snafu, attributes(snafu::display, snafu_display_compat))]
 pub fn snafu_derive(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).expect("Could not parse type to derive Error for");
