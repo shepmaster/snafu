@@ -1,7 +1,6 @@
 #![feature(unrestricted_attribute_tokens)]
 
-use snafu::ResultExt;
-use snafu_derive::Snafu;
+use snafu::{Snafu, ResultExt};
 use std::{fs, io, path::{Path, PathBuf}};
 
 #[derive(Debug, Snafu)]

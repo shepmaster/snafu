@@ -1,3 +1,5 @@
+pub use snafu_derive::Snafu;
+
 pub struct Context<E, C> {
     pub error: E,
     pub context: C,
