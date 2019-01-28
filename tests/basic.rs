@@ -1,5 +1,3 @@
-#![feature(unrestricted_attribute_tokens)]
-
 use snafu::{Snafu, ResultExt};
 use std::{fs, io, path::{Path, PathBuf}};
 
@@ -7,9 +5,9 @@ use std::{fs, io, path::{Path, PathBuf}};
 enum Error {
     #[snafu_display_compat("Could not open config file at {}: {}", "filename.display()", "source")]
     OpenConfig { filename: PathBuf, source: io::Error },
-    #[snafu::display("Could not open config file at {}", source)]
+    #[snafu_display_compat("Could not open config file at {}", "source")]
     SaveConfig { source: io::Error },
-    #[snafu::display("No user available")]
+    #[snafu_display_compat("No user available")]
     MissingUser,
 }
 
@@ -17,14 +15,13 @@ type Result<T, E = Error> = std::result::Result<T, E>;
 
 const CONFIG_FILENAME: &str = "/tmp/config";
 
-fn do_it(root: impl AsRef<Path>, username: &str) -> Result<()> {
+fn example(root: impl AsRef<Path>, username: &str) -> Result<()> {
     let root = root.as_ref();
     let filename = &root.join(CONFIG_FILENAME);
 
     let config = fs::read(filename).context(OpenConfig { filename })?;
 
     if username.is_empty() {
-        // MissingUser::fail()?;
         return Err(Error::MissingUser);
     }
 
@@ -33,9 +30,9 @@ fn do_it(root: impl AsRef<Path>, username: &str) -> Result<()> {
     Ok(())
 }
 
-fn main() {
-    match do_it("/some/directory/that/does/not/exist", "") {
-        Ok(_) => panic!("Should always fail"),
-        Err(e) => panic!("{}", e),
-    }
+#[test]
+fn implements_error() {
+    fn check<T: std::error::Error>() {}
+    check::<Error>();
+    example("/some/directory/that/does/not/exist", "").unwrap_err();
 }
