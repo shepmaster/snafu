@@ -19,28 +19,30 @@ use syn;
 /// # Terminology
 /// - "selector"
 /// ```
-#[proc_macro_derive(MyError, attributes(my_error::display))]
+#[proc_macro_derive(MyError, attributes(my_error::display, my_error_display_compat))]
 pub fn my_error_derive(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).expect("Could not parse type to derive Error for");
 
     impl_hello_macro(ast)
 }
 
-#[derive(Debug)]
 struct EnumInfo {
     name: syn::Ident,
     variants: Vec<VariantInfo>,
 }
 
-#[derive(Debug)]
 struct VariantInfo {
     name: syn::Ident,
     source_field: Option<Field>,
     user_fields: Vec<Field>,
-    display_format: Option<syn::ExprTuple>,
+    display_format: Option<DisplayFormat>,
 }
 
-#[derive(Debug)]
+enum DisplayFormat {
+    Direct(Box<dyn quote::ToTokens>),
+    Stringified(Vec<Box<dyn quote::ToTokens>>),
+}
+
 struct Field {
     name: syn::Ident,
     ty: syn::Type,
@@ -52,7 +54,7 @@ fn impl_hello_macro(ty: syn::DeriveInput) -> TokenStream {
 }
 
 fn parse_my_error_information(ty: syn::DeriveInput) -> EnumInfo {
-    use syn::{Data, Fields};
+    use syn::{Data, Fields, Expr, Meta, NestedMeta, Lit};
 
     let enum_ = match ty.data {
         Data::Enum(enum_) => enum_,
@@ -65,13 +67,43 @@ fn parse_my_error_information(ty: syn::DeriveInput) -> EnumInfo {
         let name = variant.ident;
 
         let display_format = variant.attrs.into_iter().map(|attr| {
-            use syn::Expr;
+            if is_my_error_display(&attr.path) {
+                let expr: Expr = syn::parse2(attr.tts).expect("Need expression");
+                let expr: Box<dyn quote::ToTokens> = match expr {
+                    Expr::Tuple(expr_tuple) => Box::new(expr_tuple.elems),
+                    Expr::Paren(expr_paren) => Box::new(expr_paren.expr),
+                    _ => panic!("Requires a parenthesized format string and optional values"),
+                };
+                DisplayFormat::Direct(expr)
+            } else if attr.path.is_ident("my_error_display_compat") {
+                let meta = attr.parse_meta().expect("Improperly formed attribute");
+                let meta = match meta {
+                    Meta::List(list) => list,
+                    _ => panic!("Only supports a list"),
+                };
+                let mut nested = meta.nested.into_iter().map(|nested| {
+                    let nested = match nested {
+                        NestedMeta::Literal(lit) => lit,
+                        _ => panic!("Only supports a list of literals"),
+                    };
+                    match nested {
+                        Lit::Str(s) => s,
+                        _ => panic!("Only supports a list of literal strings"),
+                    }
+                });
 
-            // my_error::display
-            let expr: Expr = syn::parse2(attr.tts).expect("Need expression");
-            match expr {
-                Expr::Tuple(expr_tuple) => expr_tuple,
-                _ => panic!("Require a tuple of format string and values"),
+                let fmt_str = nested.next().map(|x| Box::new(x) as Box<dyn quote::ToTokens>);
+
+                let fmt_args = nested.map(|nested| {
+                    nested.parse::<Expr>().expect("Strings after the first must be parsable as expressions")
+                }).map(|x| Box::new(x) as Box<dyn quote::ToTokens>);
+
+
+                let nested = fmt_str.into_iter().chain(fmt_args).collect();
+
+                DisplayFormat::Stringified(nested)
+            } else {
+                panic!("Unknown attribute type");
             }
         }).next();
 
@@ -103,6 +135,12 @@ fn parse_my_error_information(ty: syn::DeriveInput) -> EnumInfo {
 
     EnumInfo { name, variants }
 }
+
+fn is_my_error_display(p: &syn::Path) -> bool{
+    let parts = ["my_error", "display"];
+    p.segments.iter().zip(&parts).map(|(a, b)| a.ident == b).all(|b| b)
+}
+
 
 fn generate_my_error(enum_info: EnumInfo) -> proc_macro2::TokenStream {
     use syn::Ident;
@@ -186,9 +224,11 @@ fn generate_my_error(enum_info: EnumInfo) -> proc_macro2::TokenStream {
         let VariantInfo { name: variant_name, user_fields, source_field, display_format, .. } = variant;
 
         let format = match display_format {
-            Some(fmt) => {
-                let inner = &fmt.elems;
-                quote! { #inner }
+            Some(DisplayFormat::Stringified(fmt)) => {
+                quote! { #(#fmt),* }
+            }
+            Some(DisplayFormat::Direct(fmt)) => {
+                quote! { #fmt }
             }
             None => quote! { stringify!(#variant_name) },
         };

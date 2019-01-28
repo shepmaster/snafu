@@ -6,9 +6,11 @@ use std::{fs, io, path::{Path, PathBuf}};
 
 #[derive(Debug, MyError)]
 enum Error {
-    #[my_error::display("Could not open config file at {}: {}", filename.display(), source)]
+    #[my_error_display_compat("Could not open config file at {}: {}", "filename.display()", "source")]
     OpenConfig { filename: PathBuf, source: io::Error },
+    #[my_error::display("Could not open config file at {}", source)]
     SaveConfig { source: io::Error },
+    #[my_error::display("No user available")]
     MissingUser,
 }
 
