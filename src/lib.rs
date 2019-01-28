@@ -26,11 +26,11 @@
 //!
 //! #[derive(Debug, Snafu)]
 //! enum Error {
-//!     #[snafu_display_compat("Could not open config from {}: {}", "filename.display()", "source")]
+//!     #[snafu_display("Could not open config from {}: {}", "filename.display()", "source")]
 //!     OpenConfig { filename: PathBuf, source: std::io::Error },
-//!     #[snafu_display_compat("Could not save config to {}: {}", "filename.display()", "source")]
+//!     #[snafu_display("Could not save config to {}: {}", "filename.display()", "source")]
 //!     SaveConfig { filename: PathBuf, source: std::io::Error },
-//!     #[snafu_display_compat("The user id {} is invalid", "user_id")]
+//!     #[snafu_display("The user id {} is invalid", "user_id")]
 //!     UserIdInvalid { user_id: i32 },
 //! }
 //!
@@ -68,9 +68,9 @@
 //!
 //! #[derive(Debug, Snafu)]
 //! enum Error {
-//!     #[snafu_display_compat("Could not open config at {}: {}", "filename.display()", "source")]
+//!     #[snafu_display("Could not open config at {}: {}", "filename.display()", "source")]
 //!     OpenConfig { filename: PathBuf, source: std::io::Error },
-//!     #[snafu_display_compat("Could not open config: {}", "source")]
+//!     #[snafu_display("Could not open config: {}", "source")]
 //!     SaveConfig { source: std::io::Error },
 //! }
 //! ```

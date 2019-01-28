@@ -3,11 +3,11 @@ use std::{fs, io, path::{Path, PathBuf}};
 
 #[derive(Debug, Snafu)]
 enum Error {
-    #[snafu_display_compat("Could not open config file at {}: {}", "filename.display()", "source")]
+    #[snafu_display("Could not open config file at {}: {}", "filename.display()", "source")]
     OpenConfig { filename: PathBuf, source: io::Error },
-    #[snafu_display_compat("Could not open config file at {}", "source")]
+    #[snafu_display("Could not open config file at {}", "source")]
     SaveConfig { source: io::Error },
-    #[snafu_display_compat("No user available")]
+    #[snafu_display("No user available")]
     MissingUser,
 }
 

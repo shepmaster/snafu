@@ -7,7 +7,7 @@ use syn;
 
 /// See the crate-level documentation for SNAFU which contains tested
 /// examples of this macro.
-#[proc_macro_derive(Snafu, attributes(snafu::display, snafu_display_compat))]
+#[proc_macro_derive(Snafu, attributes(snafu::display, snafu_display))]
 pub fn snafu_derive(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).expect("Could not parse type to derive Error for");
 
@@ -63,7 +63,7 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> EnumInfo {
                     _ => panic!("Requires a parenthesized format string and optional values"),
                 };
                 DisplayFormat::Direct(expr)
-            } else if attr.path.is_ident("snafu_display_compat") {
+            } else if attr.path.is_ident("snafu_display") {
                 let meta = attr.parse_meta().expect("Improperly formed attribute");
                 let meta = match meta {
                     Meta::List(list) => list,
