@@ -250,7 +250,9 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
             Some(source_field) => {
                 let Field { name: field_name, .. } = source_field;
                 quote! {
-                    #enum_name::#variant_name { #field_name, .. } => { Some(#field_name) }
+                    #enum_name::#variant_name { ref #field_name, .. } => {
+                        Some(core::borrow::Borrow::borrow(#field_name))
+                    }
                 }
             }
             None => {
