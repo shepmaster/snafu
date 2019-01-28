@@ -4,6 +4,12 @@ version = "0.1.0"
 authors = ["Jake Goulding <jake.goulding@gmail.com>"]
 edition = "2018"
 
+description = "An ergonomic error handling library"
+documentation = "https://docs.rs/snafu"
+repository = "https://github.com/shepmaster/snafu"
+
+license = "MIT OR Apache-2.0"
+
 [lib]
 proc-macro = true
 
