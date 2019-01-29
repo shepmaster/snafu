@@ -48,7 +48,7 @@
 //!     fs::write(filename, config).context(SaveConfig { filename })?;
 //!
 //!     if user_id != 42 {
-//!         return Err(Error::UserIdInvalid { user_id });
+//!         UserIdInvalid { user_id }.fail()?;
 //!     }
 //!
 //!     Ok(())
@@ -72,17 +72,20 @@
 //!     OpenConfig { filename: PathBuf, source: std::io::Error },
 //!     #[snafu_display("Could not open config: {}", "source")]
 //!     SaveConfig { source: std::io::Error },
+//!     #[snafu_display("The user id {} is invalid", "user_id")]
+//!     UserIdInvalid { user_id: i32 },
 //! }
 //! ```
 //!
 //! #### Generated code
 //!
-//! This will generate two additional types called *context
+//! This will generate three additional types called *context
 //! selectors*:
 //!
 //! ```rust,ignore
 //! struct OpenConfig<P> { filename: P }
 //! struct SaveConfig<P> { filename: P }
+//! struct UserIdInvalid<I> { user_id: I }
 //! ```
 //!
 //! Notably:
@@ -93,13 +96,26 @@
 //! automatically handle this for you.
 //! 1. Each field's type has been replaced with a generic type.
 //!
-//! Each context selector will have an implementation of
-//! [`From`](std::convert::From) for a `snafu::Context`:
+//! If the original variant had a `source` field, its context selector
+//! will have an implementation of [`From`](std::convert::From) for a
+//! `snafu::Context`:
 //!
 //! ```rust,ignore
-//! impl<P> From<Context<Error, OpenConfig<T0>>> for Error
+//! impl<P> From<Context<Error, OpenConfig<P>>> for Error
 //! where
 //!     P: Into<PathBuf>,
+//! ```
+//!
+//! Otherwise, the context selector will have an inherent method
+//! `fail`:
+//!
+//! ```rust,ignore
+//! impl<I> UserIdInvalid<I>
+//! where
+//!     I: Into<i32>,
+//! {
+//!     fn fail<T>(self) -> Result<T, Error> { /* ... */ }
+//! }
 //! ```
 
 pub use snafu_derive::Snafu;

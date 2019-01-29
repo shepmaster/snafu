@@ -148,7 +148,8 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
         let generics_list = quote! { <#(#generic_names),*> } ;
         let selector_name = quote! { #variant_name#generics_list };
 
-        let names = user_fields.iter().map(|f| f.name.clone());
+        let names: Vec<_> = user_fields.iter().map(|f| f.name.clone()).collect();
+        let names = &names;
         let types = generic_names;
 
         let variant_selector_struct = {
@@ -165,6 +166,32 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
             }
         };
 
+        let where_clauses: Vec<_> = generic_names.iter().zip(user_fields).map(|(gen_ty, f)| {
+            let Field { ty, .. } = f;
+            quote! { #gen_ty: core::convert::Into<#ty> }
+        }).collect();
+        let where_clauses = &where_clauses;
+
+        let inherent_impl = if source_field.is_none() {
+            let names2 = names;
+            quote! {
+                impl#generics_list #selector_name
+                where
+                    #(#where_clauses),*
+                {
+                    fn fail<T>(self) -> core::result::Result<T, #enum_name> {
+                        let Self { #(#names),* } = self;
+                        let error = #enum_name::#variant_name {
+                            #( #names: core::convert::Into::into(#names2) ),*
+                        };
+                        core::result::Result::Err(error)
+                    }
+                }
+            }
+        } else {
+            quote! {}
+        };
+
         let enum_from_variant_selector_impl = match source_field {
             Some(source_field) => {
                 let Field { name: source_name, ty: source_ty } = source_field;
@@ -172,11 +199,6 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
                 let other_ty = quote! {
                     snafu::Context<#source_ty, #selector_name>
                 };
-
-                let where_clauses = generic_names.iter().zip(user_fields).map(|(gen_ty, f)| {
-                    let Field { ty, .. } = f;
-                    quote! { #gen_ty: core::convert::Into<#ty> }
-                });
 
                 let user_fields = user_fields.iter().map(|f| {
                     let Field { name, .. } = f;
@@ -204,6 +226,7 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
 
         quote! {
             #variant_selector_struct
+            #inherent_impl
             #enum_from_variant_selector_impl
         }
     });

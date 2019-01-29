@@ -14,7 +14,7 @@ enum OuterError {
 }
 
 fn function_1() -> Result<i32, InnerError> {
-    Err(InnerError::Alpha)
+    Alpha.fail()
 }
 
 fn function_2() -> Result<bool, OuterError> {

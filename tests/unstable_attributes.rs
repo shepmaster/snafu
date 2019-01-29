@@ -24,7 +24,7 @@ fn example(root: impl AsRef<Path>, username: &str) -> Result<()> {
     let config = fs::read(filename).context(OpenConfig { filename })?;
 
     if username.is_empty() {
-        return Err(Error::MissingUser);
+        MissingUser.fail()?;
     }
 
     fs::write(filename, config).context(SaveConfig)?;
