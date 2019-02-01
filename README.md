@@ -2,7 +2,7 @@
 
 **S**ituation **N**ormal: **A**ll **F**ouled **U**p
 
-![crates.io][Crate Logo]
+[![crates.io][Crate Logo]][Crate]
 [![Documentation][Doc Logo]][Doc]
 [![Build Status][CI Logo]][CI]
 
