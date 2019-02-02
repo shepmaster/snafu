@@ -1,4 +1,5 @@
 // This test asserts that a boxed error can be used as a source.
+extern crate snafu;
 
 use snafu::{Snafu, ResultExt};
 

@@ -2,7 +2,6 @@
 name = "snafu"
 version = "0.1.1"
 authors = ["Jake Goulding <jake.goulding@gmail.com>"]
-edition = "2018"
 
 readme = "README.md"
 description = "An ergonomic error handling library"
@@ -14,11 +13,22 @@ license = "MIT OR Apache-2.0"
 keywords = ["error", "ergonomic", "library"]
 categories = ["rust-patterns"]
 
+[features]
+default = ["rust_1_30"]
+
+# New methods on `Error`; re-export of proc-macro
+rust_1_30 = ["snafu-derive/rust_1_30"]
+
+# The `snafu::display` attribute
+unstable_display_attribute = ["snafu-derive/unstable_display_attribute"]
+
 [workspace]
 # The compatibility tests each set feature flags for the library and
 # cannot be in the same crate graph.
 exclude = [
   "compatibility-tests/nightly",
+  "compatibility-tests/v1_30",
+  "compatibility-tests/v1_18",
 ]
 
 [dependencies]

@@ -29,3 +29,40 @@ nightly_test_task:
     - cd compatibility-tests/nightly/
     - cargo test
   before_cache_script: rm -rf $CARGO_HOME/registry/index
+
+v1_30_test_task:
+  name: "Rust 1.30"
+  container:
+    image: rust:1.30
+    cpu: 0.5
+    memory: 512Mi
+  cargo_cache:
+    folder: $CARGO_HOME/registry
+    fingerprint_script: cat Cargo.toml
+  build_script:
+    - cd compatibility-tests/v1_30/
+    - cargo build
+  test_script:
+    - cd compatibility-tests/v1_30/
+    - cargo test
+  before_cache_script: rm -rf $CARGO_HOME/registry/index
+
+v1_18_test_task:
+  name: "Rust 1.18"
+  container:
+    # No Docker container for 1.18
+    image: rust:latest
+    cpu: 0.5
+    memory: 512Mi
+  cargo_cache:
+    folder: $CARGO_HOME/registry
+    fingerprint_script: cat Cargo.toml
+  build_script:
+    - rustup install 1.18.0
+    - rustup default 1.18.0
+    - cd compatibility-tests/v1_18/
+    - cargo build
+  test_script:
+    - cd compatibility-tests/v1_18//
+    - cargo test
+  before_cache_script: rm -rf $CARGO_HOME/registry/index
