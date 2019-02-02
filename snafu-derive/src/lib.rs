@@ -168,7 +168,7 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
 
         let where_clauses: Vec<_> = generic_names.iter().zip(user_fields).map(|(gen_ty, f)| {
             let Field { ty, .. } = f;
-            quote! { #gen_ty: core::convert::Into<#ty> }
+            quote! { #gen_ty: std::convert::Into<#ty> }
         }).collect();
         let where_clauses = &where_clauses;
 
@@ -179,12 +179,12 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
                 where
                     #(#where_clauses),*
                 {
-                    fn fail<T>(self) -> core::result::Result<T, #enum_name> {
+                    fn fail<T>(self) -> std::result::Result<T, #enum_name> {
                         let Self { #(#names),* } = self;
                         let error = #enum_name::#variant_name {
-                            #( #names: core::convert::Into::into(#names2) ),*
+                            #( #names: std::convert::Into::into(#names2) ),*
                         };
-                        core::result::Result::Err(error)
+                        std::result::Result::Err(error)
                     }
                 }
             }
@@ -206,7 +206,7 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
                 });
 
                 quote! {
-                    impl#generics_list core::convert::From<#other_ty> for #enum_name
+                    impl#generics_list std::convert::From<#other_ty> for #enum_name
                     where
                         #(#where_clauses),*
                     {
@@ -256,8 +256,8 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
     });
 
     let display_impl = quote! {
-        impl core::fmt::Display for #enum_name {
-            fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        impl std::fmt::Display for #enum_name {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 #[allow(unused_variables)]
                 match self {
                     #(#variants)*
@@ -274,7 +274,7 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
                 let Field { name: field_name, .. } = source_field;
                 quote! {
                     #enum_name::#variant_name { ref #field_name, .. } => {
-                        Some(core::borrow::Borrow::borrow(#field_name))
+                        Some(std::borrow::Borrow::borrow(#field_name))
                     }
                 }
             }
