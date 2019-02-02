@@ -14,5 +14,7 @@ license = "MIT OR Apache-2.0"
 keywords = ["error", "ergonomic", "library"]
 categories = ["rust-patterns"]
 
+[workspace]
+
 [dependencies]
 snafu-derive = { path = "snafu-derive", version = "0.1.1" }
