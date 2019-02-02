@@ -1,10 +1,31 @@
-container:
-  image: rustlang/rust:nightly
-
-test_task:
+stable_test_task:
+  name: "Rust Stable"
+  container:
+    image: rust:latest
+    cpu: 0.5
+    memory: 512Mi
   cargo_cache:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
   build_script: cargo build
   test_script: cargo test
+  before_cache_script: rm -rf $CARGO_HOME/registry/index
+
+nightly_test_task:
+  name: "Rust Nightly"
+  container:
+    image: rustlang/rust:nightly
+    cpu: 0.5
+    memory: 512Mi
+  cargo_cache:
+    folder: $CARGO_HOME/registry
+    fingerprint_script: cat Cargo.toml
+  build_script:
+    - cargo build
+    - cd compatibility-tests/nightly/
+    - cargo build
+  test_script:
+    - cargo test
+    - cd compatibility-tests/nightly/
+    - cargo test
   before_cache_script: rm -rf $CARGO_HOME/registry/index
