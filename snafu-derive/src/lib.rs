@@ -1,13 +1,18 @@
-extern crate proc_macro;
 extern crate proc_macro2;
+extern crate proc_macro;
+#[macro_use]
+extern crate quote;
+extern crate syn;
 
-use crate::proc_macro::TokenStream;
-use quote::quote;
-use syn;
+use proc_macro::TokenStream;
 
 /// See the crate-level documentation for SNAFU which contains tested
 /// examples of this macro.
-#[proc_macro_derive(Snafu, attributes(snafu::display, snafu_display))]
+
+#[cfg_attr(not(feature = "unstable_display_attribute"),
+           proc_macro_derive(Snafu, attributes(snafu_display)))]
+#[cfg_attr(feature = "unstable_display_attribute",
+           proc_macro_derive(Snafu, attributes(snafu::display, snafu_display)))]
 pub fn snafu_derive(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).expect("Could not parse type to derive Error for");
 
@@ -27,8 +32,8 @@ struct VariantInfo {
 }
 
 enum DisplayFormat {
-    Direct(Box<dyn quote::ToTokens>),
-    Stringified(Vec<Box<dyn quote::ToTokens>>),
+    Direct(Box<quote::ToTokens>),
+    Stringified(Vec<Box<quote::ToTokens>>),
 }
 
 struct Field {
@@ -107,7 +112,7 @@ fn parse_snafu_display_beautiful(attr: syn::Attribute) -> DisplayFormat {
     use syn::Expr;
 
     let expr: Expr = syn::parse2(attr.tts).expect("Need expression");
-    let expr: Box<dyn quote::ToTokens> = match expr {
+    let expr: Box<quote::ToTokens> = match expr {
         Expr::Tuple(expr_tuple) => Box::new(expr_tuple.elems),
         Expr::Paren(expr_paren) => Box::new(expr_paren.expr),
         _ => panic!("Requires a parenthesized format string and optional values"),
@@ -129,11 +134,11 @@ fn parse_snafu_display_nested(meta: syn::MetaList) -> DisplayFormat {
         }
     });
 
-    let fmt_str = nested.next().map(|x| Box::new(x) as Box<dyn quote::ToTokens>);
+    let fmt_str = nested.next().map(|x| Box::new(x) as Box<quote::ToTokens>);
 
     let fmt_args = nested.map(|nested| {
         nested.parse::<Expr>().expect("Strings after the first must be parsable as expressions")
-    }).map(|x| Box::new(x) as Box<dyn quote::ToTokens>);
+    }).map(|x| Box::new(x) as Box<quote::ToTokens>);
 
     let nested = fmt_str.into_iter().chain(fmt_args).collect();
 
@@ -150,7 +155,7 @@ fn parse_snafu_display_nested_name_value(nv: syn::MetaNameValue) -> DisplayForma
 
     let expr = s.parse::<Expr>().expect("Must be a parsable as an expression");
 
-    let expr: Box<dyn quote::ToTokens> = match expr {
+    let expr: Box<quote::ToTokens> = match expr {
         Expr::Tuple(expr_tuple) => Box::new(expr_tuple.elems),
         Expr::Paren(expr_paren) => Box::new(expr_paren.expr),
         _ => panic!("Requires a parenthesized format string and optional values"),
@@ -166,7 +171,7 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
     let enum_name = enum_info.name;
 
     let generated_variant_support = enum_info.variants.iter().map(|variant| {
-        let VariantInfo { name: variant_name, source_field, user_fields, .. } = variant;
+        let VariantInfo { name: ref variant_name, ref source_field, ref user_fields, .. } = *variant;
 
         let generic_names: Vec<_> = (0..)
             .map(|i| Ident::new(&format!("T{}", i), Span::call_site()))
@@ -196,7 +201,7 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
         };
 
         let where_clauses: Vec<_> = generic_names.iter().zip(user_fields).map(|(gen_ty, f)| {
-            let Field { ty, .. } = f;
+            let Field { ref ty, .. } = *f;
             quote! { #gen_ty: std::convert::Into<#ty> }
         }).collect();
         let where_clauses = &where_clauses;
@@ -221,16 +226,16 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
             quote! {}
         };
 
-        let enum_from_variant_selector_impl = match source_field {
-            Some(source_field) => {
-                let Field { name: source_name, ty: source_ty } = source_field;
+        let enum_from_variant_selector_impl = match *source_field {
+            Some(ref source_field) => {
+                let Field { name: ref source_name, ty: ref source_ty } = *source_field;
 
                 let other_ty = quote! {
                     snafu::Context<#source_ty, #selector_name>
                 };
 
                 let user_fields = user_fields.iter().map(|f| {
-                    let Field { name, .. } = f;
+                    let Field { ref name, .. } = *f;
                     quote! { #name: other.context.#name.into() }
                 });
 
@@ -261,13 +266,13 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
     });
 
     let variants = enum_info.variants.iter().map(|variant| {
-        let VariantInfo { name: variant_name, user_fields, source_field, display_format, .. } = variant;
+        let VariantInfo { name: ref variant_name, ref user_fields, ref source_field, ref display_format, .. } = *variant;
 
-        let format = match display_format {
-            Some(DisplayFormat::Stringified(fmt)) => {
+        let format = match *display_format {
+            Some(DisplayFormat::Stringified(ref fmt)) => {
                 quote! { #(#fmt),* }
             }
-            Some(DisplayFormat::Direct(fmt)) => {
+            Some(DisplayFormat::Direct(ref fmt)) => {
                 quote! { #fmt }
             }
             None => quote! { stringify!(#variant_name) },
@@ -275,7 +280,7 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
 
 
         let field_names = user_fields.iter().chain(source_field).map(|f| &f.name);
-        let field_names = quote! { #(#field_names),* };
+        let field_names = quote! { #(ref #field_names),* };
 
         quote! {
             #enum_name::#variant_name { #field_names } => {
@@ -288,7 +293,7 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
         impl std::fmt::Display for #enum_name {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 #[allow(unused_variables)]
-                match self {
+                match *self {
                     #(#variants)*
                 }
             }
@@ -296,11 +301,26 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
     };
 
     let variants = enum_info.variants.iter().map(|variant| {
-        let VariantInfo { name: variant_name, source_field, .. } = variant;
+        let VariantInfo { name: ref variant_name, .. } = *variant;
+        quote! {
+            #enum_name::#variant_name { .. } => stringify!(#enum_name::#variant_name),
+        }
+    });
 
-        match source_field {
-            Some(source_field) => {
-                let Field { name: field_name, .. } = source_field;
+    let description_fn = quote! {
+        fn description(&self) -> &str {
+            match *self {
+                #(#variants)*
+            }
+        }
+    };
+
+    let variants: Vec<_> = enum_info.variants.iter().map(|variant| {
+        let VariantInfo { name: ref variant_name, ref source_field, .. } = *variant;
+
+        match *source_field {
+            Some(ref source_field) => {
+                let Field { name: ref field_name, .. } = *source_field;
                 quote! {
                     #enum_name::#variant_name { ref #field_name, .. } => {
                         Some(std::borrow::Borrow::borrow(#field_name))
@@ -313,15 +333,34 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
                 }
             }
         }
-    });
+    }).collect();
+    let variants = &variants;
 
-    let error_impl = quote! {
-        impl std::error::Error for #enum_name {
-            fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-                match self {
+    let cause_fn = quote! {
+        fn cause(&self) -> Option<&std::error::Error> {
+            match *self {
+                #(#variants)*
+            }
+        }
+    };
+
+    let source_fn = if cfg!(feature = "rust_1_30") {
+        quote! {
+            fn source(&self) -> Option<&(std::error::Error + 'static)> {
+                match *self {
                     #(#variants)*
                 }
             }
+        }
+    } else {
+        quote! {}
+    };
+
+    let error_impl = quote! {
+        impl std::error::Error for #enum_name {
+            #description_fn
+            #cause_fn
+            #source_fn
         }
     };
 

@@ -1,0 +1,8 @@
+[package]
+name = "v1_18"
+version = "0.1.0"
+authors = ["Jake Goulding <jake.goulding@gmail.com>"]
+
+[dependencies]
+snafu = { path = "../..", default-features = false }
+snafu-derive = { path = "../../snafu-derive" }
