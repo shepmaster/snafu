@@ -42,7 +42,7 @@ fn impl_hello_macro(ty: syn::DeriveInput) -> TokenStream {
 }
 
 fn parse_snafu_information(ty: syn::DeriveInput) -> EnumInfo {
-    use syn::{Data, Fields, Expr, Meta, NestedMeta, Lit};
+    use syn::{Data, Fields, Meta};
 
     let enum_ = match ty.data {
         Data::Enum(enum_) => enum_,
@@ -56,40 +56,14 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> EnumInfo {
 
         let display_format = variant.attrs.into_iter().map(|attr| {
             if is_snafu_display(&attr.path) {
-                let expr: Expr = syn::parse2(attr.tts).expect("Need expression");
-                let expr: Box<dyn quote::ToTokens> = match expr {
-                    Expr::Tuple(expr_tuple) => Box::new(expr_tuple.elems),
-                    Expr::Paren(expr_paren) => Box::new(expr_paren.expr),
-                    _ => panic!("Requires a parenthesized format string and optional values"),
-                };
-                DisplayFormat::Direct(expr)
+                parse_snafu_display_beautiful(attr)
             } else if attr.path.is_ident("snafu_display") {
-                let meta = attr.parse_meta().expect("Improperly formed attribute");
-                let meta = match meta {
-                    Meta::List(list) => list,
+                let meta = attr.parse_meta().expect("`snafu_display` attribute is malformed");
+                match meta {
+                    Meta::List(list) => parse_snafu_display_nested(list),
+                    Meta::NameValue(nv) => parse_snafu_display_nested_name_value(nv),
                     _ => panic!("Only supports a list"),
-                };
-                let mut nested = meta.nested.into_iter().map(|nested| {
-                    let nested = match nested {
-                        NestedMeta::Literal(lit) => lit,
-                        _ => panic!("Only supports a list of literals"),
-                    };
-                    match nested {
-                        Lit::Str(s) => s,
-                        _ => panic!("Only supports a list of literal strings"),
-                    }
-                });
-
-                let fmt_str = nested.next().map(|x| Box::new(x) as Box<dyn quote::ToTokens>);
-
-                let fmt_args = nested.map(|nested| {
-                    nested.parse::<Expr>().expect("Strings after the first must be parsable as expressions")
-                }).map(|x| Box::new(x) as Box<dyn quote::ToTokens>);
-
-
-                let nested = fmt_str.into_iter().chain(fmt_args).collect();
-
-                DisplayFormat::Stringified(nested)
+                }
             } else {
                 panic!("Unknown attribute type");
             }
@@ -129,6 +103,61 @@ fn is_snafu_display(p: &syn::Path) -> bool{
     p.segments.iter().zip(&parts).map(|(a, b)| a.ident == b).all(|b| b)
 }
 
+fn parse_snafu_display_beautiful(attr: syn::Attribute) -> DisplayFormat {
+    use syn::Expr;
+
+    let expr: Expr = syn::parse2(attr.tts).expect("Need expression");
+    let expr: Box<dyn quote::ToTokens> = match expr {
+        Expr::Tuple(expr_tuple) => Box::new(expr_tuple.elems),
+        Expr::Paren(expr_paren) => Box::new(expr_paren.expr),
+        _ => panic!("Requires a parenthesized format string and optional values"),
+    };
+    DisplayFormat::Direct(expr)
+}
+
+fn parse_snafu_display_nested(meta: syn::MetaList) -> DisplayFormat {
+    use syn::{Expr, NestedMeta, Lit};
+
+    let mut nested = meta.nested.into_iter().map(|nested| {
+        let nested = match nested {
+            NestedMeta::Literal(lit) => lit,
+            _ => panic!("Only supports a list of literals"),
+        };
+        match nested {
+            Lit::Str(s) => s,
+            _ => panic!("Only supports a list of literal strings"),
+        }
+    });
+
+    let fmt_str = nested.next().map(|x| Box::new(x) as Box<dyn quote::ToTokens>);
+
+    let fmt_args = nested.map(|nested| {
+        nested.parse::<Expr>().expect("Strings after the first must be parsable as expressions")
+    }).map(|x| Box::new(x) as Box<dyn quote::ToTokens>);
+
+    let nested = fmt_str.into_iter().chain(fmt_args).collect();
+
+    DisplayFormat::Stringified(nested)
+}
+
+fn parse_snafu_display_nested_name_value(nv: syn::MetaNameValue) -> DisplayFormat {
+    use syn::{Lit, Expr};
+
+    let s = match nv.lit {
+        Lit::Str(s) => s,
+        _ => panic!("Only supports a litera strings"),
+    };
+
+    let expr = s.parse::<Expr>().expect("Must be a parsable as an expression");
+
+    let expr: Box<dyn quote::ToTokens> = match expr {
+        Expr::Tuple(expr_tuple) => Box::new(expr_tuple.elems),
+        Expr::Paren(expr_paren) => Box::new(expr_paren.expr),
+        _ => panic!("Requires a parenthesized format string and optional values"),
+    };
+
+    DisplayFormat::Direct(expr)
+}
 
 fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
     use syn::Ident;
