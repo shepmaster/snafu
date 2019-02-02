@@ -1,6 +1,6 @@
 [package]
 name = "snafu"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Jake Goulding <jake.goulding@gmail.com>"]
 
 readme = "README.md"
@@ -32,4 +32,4 @@ exclude = [
 ]
 
 [dependencies]
-snafu-derive = { path = "snafu-derive", version = "0.1.1" }
+snafu-derive = { path = "snafu-derive", version = "0.1.2" }
