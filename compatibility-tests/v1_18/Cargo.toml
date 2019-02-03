@@ -4,5 +4,5 @@ version = "0.1.0"
 authors = ["Jake Goulding <jake.goulding@gmail.com>"]
 
 [dependencies]
-snafu = { path = "../..", default-features = false }
+snafu = { path = "../..", default-features = false, features = ["backtraces"] }
 snafu-derive = { path = "../../snafu-derive" }

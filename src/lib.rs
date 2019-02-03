@@ -21,7 +21,7 @@
 //! method to provide ergonomic error handling.
 //!
 //! ```rust
-//! use snafu::{Snafu, ResultExt};
+//! use snafu::{Snafu, ResultExt, Backtrace, ErrorCompat};
 //! use std::{fs, path::{Path, PathBuf}};
 //!
 //! #[derive(Debug, Snafu)]
@@ -31,12 +31,12 @@
 //!     #[snafu_display("Could not save config to {}: {}", "filename.display()", "source")]
 //!     SaveConfig { filename: PathBuf, source: std::io::Error },
 //!     #[snafu_display("The user id {} is invalid", "user_id")]
-//!     UserIdInvalid { user_id: i32 },
+//!     UserIdInvalid { user_id: i32, backtrace: Backtrace },
 //! }
 //!
 //! type Result<T, E = Error> = std::result::Result<T, E>;
 //!
-//! fn log_in_user<P>(config_root: P, user_id: i32) -> Result<()>
+//! fn log_in_user<P>(config_root: P, user_id: i32) -> Result<bool>
 //! where
 //!     P: AsRef<Path>,
 //! {
@@ -51,7 +51,22 @@
 //!         UserIdInvalid { user_id }.fail()?;
 //!     }
 //!
-//!     Ok(())
+//!     Ok(true)
+//! }
+//!
+//! # const CONFIG_DIRECTORY: &str = "/does/not/exist";
+//! # const USER_ID: i32 = 0;
+//! fn log_in() {
+//!     match log_in_user(CONFIG_DIRECTORY, USER_ID) {
+//!         Ok(true) => println!("Logged in!"),
+//!         Ok(false) => println!("Not logged in!"),
+//!         Err(e) => {
+//!             eprintln!("An error occurred: {}", e);
+//!             if let Some(backtrace) = ErrorCompat::backtrace(&e) {
+//!                 println!("{}", backtrace);
+//!             }
+//!         }
+//!     }
 //! }
 //! ```
 //!
@@ -92,9 +107,10 @@
 //!
 //! 1. One struct is created for each enum variant.
 //! 1. The name of the struct is the same as the enum variant's name.
-//! 1. The `source` field has been removed; the library will
-//! automatically handle this for you.
-//! 1. Each field's type has been replaced with a generic type.
+//! 1. The `source` and `backtrace` fields have been removed; the
+//!    library will automatically handle this for you.
+//! 1. Each remaining field's type has been replaced with a generic
+//!    type.
 //!
 //! If the original variant had a `source` field, its context selector
 //! will have an implementation of [`From`](std::convert::From) for a
@@ -117,6 +133,10 @@
 //!     fn fail<T>(self) -> Result<T, Error> { /* ... */ }
 //! }
 //! ```
+//!
+//! If the original variant had a `backtrace` field, the backtrace
+//! will be automatically constructed when either `From` or `fail` are
+//! called.
 //!
 //! ### Attributes
 //!
@@ -168,6 +188,17 @@
 //!
 //! - Adds support for the `snafu::display` attribute.
 //!
+//! ## Other feature flags
+//!
+//! ### `backtraces`
+//!
+//! When enabled, you can use the [`Backtrace`](Backtrace) type in
+//! your enum variant. If you never use backtraces, you can omit this
+//! feature to speed up compilation a small amount.
+
+#[cfg(feature = "backtraces")]
+extern crate backtrace;
+
 #[cfg(feature = "rust_1_30")]
 extern crate snafu_derive;
 #[cfg(feature = "rust_1_30")]
@@ -335,5 +366,123 @@ impl<T, E> ResultExt<T, E> for std::result::Result<T, E> {
             let context = context();
             Context { error, context }
         })
+    }
+}
+
+/// Backports changes to the [`Error`](std::error::Error) trait to
+/// versions of Rust lacking them.
+///
+/// It is recommended to always call these methods explicitly so that
+/// it is easy to replace usages of this trait when you start
+/// supporting a newer version of Rust.
+///
+/// ```
+/// # use snafu::{Snafu, ErrorCompat};
+/// # #[derive(Debug, Snafu)] enum Example {};
+/// # fn example(error: Example) {
+/// ErrorCompat::backtrace(&error); // Recommended
+/// error.backtrace();              // Discouraged
+/// # }
+/// ```
+pub trait ErrorCompat {
+    /// Returns a [`Backtrace`](Backtrace) that may be printed.
+    #[cfg(feature = "backtraces")]
+    fn backtrace(&self) -> Option<&Backtrace> {
+        None
+    }
+}
+
+#[cfg(feature = "backtraces")]
+pub use backtrace_shim::*;
+
+#[cfg(feature = "backtraces")]
+mod backtrace_shim {
+    use backtrace;
+    use std::{fmt, path};
+
+    /// A backtrace starting from the beginning of the thread.
+    #[derive(Debug)]
+    pub struct Backtrace(backtrace::Backtrace);
+
+    impl Backtrace {
+        /// Creates the backtrace.
+        // Inlining in an attempt to remove this function from the backtrace
+        #[inline(always)]
+        pub fn new() -> Self {
+            Backtrace(backtrace::Backtrace::new())
+        }
+    }
+
+    impl Default for Backtrace {
+        // Inlining in an attempt to remove this function from the backtrace
+        #[inline(always)]
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
+    impl fmt::Display for Backtrace {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            let frames = self.0.frames();
+            let width = (frames.len() as f32).log10().floor() as usize + 1;
+
+            for (index, frame) in frames.iter().enumerate() {
+                let mut symbols = frame.symbols().iter().map(SymbolDisplay);
+
+                if let Some(symbol) = symbols.next() {
+                    writeln!(f, "{index:width$} {name}", index = index, width = width, name = symbol.name())?;
+                    if let Some(location) = symbol.location() {
+                        writeln!(f, "{index:width$} {location}", index = "", width = width, location = location)?;
+                    }
+
+                    for symbol in symbols {
+                        writeln!(f, "{index:width$} {name}", index = "", width = width, name = symbol.name())?;
+                        if let Some(location) = symbol.location() {
+                            writeln!(f, "{index:width$} {location}", index = "", width = width, location = location)?;
+                        }
+                    }
+                }
+            }
+
+            Ok(())
+        }
+    }
+
+    struct SymbolDisplay<'a>(&'a backtrace::BacktraceSymbol);
+
+    impl<'a> SymbolDisplay<'a> {
+        fn name(&self) -> SymbolNameDisplay<'a> {
+            SymbolNameDisplay(self.0)
+        }
+
+        fn location(&self) -> Option<SymbolLocationDisplay<'a>> {
+            self.0.filename().map(|f| SymbolLocationDisplay(self.0, f))
+        }
+    }
+
+    struct SymbolNameDisplay<'a>(&'a backtrace::BacktraceSymbol);
+
+    impl<'a> fmt::Display for SymbolNameDisplay<'a> {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            match self.0.name() {
+                Some(n) => write!(f, "{}", n)?,
+                None => write!(f, "<unknown>")?,
+            }
+
+            Ok(())
+        }
+    }
+
+    struct SymbolLocationDisplay<'a>(&'a backtrace::BacktraceSymbol, &'a path::Path);
+
+    impl<'a> fmt::Display for SymbolLocationDisplay<'a> {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            write!(f, "{}", self.1.display())?;
+            if let Some(l) = self.0.lineno() {
+                write!(f, ":{}", l)?;
+            }
+
+            Ok(())
+        }
     }
 }

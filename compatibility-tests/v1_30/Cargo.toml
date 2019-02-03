@@ -4,4 +4,4 @@ version = "0.1.0"
 authors = ["Jake Goulding <jake.goulding@gmail.com>"]
 
 [dependencies]
-snafu = { path = "../..", default-features = false, features = ["rust_1_30"] }
+snafu = { path = "../..", default-features = false, features = ["rust_1_30", "backtraces"] }

@@ -27,6 +27,7 @@ struct EnumInfo {
 struct VariantInfo {
     name: syn::Ident,
     source_field: Option<Field>,
+    backtrace_field: Option<Field>,
     user_fields: Vec<Field>,
     display_format: Option<DisplayFormat>,
 }
@@ -82,6 +83,7 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> EnumInfo {
 
         let mut user_fields = Vec::new();
         let mut source_fields = Vec::new();
+        let mut backtrace_fields = Vec::new();
 
         for field in fields {
             let name = field.ident.expect("Must have a named field");
@@ -89,6 +91,8 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> EnumInfo {
 
             if field.name == "source" {
                 source_fields.push(field);
+            } else if field.name == "backtrace" {
+                backtrace_fields.push(field);
             } else {
                 user_fields.push(field);
             }
@@ -97,7 +101,10 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> EnumInfo {
         let source_field = source_fields.pop();
         // Report a warning if there are multiple?
 
-        VariantInfo { name, source_field, user_fields, display_format }
+        let backtrace_field = backtrace_fields.pop();
+        // Report a warning if there are multiple?
+
+        VariantInfo { name, source_field, backtrace_field, user_fields, display_format }
     }).collect();
 
     EnumInfo { name, variants }
@@ -171,7 +178,7 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
     let enum_name = enum_info.name;
 
     let generated_variant_support = enum_info.variants.iter().map(|variant| {
-        let VariantInfo { name: ref variant_name, ref source_field, ref user_fields, .. } = *variant;
+        let VariantInfo { name: ref variant_name, ref source_field, ref backtrace_field, ref user_fields, .. } = *variant;
 
         let generic_names: Vec<_> = (0..)
             .map(|i| Ident::new(&format!("T{}", i), Span::call_site()))
@@ -200,6 +207,13 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
             }
         };
 
+        let backtrace_field = match *backtrace_field {
+            Some(_) => {
+                quote! { backtrace: std::default::Default::default(), }
+            }
+            None => quote! {},
+        };
+
         let where_clauses: Vec<_> = generic_names.iter().zip(user_fields).map(|(gen_ty, f)| {
             let Field { ref ty, .. } = *f;
             quote! { #gen_ty: std::convert::Into<#ty> }
@@ -216,6 +230,7 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
                     fn fail<T>(self) -> std::result::Result<T, #enum_name> {
                         let Self { #(#names),* } = self;
                         let error = #enum_name::#variant_name {
+                            #backtrace_field
                             #( #names: std::convert::Into::into(#names2) ),*
                         };
                         std::result::Result::Err(error)
@@ -247,6 +262,7 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
                         fn from(other: #other_ty) -> Self {
                             #enum_name::#variant_name {
                                 #source_name: other.error,
+                                #backtrace_field
                                 #(#user_fields),*
                             }
                         }
@@ -266,7 +282,7 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
     });
 
     let variants = enum_info.variants.iter().map(|variant| {
-        let VariantInfo { name: ref variant_name, ref user_fields, ref source_field, ref display_format, .. } = *variant;
+        let VariantInfo { name: ref variant_name, ref user_fields, ref source_field, ref backtrace_field, ref display_format, .. } = *variant;
 
         let format = match *display_format {
             Some(DisplayFormat::Stringified(ref fmt)) => {
@@ -279,7 +295,7 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
         };
 
 
-        let field_names = user_fields.iter().chain(source_field).map(|f| &f.name);
+        let field_names = user_fields.iter().chain(source_field).chain(backtrace_field).map(|f| &f.name);
         let field_names = quote! { #(ref #field_names),* };
 
         quote! {
@@ -364,9 +380,46 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
         }
     };
 
+    let variants = enum_info.variants.iter().map(|variant| {
+        let VariantInfo { name: ref variant_name, ref backtrace_field, .. } = *variant;
+
+        match *backtrace_field {
+            Some(ref backtrace_field) => {
+                let Field { name: ref field_name, .. } = *backtrace_field;
+                quote! {
+                    #enum_name::#variant_name { ref #field_name, .. } => { Some(#field_name) }
+                }
+            }
+            None => {
+                quote! {
+                    #enum_name::#variant_name { .. } => { None }
+                }
+            }
+        }
+    });
+
+    let backtrace_fn = if cfg!(feature = "backtraces") {
+        quote! {
+            fn backtrace(&self) -> Option<&snafu::Backtrace> {
+                match *self {
+                    #(#variants),*
+                }
+            }
+        }
+    } else {
+        quote! { }
+    };
+
+    let error_compat_impl = quote ! {
+        impl snafu::ErrorCompat for #enum_name {
+            #backtrace_fn
+        }
+    };
+
     quote! {
         #(#generated_variant_support)*
         #display_impl
         #error_impl
+        #error_compat_impl
     }
 }
