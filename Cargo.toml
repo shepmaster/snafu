@@ -13,6 +13,12 @@ license = "MIT OR Apache-2.0"
 keywords = ["error", "ergonomic", "library"]
 categories = ["rust-patterns"]
 
+exclude = [
+  "/.cirrus.yml",
+  "/.gitignore",
+  "/rust-toolchain",
+]
+
 [features]
 default = ["rust_1_30", "backtraces"]
 
