@@ -1,6 +1,6 @@
 extern crate snafu;
 
-use snafu::{Snafu, ResultExt};
+use snafu::{Snafu, ResultExt, Backtrace, ErrorCompat};
 use std::{fs, io, path::{Path, PathBuf}};
 
 #[derive(Debug, Snafu)]
@@ -10,7 +10,7 @@ enum Error {
     #[snafu_display("Could not open config file at {}", "source")]
     SaveConfig { source: io::Error },
     #[snafu_display("User ID {} is invalid", "user_id")]
-    InvalidUser { user_id: i32 },
+    InvalidUser { user_id: i32, backtrace: Backtrace },
     #[snafu_display("No user available")]
     MissingUser,
 }
@@ -40,5 +40,6 @@ fn example(root: impl AsRef<Path>, user_id: Option<i32>) -> Result<()> {
 fn implements_error() {
     fn check<T: std::error::Error>() {}
     check::<Error>();
-    example("/some/directory/that/does/not/exist", None).unwrap_err();
+    let e = example("/some/directory/that/does/not/exist", None).unwrap_err();
+    ErrorCompat::backtrace(&e);
 }

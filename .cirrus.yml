@@ -7,8 +7,13 @@ stable_test_task:
   cargo_cache:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
-  build_script: cargo build
-  test_script: cargo test
+  build_script:
+    - rustc --version
+    - cargo build
+    - cargo build --manifest-path compatibility-tests/without-backtrace/Cargo.toml
+  test_script:
+    - cargo test
+    - cargo test --manifest-path compatibility-tests/without-backtrace/Cargo.toml
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
 nightly_test_task:
@@ -21,13 +26,14 @@ nightly_test_task:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
   build_script:
-    - cargo build
     - cd compatibility-tests/nightly/
+    - rustc --version
     - cargo build
+    - cargo build --manifest-path ../../Cargo.toml
   test_script:
-    - cargo test
     - cd compatibility-tests/nightly/
     - cargo test
+    - cargo test --manifest-path ../../Cargo.toml
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
 v1_30_test_task:
@@ -41,6 +47,7 @@ v1_30_test_task:
     fingerprint_script: cat Cargo.toml
   build_script:
     - cd compatibility-tests/v1_30/
+    - rustc --version
     - cargo build
   test_script:
     - cd compatibility-tests/v1_30/
@@ -61,8 +68,14 @@ v1_18_test_task:
     - rustup install 1.18.0
     - rustup default 1.18.0
     - cd compatibility-tests/v1_18/
+    - rustc --version
+    - cargo generate-lockfile
+    # These versions determined by trial and error
+    - cargo update -p backtrace --precise 0.3.0
+    - cargo update -p backtrace-sys --precise 0.1.3
+    - cargo update -p libc --precise 0.2.7
     - cargo build
   test_script:
-    - cd compatibility-tests/v1_18//
+    - cd compatibility-tests/v1_18/
     - cargo test
   before_cache_script: rm -rf $CARGO_HOME/registry/index

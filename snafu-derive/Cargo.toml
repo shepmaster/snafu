@@ -10,6 +10,7 @@ repository = "https://github.com/shepmaster/snafu"
 license = "MIT OR Apache-2.0"
 
 [features]
+backtraces = []
 rust_1_30 = []
 unstable_display_attribute = []
 
