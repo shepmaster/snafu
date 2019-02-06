@@ -1,7 +1,7 @@
 // This test asserts that a boxed error can be used as a source.
 extern crate snafu;
 
-use snafu::{Snafu, ResultExt};
+use snafu::{ResultExt, Snafu};
 
 mod api {
     pub type Error = Box<dyn std::error::Error + 'static>;

@@ -1,6 +1,6 @@
 extern crate snafu;
 
-use snafu::{Backtrace, Snafu, ResultExt, ErrorCompat, ensure};
+use snafu::{ensure, Backtrace, ErrorCompat, ResultExt, Snafu};
 
 type AnotherError = Box<std::error::Error>;
 
@@ -8,8 +8,15 @@ type AnotherError = Box<std::error::Error>;
 enum Error {
     #[snafu_display("Invalid user {}:\n{}", "user_id", "backtrace")]
     InvalidUser { user_id: i32, backtrace: Backtrace },
-    WithSource { source: AnotherError, backtrace: Backtrace },
-    WithSourceAndOtherInfo { user_id: i32, source: AnotherError, backtrace: Backtrace },
+    WithSource {
+        source: AnotherError,
+        backtrace: Backtrace,
+    },
+    WithSourceAndOtherInfo {
+        user_id: i32,
+        source: AnotherError,
+        backtrace: Backtrace,
+    },
 }
 
 type Result<T, E = Error> = std::result::Result<T, E>;
@@ -34,7 +41,9 @@ fn example(user_id: i32) -> Result<()> {
 #[test]
 fn has_a_backtrace() {
     let e = example(0).unwrap_err();
-    let text = ErrorCompat::backtrace(&e).map(ToString::to_string).unwrap_or_default();
+    let text = ErrorCompat::backtrace(&e)
+        .map(ToString::to_string)
+        .unwrap_or_default();
     assert!(text.contains("check_less_than"));
 }
 
@@ -45,7 +54,9 @@ fn display_can_access_backtrace() {
     assert!(text.contains("check_less_than"));
 }
 
-fn trigger() -> Result<(), AnotherError> { Err("boom".into()) }
+fn trigger() -> Result<(), AnotherError> {
+    Err("boom".into())
+}
 
 #[test]
 fn errors_with_sources_can_have_backtraces() {
@@ -54,5 +65,7 @@ fn errors_with_sources_can_have_backtraces() {
 
 #[test]
 fn errors_with_sources_and_other_info_can_have_backtraces() {
-    let _e: Error = trigger().eager_context(WithSourceAndOtherInfo { user_id: 42 }).unwrap_err();
+    let _e: Error = trigger()
+        .eager_context(WithSourceAndOtherInfo { user_id: 42 })
+        .unwrap_err();
 }
