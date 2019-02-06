@@ -23,7 +23,7 @@
 //! method to provide ergonomic error handling.
 //!
 //! ```rust
-//! use snafu::{Snafu, ResultExt, Backtrace, ErrorCompat};
+//! use snafu::{Snafu, ResultExt, Backtrace, ErrorCompat, ensure};
 //! use std::{fs, path::{Path, PathBuf}};
 //!
 //! #[derive(Debug, Snafu)]
@@ -49,9 +49,7 @@
 //!     // Perform updates to config
 //!     fs::write(filename, config).context(SaveConfig { filename })?;
 //!
-//!     if user_id != 42 {
-//!         UserIdInvalid { user_id }.fail()?;
-//!     }
+//!     ensure!(user_id == 42, UserIdInvalid { user_id });
 //!
 //!     Ok(true)
 //! }
@@ -125,7 +123,7 @@
 //! ```
 //!
 //! Otherwise, the context selector will have an inherent method
-//! `fail`:
+//! `fail` and can be used with the [`ensure`](ensure) macro:
 //!
 //! ```rust,ignore
 //! impl<I> UserIdInvalid<I>
@@ -205,6 +203,31 @@ extern crate backtrace;
 extern crate snafu_derive;
 #[cfg(feature = "rust_1_30")]
 pub use snafu_derive::Snafu;
+
+/// Ensure a condition is true. If it is not, return from the function
+/// with an error.
+///
+/// ```rust
+/// use snafu::{Snafu, ensure};
+///
+/// #[derive(Debug, Snafu)]
+/// enum Error {
+///     InvalidUser { user_id: i32 },
+/// }
+///
+/// fn example(user_id: i32) -> Result<(), Error> {
+///     ensure!(user_id > 0, InvalidUser { user_id });
+///     // After this point, we know that `user_id` is positive.
+///     let user_id = user_id as u32;
+///     Ok(())
+/// }
+/// ```
+#[macro_export]
+macro_rules! ensure {
+    ($predicate:expr, $context_selector:expr) => (
+        if !$predicate { return $context_selector.fail() }
+    );
+}
 
 /// A combination of an underlying error and additional information
 /// about the error. It is not expected for users of this crate to
