@@ -1,3 +1,5 @@
+#![deny(missing_docs)]
+
 //! # SNAFU
 //!
 //! ## Design philosophy
