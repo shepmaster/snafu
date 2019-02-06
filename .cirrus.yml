@@ -7,6 +7,8 @@ stable_test_task:
   cargo_cache:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
+  setup_script:
+    - rustup component add rustfmt
   build_script:
     - rustc --version
     - cargo build
@@ -14,6 +16,8 @@ stable_test_task:
   test_script:
     - cargo test
     - cargo test --manifest-path compatibility-tests/without-backtrace/Cargo.toml
+  lint_script:
+    - cargo fmt --all -- --check
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
 nightly_test_task:
@@ -64,9 +68,10 @@ v1_18_test_task:
   cargo_cache:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
-  build_script:
+  setup_script:
     - rustup install 1.18.0
     - rustup default 1.18.0
+  build_script:
     - cd compatibility-tests/v1_18/
     - rustc --version
     - cargo generate-lockfile
