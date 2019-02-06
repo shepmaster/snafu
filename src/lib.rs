@@ -224,9 +224,11 @@ pub use snafu_derive::Snafu;
 /// ```
 #[macro_export]
 macro_rules! ensure {
-    ($predicate:expr, $context_selector:expr) => (
-        if !$predicate { return $context_selector.fail() }
-    );
+    ($predicate:expr, $context_selector:expr) => {
+        if !$predicate {
+            return $context_selector.fail();
+        }
+    };
 }
 
 /// A combination of an underlying error and additional information
@@ -455,15 +457,39 @@ mod backtrace_shim {
                 let mut symbols = frame.symbols().iter().map(SymbolDisplay);
 
                 if let Some(symbol) = symbols.next() {
-                    writeln!(f, "{index:width$} {name}", index = index, width = width, name = symbol.name())?;
+                    writeln!(
+                        f,
+                        "{index:width$} {name}",
+                        index = index,
+                        width = width,
+                        name = symbol.name()
+                    )?;
                     if let Some(location) = symbol.location() {
-                        writeln!(f, "{index:width$} {location}", index = "", width = width, location = location)?;
+                        writeln!(
+                            f,
+                            "{index:width$} {location}",
+                            index = "",
+                            width = width,
+                            location = location
+                        )?;
                     }
 
                     for symbol in symbols {
-                        writeln!(f, "{index:width$} {name}", index = "", width = width, name = symbol.name())?;
+                        writeln!(
+                            f,
+                            "{index:width$} {name}",
+                            index = "",
+                            width = width,
+                            name = symbol.name()
+                        )?;
                         if let Some(location) = symbol.location() {
-                            writeln!(f, "{index:width$} {location}", index = "", width = width, location = location)?;
+                            writeln!(
+                                f,
+                                "{index:width$} {location}",
+                                index = "",
+                                width = width,
+                                location = location
+                            )?;
                         }
                     }
                 }

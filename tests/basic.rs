@@ -1,12 +1,18 @@
 extern crate snafu;
 
-use snafu::{Snafu, ResultExt};
-use std::{fs, io, path::{Path, PathBuf}};
+use snafu::{ResultExt, Snafu};
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+};
 
 #[derive(Debug, Snafu)]
 enum Error {
     #[snafu_display("Could not open config file at {}: {}", "filename.display()", "source")]
-    OpenConfig { filename: PathBuf, source: io::Error },
+    OpenConfig {
+        filename: PathBuf,
+        source: io::Error,
+    },
     #[snafu_display("Could not open config file at {}", "source")]
     SaveConfig { source: io::Error },
     #[snafu_display("User ID {} is invalid", "user_id")]
