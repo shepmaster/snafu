@@ -48,7 +48,7 @@ struct Field {
 
 fn impl_hello_macro(ty: syn::DeriveInput) -> TokenStream {
     let info = parse_snafu_information(ty);
-    generate_snafu(info).into()
+    info.into()
 }
 
 fn parse_snafu_information(ty: syn::DeriveInput) -> EnumInfo {
@@ -201,32 +201,71 @@ fn parse_snafu_display_nested_name_value(nv: syn::MetaNameValue) -> DisplayForma
     DisplayFormat::Direct(expr)
 }
 
-fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
-    use proc_macro2::Span;
-    use syn::Ident;
+impl From<EnumInfo> for proc_macro::TokenStream {
+    fn from(other: EnumInfo) -> proc_macro::TokenStream {
+        other.generate_snafu().into()
+    }
+}
 
-    let enum_name = enum_info.name;
+impl EnumInfo {
+    fn generate_snafu(self) -> proc_macro2::TokenStream {
+        let context_selectors = ContextSelectors(&self);
+        let display_impl = DisplayImpl(&self);
+        let error_impl = ErrorImpl(&self);
+        let error_compat_impl = ErrorCompatImpl(&self);
 
-    let generated_variant_support = enum_info.variants.iter().map(|variant| {
+        quote! {
+            #context_selectors
+            #display_impl
+            #error_impl
+            #error_compat_impl
+        }
+    }
+}
+
+struct ContextSelectors<'a>(&'a EnumInfo);
+
+impl<'a> quote::ToTokens for ContextSelectors<'a> {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        let context_selectors = self
+            .0
+            .variants
+            .iter()
+            .map(|variant| ContextSelector(self.0, variant));
+
+        stream.extend({
+            quote! {
+                #(#context_selectors)*
+            }
+        })
+    }
+}
+
+struct ContextSelector<'a>(&'a EnumInfo, &'a VariantInfo);
+
+impl<'a> quote::ToTokens for ContextSelector<'a> {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        use proc_macro2::Span;
+        use syn::Ident;
+
+        let enum_name = &self.0.name;
         let VariantInfo {
             name: ref variant_name,
             ref source_field,
             ref backtrace_field,
             ref user_fields,
             ..
-        } = *variant;
+        } = *self.1;
 
-        let generic_names: Vec<_> = (0..)
+        let generic_names: &Vec<_> = &(0..)
             .map(|i| Ident::new(&format!("T{}", i), Span::call_site()))
             .take(user_fields.len())
             .collect();
-        let generic_names = &generic_names;
 
         let generics_list = quote! { <#(#generic_names),*> };
         let selector_name = quote! { #variant_name#generics_list };
 
-        let names: Vec<_> = user_fields.iter().map(|f| f.name.clone()).collect();
-        let names = &names;
+        let names: &Vec<_> = &user_fields.iter().map(|f| f.name.clone()).collect();
         let types = generic_names;
 
         let variant_selector_struct = {
@@ -250,7 +289,7 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
             None => quote! {},
         };
 
-        let where_clauses: Vec<_> = generic_names
+        let where_clauses: &Vec<_> = &generic_names
             .iter()
             .zip(user_fields)
             .map(|(gen_ty, f)| {
@@ -258,7 +297,6 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
                 quote! { #gen_ty: std::convert::Into<#ty> }
             })
             .collect();
-        let where_clauses = &where_clauses;
 
         let inherent_impl = if source_field.is_none() {
             let names2 = names;
@@ -317,96 +355,206 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
             }
         };
 
-        quote! {
-            #variant_selector_struct
-            #inherent_impl
-            #enum_from_variant_selector_impl
-        }
-    });
-
-    let variants = enum_info.variants.iter().map(|variant| {
-        let VariantInfo {
-            name: ref variant_name,
-            ref user_fields,
-            ref source_field,
-            ref backtrace_field,
-            ref display_format,
-            ..
-        } = *variant;
-
-        let format = match *display_format {
-            Some(DisplayFormat::Stringified(ref fmt)) => {
-                quote! { #(#fmt),* }
+        stream.extend({
+            quote! {
+                #variant_selector_struct
+                #inherent_impl
+                #enum_from_variant_selector_impl
             }
-            Some(DisplayFormat::Direct(ref fmt)) => {
-                quote! { #fmt }
-            }
-            None => quote! { stringify!(#variant_name) },
-        };
+        })
+    }
+}
 
-        let field_names = user_fields
+struct DisplayImpl<'a>(&'a EnumInfo);
+
+impl<'a> DisplayImpl<'a> {
+    fn variants_to_display(&self) -> Vec<proc_macro2::TokenStream> {
+        let enum_name = &self.0.name;
+
+        self.0
+            .variants
             .iter()
-            .chain(source_field)
-            .chain(backtrace_field)
-            .map(|f| &f.name);
-        let field_names = quote! { #(ref #field_names),* };
+            .map(|variant| {
+                let VariantInfo {
+                    name: ref variant_name,
+                    ref user_fields,
+                    ref source_field,
+                    ref backtrace_field,
+                    ref display_format,
+                    ..
+                } = *variant;
 
-        quote! {
-            #enum_name::#variant_name { #field_names } => {
-                write!(f, #format)
-            }
-        }
-    });
+                let format = match *display_format {
+                    Some(DisplayFormat::Stringified(ref fmt)) => {
+                        quote! { #(#fmt),* }
+                    }
+                    Some(DisplayFormat::Direct(ref fmt)) => {
+                        quote! { #fmt }
+                    }
+                    None => quote! { stringify!(#variant_name) },
+                };
 
-    let display_impl = quote! {
-        impl std::fmt::Display for #enum_name {
-            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                #[allow(unused_variables)]
-                match *self {
-                    #(#variants)*
+                let field_names = user_fields
+                    .iter()
+                    .chain(source_field)
+                    .chain(backtrace_field)
+                    .map(|f| &f.name);
+                let field_names = quote! { #(ref #field_names),* };
+
+                quote! {
+                    #enum_name::#variant_name { #field_names } => {
+                        write!(f, #format)
+                    }
+                }
+            })
+            .collect()
+    }
+}
+
+impl<'a> quote::ToTokens for DisplayImpl<'a> {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        let enum_name = &self.0.name;
+
+        let variants_to_display = &self.variants_to_display();
+
+        stream.extend({
+            quote! {
+                impl std::fmt::Display for #enum_name {
+                    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                        #[allow(unused_variables)]
+                        match *self {
+                            #(#variants_to_display)*
+                        }
+                    }
                 }
             }
-        }
-    };
+        })
+    }
+}
 
-    let variants = enum_info.variants.iter().map(|variant| {
-        let VariantInfo {
-            name: ref variant_name,
-            ..
-        } = *variant;
-        quote! {
-            #enum_name::#variant_name { .. } => stringify!(#enum_name::#variant_name),
-        }
-    });
+struct ErrorImpl<'a>(&'a EnumInfo);
 
-    let description_fn = quote! {
-        fn description(&self) -> &str {
-            match *self {
-                #(#variants)*
+impl<'a> ErrorImpl<'a> {
+    fn variants_to_description(&self) -> Vec<proc_macro2::TokenStream> {
+        let enum_name = &self.0.name;
+        self.0
+            .variants
+            .iter()
+            .map(|variant| {
+                let VariantInfo {
+                    name: ref variant_name,
+                    ..
+                } = *variant;
+                quote! {
+                    #enum_name::#variant_name { .. } => stringify!(#enum_name::#variant_name),
+                }
+            })
+            .collect()
+    }
+
+    fn variants_to_source(&self) -> Vec<proc_macro2::TokenStream> {
+        let enum_name = &self.0.name;
+        self.0
+            .variants
+            .iter()
+            .map(|variant| {
+                let VariantInfo {
+                    name: ref variant_name,
+                    ref source_field,
+                    ..
+                } = *variant;
+
+                match *source_field {
+                    Some(ref source_field) => {
+                        let Field {
+                            name: ref field_name,
+                            ..
+                        } = *source_field;
+                        quote! {
+                            #enum_name::#variant_name { ref #field_name, .. } => {
+                                Some(std::borrow::Borrow::borrow(#field_name))
+                            }
+                        }
+                    }
+                    None => {
+                        quote! {
+                            #enum_name::#variant_name { .. } => { None }
+                        }
+                    }
+                }
+            })
+            .collect()
+    }
+}
+
+impl<'a> quote::ToTokens for ErrorImpl<'a> {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        let enum_name = &self.0.name;
+
+        let variants_to_description = &self.variants_to_description();
+
+        let description_fn = quote! {
+            fn description(&self) -> &str {
+                match *self {
+                    #(#variants_to_description)*
+                }
             }
-        }
-    };
+        };
 
-    let variants: Vec<_> = enum_info
-        .variants
-        .iter()
-        .map(|variant| {
+        let variants_to_source = &self.variants_to_source();
+
+        let cause_fn = quote! {
+            fn cause(&self) -> Option<&std::error::Error> {
+                match *self {
+                    #(#variants_to_source)*
+                }
+            }
+        };
+
+        let source_fn = if cfg!(feature = "rust_1_30") {
+            quote! {
+                fn source(&self) -> Option<&(std::error::Error + 'static)> {
+                    match *self {
+                        #(#variants_to_source)*
+                    }
+                }
+            }
+        } else {
+            quote! {}
+        };
+
+        stream.extend({
+            quote! {
+                impl std::error::Error for #enum_name {
+                    #description_fn
+                    #cause_fn
+                    #source_fn
+                }
+            }
+        })
+    }
+}
+
+struct ErrorCompatImpl<'a>(&'a EnumInfo);
+
+impl<'a> ErrorCompatImpl<'a> {
+    fn variants_to_backtrace(&self) -> Vec<proc_macro2::TokenStream> {
+        let enum_name = &self.0.name;
+        self.0.variants.iter().map(|variant| {
             let VariantInfo {
                 name: ref variant_name,
-                ref source_field,
+                ref backtrace_field,
                 ..
             } = *variant;
 
-            match *source_field {
-                Some(ref source_field) => {
+            match *backtrace_field {
+                Some(ref backtrace_field) => {
                     let Field {
                         name: ref field_name,
                         ..
-                    } = *source_field;
+                    } = *backtrace_field;
                     quote! {
-                        #enum_name::#variant_name { ref #field_name, .. } => {
-                            Some(std::borrow::Borrow::borrow(#field_name))
-                        }
+                        #enum_name::#variant_name { ref #field_name, .. } => { Some(#field_name) }
                     }
                 }
                 None => {
@@ -415,85 +563,34 @@ fn generate_snafu(enum_info: EnumInfo) -> proc_macro2::TokenStream {
                     }
                 }
             }
+        }).collect()
+    }
+}
+
+impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        let enum_name = &self.0.name;
+
+        let variants = &self.variants_to_backtrace();
+
+        let backtrace_fn = if cfg!(feature = "backtraces") {
+            quote! {
+                fn backtrace(&self) -> Option<&snafu::Backtrace> {
+                    match *self {
+                        #(#variants),*
+                    }
+                }
+            }
+        } else {
+            quote! {}
+        };
+
+        stream.extend({
+            quote! {
+                impl snafu::ErrorCompat for #enum_name {
+                    #backtrace_fn
+                }
+            }
         })
-        .collect();
-    let variants = &variants;
-
-    let cause_fn = quote! {
-        fn cause(&self) -> Option<&std::error::Error> {
-            match *self {
-                #(#variants)*
-            }
-        }
-    };
-
-    let source_fn = if cfg!(feature = "rust_1_30") {
-        quote! {
-            fn source(&self) -> Option<&(std::error::Error + 'static)> {
-                match *self {
-                    #(#variants)*
-                }
-            }
-        }
-    } else {
-        quote! {}
-    };
-
-    let error_impl = quote! {
-        impl std::error::Error for #enum_name {
-            #description_fn
-            #cause_fn
-            #source_fn
-        }
-    };
-
-    let variants = enum_info.variants.iter().map(|variant| {
-        let VariantInfo {
-            name: ref variant_name,
-            ref backtrace_field,
-            ..
-        } = *variant;
-
-        match *backtrace_field {
-            Some(ref backtrace_field) => {
-                let Field {
-                    name: ref field_name,
-                    ..
-                } = *backtrace_field;
-                quote! {
-                    #enum_name::#variant_name { ref #field_name, .. } => { Some(#field_name) }
-                }
-            }
-            None => {
-                quote! {
-                    #enum_name::#variant_name { .. } => { None }
-                }
-            }
-        }
-    });
-
-    let backtrace_fn = if cfg!(feature = "backtraces") {
-        quote! {
-            fn backtrace(&self) -> Option<&snafu::Backtrace> {
-                match *self {
-                    #(#variants),*
-                }
-            }
-        }
-    } else {
-        quote! {}
-    };
-
-    let error_compat_impl = quote! {
-        impl snafu::ErrorCompat for #enum_name {
-            #backtrace_fn
-        }
-    };
-
-    quote! {
-        #(#generated_variant_support)*
-        #display_impl
-        #error_impl
-        #error_compat_impl
     }
 }
