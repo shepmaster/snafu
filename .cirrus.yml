@@ -3,7 +3,7 @@ stable_test_task:
   container:
     image: rust:latest
     cpu: 0.5
-    memory: 512Mi
+    memory: 768Mi
   cargo_cache:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
@@ -23,7 +23,7 @@ nightly_test_task:
   container:
     image: rustlang/rust:nightly
     cpu: 0.5
-    memory: 512Mi
+    memory: 768Mi
   cargo_cache:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
@@ -45,7 +45,7 @@ v1_30_test_task:
   container:
     image: rust:1.30
     cpu: 0.5
-    memory: 512Mi
+    memory: 768Mi
   cargo_cache:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
@@ -61,7 +61,7 @@ v1_18_test_task:
     # No Docker container for 1.18
     image: rust:latest
     cpu: 0.5
-    memory: 512Mi
+    memory: 768Mi
   cargo_cache:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
