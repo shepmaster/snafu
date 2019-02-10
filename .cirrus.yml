@@ -3,7 +3,7 @@ stable_test_task:
   container:
     image: rust:latest
     cpu: 0.5
-    memory: 512Mi
+    memory: 768Mi
   cargo_cache:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
@@ -23,18 +23,17 @@ nightly_test_task:
   container:
     image: rustlang/rust:nightly
     cpu: 0.5
-    memory: 512Mi
+    memory: 768Mi
   cargo_cache:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
   primary_test_script:
-    - cargo +nightly test --all
+    - cargo +nightly test
   minimum_version_test_script:
     - cargo +nightly -Z minimal-versions update
     # These versions determined by trial and error
     - cargo +nightly update -p backtrace-sys --precise 0.1.20
-    - cargo +nightly update -p libc --precise 0.2.7
-    - cargo +nightly test --all
+    - cargo +nightly test
   compatibility_test_script:
     - cd compatibility-tests/nightly/
     - rustc --version
@@ -46,7 +45,7 @@ v1_30_test_task:
   container:
     image: rust:1.30
     cpu: 0.5
-    memory: 512Mi
+    memory: 768Mi
   cargo_cache:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
@@ -62,7 +61,7 @@ v1_18_test_task:
     # No Docker container for 1.18
     image: rust:latest
     cpu: 0.5
-    memory: 512Mi
+    memory: 768Mi
   cargo_cache:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml

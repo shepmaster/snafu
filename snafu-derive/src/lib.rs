@@ -5,6 +5,7 @@ extern crate quote;
 extern crate syn;
 
 use proc_macro::TokenStream;
+use syn::parse::{Error as SynError, Result as SynResult};
 
 /// See the crate-level documentation for SNAFU which contains tested
 /// examples of this macro.
@@ -47,21 +48,29 @@ struct Field {
 }
 
 fn impl_hello_macro(ty: syn::DeriveInput) -> TokenStream {
-    let info = parse_snafu_information(ty);
-    info.into()
+    match parse_snafu_information(ty) {
+        Ok(info) => info.into(),
+        Err(e) => e.to_compile_error().into(),
+    }
 }
 
-fn parse_snafu_information(ty: syn::DeriveInput) -> EnumInfo {
+fn parse_snafu_information(ty: syn::DeriveInput) -> SynResult<EnumInfo> {
+    use syn::spanned::Spanned;
     use syn::{Data, Fields, Meta};
 
     let enum_ = match ty.data {
         Data::Enum(enum_) => enum_,
-        _ => panic!("Can only derive Error for an enum"),
+        _ => {
+            return Err(SynError::new(
+                ty.span(),
+                "Can only derive `Snafu` for an enum",
+            ));
+        }
     };
 
     let name = ty.ident;
 
-    let variants = enum_
+    let variants: Result<_, SynError> = enum_
         .variants
         .into_iter()
         .map(|variant| {
@@ -70,27 +79,39 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> EnumInfo {
             let display_format = variant
                 .attrs
                 .into_iter()
-                .map(|attr| {
+                .flat_map(|attr| {
                     if is_snafu_display(&attr.path) {
-                        parse_snafu_display_beautiful(attr)
+                        Some(parse_snafu_display_beautiful(attr))
                     } else if attr.path.is_ident("snafu_display") {
-                        let meta = attr
-                            .parse_meta()
-                            .expect("`snafu_display` attribute is malformed");
+                        let meta = match attr.parse_meta() {
+                            Ok(meta) => meta,
+                            Err(e) => return Some(Err(e)),
+                        };
                         match meta {
-                            Meta::List(list) => parse_snafu_display_nested(list),
-                            Meta::NameValue(nv) => parse_snafu_display_nested_name_value(nv),
-                            _ => panic!("Only supports a list"),
+                            Meta::List(list) => Some(parse_snafu_display_nested(list)),
+                            Meta::NameValue(nv) => Some(parse_snafu_display_nested_name_value(nv)),
+                            meta => Some(Err(SynError::new(
+                                meta.span(),
+                                "`snafu_display` requires an argument",
+                            ))),
                         }
                     } else {
-                        panic!("Unknown attribute type");
+                        // These are ignored, hopefully they belong to
+                        // someone else...
+                        None
                     }
                 })
-                .next();
+                .next()
+                .my_transpose()?;
 
             let fields = match variant.fields {
                 Fields::Named(f) => f.named.into_iter().collect(),
-                Fields::Unnamed(_) => panic!("Tuple variants are not supported"),
+                Fields::Unnamed(_) => {
+                    return Err(SynError::new(
+                        variant.fields.span(),
+                        "Only struct-like and unit enum variants are supported",
+                    ));
+                }
                 Fields::Unit => vec![],
             };
 
@@ -99,7 +120,10 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> EnumInfo {
             let mut backtrace_fields = Vec::new();
 
             for field in fields {
-                let name = field.ident.expect("Must have a named field");
+                let span = field.span();
+                let name = field
+                    .ident
+                    .ok_or_else(|| SynError::new(span, "Must have a named field"))?;
                 let field = Field { name, ty: field.ty };
 
                 if field.name == "source" {
@@ -117,17 +141,18 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> EnumInfo {
             let backtrace_field = backtrace_fields.pop();
             // Report a warning if there are multiple?
 
-            VariantInfo {
+            Ok(VariantInfo {
                 name,
                 source_field,
                 backtrace_field,
                 user_fields,
                 display_format,
-            }
+            })
         })
         .collect();
+    let variants = variants?;
 
-    EnumInfo { name, variants }
+    Ok(EnumInfo { name, variants })
 }
 
 fn is_snafu_display(p: &syn::Path) -> bool {
@@ -139,66 +164,79 @@ fn is_snafu_display(p: &syn::Path) -> bool {
         .all(|b| b)
 }
 
-fn parse_snafu_display_beautiful(attr: syn::Attribute) -> DisplayFormat {
+fn parse_snafu_display_beautiful(attr: syn::Attribute) -> SynResult<DisplayFormat> {
+    use syn::spanned::Spanned;
     use syn::Expr;
 
-    let expr: Expr = syn::parse2(attr.tts).expect("Need expression");
+    let expr: Expr = syn::parse2(attr.tts)?;
     let expr: Box<quote::ToTokens> = match expr {
         Expr::Tuple(expr_tuple) => Box::new(expr_tuple.elems),
         Expr::Paren(expr_paren) => Box::new(expr_paren.expr),
-        _ => panic!("Requires a parenthesized format string and optional values"),
+        _ => {
+            return Err(SynError::new(
+                expr.span(),
+                "A parenthesized format string with optional values is expected",
+            ));
+        }
     };
-    DisplayFormat::Direct(expr)
+    Ok(DisplayFormat::Direct(expr))
 }
 
-fn parse_snafu_display_nested(meta: syn::MetaList) -> DisplayFormat {
+fn parse_snafu_display_nested(meta: syn::MetaList) -> SynResult<DisplayFormat> {
+    use syn::spanned::Spanned;
     use syn::{Expr, Lit, NestedMeta};
 
     let mut nested = meta.nested.into_iter().map(|nested| {
+        let span = nested.span();
+        let non_literal = || Err(SynError::new(span, "A list of string literals is expected"));
+
         let nested = match nested {
             NestedMeta::Literal(lit) => lit,
-            _ => panic!("Only supports a list of literals"),
+            _ => return non_literal(),
         };
         match nested {
-            Lit::Str(s) => s,
-            _ => panic!("Only supports a list of literal strings"),
+            Lit::Str(s) => Ok(s),
+            _ => return non_literal(),
         }
     });
 
-    let fmt_str = nested.next().map(|x| Box::new(x) as Box<quote::ToTokens>);
+    let fmt_str = nested
+        .next()
+        .map(|x| x.map(|x| Box::new(x) as Box<quote::ToTokens>));
 
     let fmt_args = nested
-        .map(|nested| {
-            nested
-                .parse::<Expr>()
-                .expect("Strings after the first must be parsable as expressions")
-        })
-        .map(|x| Box::new(x) as Box<quote::ToTokens>);
+        .map(|x| x.and_then(|x| x.parse::<Expr>()))
+        .map(|x| x.map(|x| Box::new(x) as Box<quote::ToTokens>));
 
-    let nested = fmt_str.into_iter().chain(fmt_args).collect();
+    let nested: Result<_, _> = fmt_str.into_iter().chain(fmt_args).collect();
+    let nested = nested?;
 
-    DisplayFormat::Stringified(nested)
+    Ok(DisplayFormat::Stringified(nested))
 }
 
-fn parse_snafu_display_nested_name_value(nv: syn::MetaNameValue) -> DisplayFormat {
+fn parse_snafu_display_nested_name_value(nv: syn::MetaNameValue) -> SynResult<DisplayFormat> {
+    use syn::spanned::Spanned;
     use syn::{Expr, Lit};
 
     let s = match nv.lit {
         Lit::Str(s) => s,
-        _ => panic!("Only supports a litera strings"),
+        _ => {
+            return Err(SynError::new(nv.lit.span(), "A string literal is expected"));
+        }
     };
 
-    let expr = s
-        .parse::<Expr>()
-        .expect("Must be a parsable as an expression");
-
-    let expr: Box<quote::ToTokens> = match expr {
+    let expr: Box<quote::ToTokens> = match s.parse::<Expr>()? {
         Expr::Tuple(expr_tuple) => Box::new(expr_tuple.elems),
         Expr::Paren(expr_paren) => Box::new(expr_paren.expr),
-        _ => panic!("Requires a parenthesized format string and optional values"),
+        _ => {
+            return Err(SynError::new(
+                s.span(),
+                "A parenthesized format string with optional values is expected",
+            ));
+        }
     };
 
-    DisplayFormat::Direct(expr)
+    Ok(DisplayFormat::Direct(expr))
 }
 
 impl From<EnumInfo> for proc_macro::TokenStream {
@@ -592,5 +630,19 @@ impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
                 }
             }
         })
+    }
+}
+
+trait Transpose<T, E> {
+    fn my_transpose(self) -> Result<Option<T>, E>;
+}
+
+impl<T, E> Transpose<T, E> for Option<Result<T, E>> {
+    fn my_transpose(self) -> Result<Option<T>, E> {
+        match self {
+            Some(Ok(v)) => Ok(Some(v)),
+            Some(Err(e)) => Err(e),
+            None => Ok(None),
+        }
     }
 }
