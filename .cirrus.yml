@@ -28,13 +28,12 @@ nightly_test_task:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
   primary_test_script:
-    - cargo +nightly test --all
+    - cargo +nightly test
   minimum_version_test_script:
     - cargo +nightly -Z minimal-versions update
     # These versions determined by trial and error
     - cargo +nightly update -p backtrace-sys --precise 0.1.20
-    - cargo +nightly update -p libc --precise 0.2.7
-    - cargo +nightly test --all
+    - cargo +nightly test
   compatibility_test_script:
     - cd compatibility-tests/nightly/
     - rustc --version
