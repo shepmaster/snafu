@@ -332,7 +332,7 @@ pub trait ResultExt<T, E>: Sized {
     /// ```
     fn eager_context<C, E2>(self, context: C) -> Result<T, E2>
     where
-        E2: From<Context<E, C>>,
+        Context<E, C>: Into<E2>,
     {
         self.context(context).map_err(Into::into)
     }
@@ -374,7 +374,7 @@ pub trait ResultExt<T, E>: Sized {
     fn with_eager_context<F, C, E2>(self, context: F) -> Result<T, E2>
     where
         F: FnOnce() -> C,
-        E2: From<Context<E, C>>,
+        Context<E, C>: Into<E2>,
     {
         self.with_context(context).map_err(Into::into)
     }
