@@ -12,11 +12,11 @@ use syn::parse::{Error as SynError, Result as SynResult};
 
 #[cfg_attr(
     not(feature = "unstable_display_attribute"),
-    proc_macro_derive(Snafu, attributes(snafu_display))
+    proc_macro_derive(Snafu, attributes(snafu_visibility, snafu_display))
 )]
 #[cfg_attr(
     feature = "unstable_display_attribute",
-    proc_macro_derive(Snafu, attributes(snafu::display, snafu_display))
+    proc_macro_derive(Snafu, attributes(snafu_visibility, snafu::display, snafu_display))
 )]
 pub fn snafu_derive(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).expect("Could not parse type to derive Error for");
@@ -27,6 +27,7 @@ pub fn snafu_derive(input: TokenStream) -> TokenStream {
 struct EnumInfo {
     name: syn::Ident,
     variants: Vec<VariantInfo>,
+    default_visibility: Box<quote::ToTokens>,
 }
 
 struct VariantInfo {
@@ -35,6 +36,7 @@ struct VariantInfo {
     backtrace_field: Option<Field>,
     user_fields: Vec<Field>,
     display_format: Option<DisplayFormat>,
+    visibility: Option<Box<quote::ToTokens>>,
 }
 
 enum DisplayFormat {
@@ -56,15 +58,17 @@ fn impl_hello_macro(ty: syn::DeriveInput) -> TokenStream {
 
 fn parse_snafu_information(ty: syn::DeriveInput) -> SynResult<EnumInfo> {
     use syn::spanned::Spanned;
-    use syn::{Data, Fields, Meta};
+    use syn::{Data, Fields};
+
+    let span = ty.span();
+
+    let default_visibility = parse_snafu_visibility(&ty.attrs)?;
+    let default_visibility = default_visibility.unwrap_or_else(|| private_visibility());
 
     let enum_ = match ty.data {
         Data::Enum(enum_) => enum_,
         _ => {
-            return Err(SynError::new(
-                ty.span(),
-                "Can only derive `Snafu` for an enum",
-            ));
+            return Err(SynError::new(span, "Can only derive `Snafu` for an enum"));
         }
     };
 
@@ -76,33 +80,8 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> SynResult<EnumInfo> {
         .map(|variant| {
             let name = variant.ident;
 
-            let display_format = variant
-                .attrs
-                .into_iter()
-                .flat_map(|attr| {
-                    if is_snafu_display(&attr.path) {
-                        Some(parse_snafu_display_beautiful(attr))
-                    } else if attr.path.is_ident("snafu_display") {
-                        let meta = match attr.parse_meta() {
-                            Ok(meta) => meta,
-                            Err(e) => return Some(Err(e)),
-                        };
-                        match meta {
-                            Meta::List(list) => Some(parse_snafu_display_nested(list)),
-                            Meta::NameValue(nv) => Some(parse_snafu_display_nested_name_value(nv)),
-                            meta => Some(Err(SynError::new(
-                                meta.span(),
-                                "`snafu_display` requires an argument",
-                            ))),
-                        }
-                    } else {
-                        // These are ignored, hopefully they belong to
-                        // someone else...
-                        None
-                    }
-                })
-                .next()
-                .my_transpose()?;
+            let display_format = parse_snafu_display(&variant.attrs)?;
+            let visibility = parse_snafu_visibility(&variant.attrs)?;
 
             let fields = match variant.fields {
                 Fields::Named(f) => f.named.into_iter().collect(),
@@ -147,28 +126,111 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> SynResult<EnumInfo> {
                 backtrace_field,
                 user_fields,
                 display_format,
+                visibility,
             })
         })
         .collect();
     let variants = variants?;
 
-    Ok(EnumInfo { name, variants })
+    Ok(EnumInfo {
+        name,
+        variants,
+        default_visibility,
+    })
 }
 
 fn is_snafu_display(p: &syn::Path) -> bool {
-    let parts = ["snafu", "display"];
+    is_path(p, &["snafu", "display"])
+}
+
+fn is_path(p: &syn::Path, parts: &[&str]) -> bool {
     p.segments
         .iter()
-        .zip(&parts)
+        .zip(parts)
         .map(|(a, b)| a.ident == b)
         .all(|b| b)
 }
 
-fn parse_snafu_display_beautiful(attr: syn::Attribute) -> SynResult<DisplayFormat> {
+fn parse_snafu_visibility(attrs: &[syn::Attribute]) -> SynResult<Option<Box<quote::ToTokens>>> {
+    use syn::spanned::Spanned;
+    use syn::Meta;
+
+    attrs
+        .into_iter()
+        .flat_map(|attr| {
+            if attr.path.is_ident("snafu_visibility") {
+                let meta = match attr.parse_meta() {
+                    Ok(meta) => meta,
+                    Err(e) => return Some(Err(e)),
+                };
+                match meta {
+                    Meta::Word(_) => Some(Ok(private_visibility())),
+                    Meta::NameValue(nv) => Some(parse_snafu_visibility_nested_name_value(nv)),
+                    meta => Some(Err(SynError::new(
+                        meta.span(),
+                        "`snafu_visibility` either has no argument or uses an equal sign",
+                    ))),
+                }
+            } else {
+                None
+            }
+        })
+        .next()
+        .my_transpose()
+}
+
+fn private_visibility() -> Box<quote::ToTokens> {
+    Box::new(quote! {})
+}
+
+fn parse_snafu_visibility_nested_name_value(
+    nv: syn::MetaNameValue,
+) -> SynResult<Box<quote::ToTokens>> {
+    use syn::Visibility;
+
+    let s = unpack_nv_string_literal(nv)?;
+    let v = s.parse::<Visibility>()?;
+
+    Ok(Box::new(v))
+}
+
+fn parse_snafu_display(attrs: &[syn::Attribute]) -> SynResult<Option<DisplayFormat>> {
+    use syn::spanned::Spanned;
+    use syn::Meta;
+
+    attrs
+        .into_iter()
+        .flat_map(|attr| {
+            if is_snafu_display(&attr.path) {
+                Some(parse_snafu_display_beautiful(attr))
+            } else if attr.path.is_ident("snafu_display") {
+                let meta = match attr.parse_meta() {
+                    Ok(meta) => meta,
+                    Err(e) => return Some(Err(e)),
+                };
+                match meta {
+                    Meta::List(list) => Some(parse_snafu_display_nested(list)),
+                    Meta::NameValue(nv) => Some(parse_snafu_display_nested_name_value(nv)),
+                    meta => Some(Err(SynError::new(
+                        meta.span(),
+                        "`snafu_display` requires an argument",
+                    ))),
+                }
+            } else {
+                // These are ignored, hopefully they belong to
+                // someone else...
+                None
+            }
+        })
+        .next()
+        .my_transpose()
+}
+
+fn parse_snafu_display_beautiful(attr: &syn::Attribute) -> SynResult<DisplayFormat> {
     use syn::spanned::Spanned;
     use syn::Expr;
 
-    let expr: Expr = syn::parse2(attr.tts)?;
+    let expr: Expr = syn::parse2(attr.tts.clone())?;
     let expr: Box<quote::ToTokens> = match expr {
         Expr::Tuple(expr_tuple) => Box::new(expr_tuple.elems),
         Expr::Paren(expr_paren) => Box::new(expr_paren.expr),
@@ -215,15 +277,9 @@ fn parse_snafu_display_nested(meta: syn::MetaList) -> SynResult<DisplayFormat> {
 }
 
 fn parse_snafu_display_nested_name_value(nv: syn::MetaNameValue) -> SynResult<DisplayFormat> {
-    use syn::spanned::Spanned;
-    use syn::{Expr, Lit};
+    use syn::Expr;
 
-    let s = match nv.lit {
-        Lit::Str(s) => s,
-        _ => {
-            return Err(SynError::new(nv.lit.span(), "A string literal is expected"));
-        }
-    };
+    let s = unpack_nv_string_literal(nv)?;
 
     let expr: Box<quote::ToTokens> = match s.parse::<Expr>()? {
         Expr::Tuple(expr_tuple) => Box::new(expr_tuple.elems),
@@ -237,6 +293,16 @@ fn parse_snafu_display_nested_name_value(nv: syn::MetaNameValue) -> SynResult<Di
     };
 
     Ok(DisplayFormat::Direct(expr))
+}
+
+fn unpack_nv_string_literal(nv: syn::MetaNameValue) -> SynResult<syn::LitStr> {
+    use syn::spanned::Spanned;
+    use syn::Lit;
+
+    match nv.lit {
+        Lit::Str(s) => Ok(s),
+        _ => Err(SynError::new(nv.lit.span(), "A string literal is expected")),
+    }
 }
 
 impl From<EnumInfo> for proc_macro::TokenStream {
@@ -300,6 +366,12 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
             .take(user_fields.len())
             .collect();
 
+        let visibility = self
+            .1
+            .visibility
+            .as_ref()
+            .unwrap_or(&self.0.default_visibility);
+
         let generics_list = quote! { <#(#generic_names),*> };
         let selector_name = quote! { #variant_name#generics_list };
 
@@ -309,11 +381,11 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
         let variant_selector_struct = {
             if user_fields.is_empty() {
                 quote! {
-                    struct #selector_name;
+                    #visibility struct #selector_name;
                 }
             } else {
                 quote! {
-                    struct #selector_name {
+                    #visibility struct #selector_name {
                         #( #names: #types ),*
                     }
                 }
@@ -343,7 +415,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
                 where
                     #(#where_clauses),*
                 {
-                    fn fail<T>(self) -> std::result::Result<T, #enum_name> {
+                    #visibility fn fail<T>(self) -> std::result::Result<T, #enum_name> {
                         let Self { #(#names),* } = self;
                         let error = #enum_name::#variant_name {
                             #backtrace_field
