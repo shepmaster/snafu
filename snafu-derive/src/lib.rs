@@ -357,39 +357,44 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
             quote! {}
         };
 
-        let enum_from_variant_selector_impl = match *source_field {
-            Some(ref source_field) => {
-                let Field {
-                    name: ref source_name,
-                    ty: ref source_ty,
-                } = *source_field;
+        let enum_from_variant_selector_impl = {
+            let user_fields = user_fields.iter().map(|f| {
+                let Field { ref name, .. } = *f;
+                quote! { #name: other.context.#name.into() }
+            });
 
-                let other_ty = quote! {
-                    snafu::Context<#source_ty, #selector_name>
-                };
+            let other_ty;
+            let source_xfer_field;
 
-                let user_fields = user_fields.iter().map(|f| {
-                    let Field { ref name, .. } = *f;
-                    quote! { #name: other.context.#name.into() }
-                });
+            match *source_field {
+                Some(ref source_field) => {
+                    let Field {
+                        name: ref source_name,
+                        ty: ref source_ty,
+                    } = *source_field;
 
-                quote! {
-                    impl#generics_list std::convert::From<#other_ty> for #enum_name
-                    where
-                        #(#where_clauses),*
-                    {
-                        fn from(other: #other_ty) -> Self {
-                            #enum_name::#variant_name {
-                                #source_name: other.error,
-                                #backtrace_field
-                                #(#user_fields),*
-                            }
+                    other_ty = quote! { snafu::Context<#source_ty, #selector_name> };
+                    source_xfer_field = quote! { #source_name: other.error, };
+                }
+                None => {
+                    other_ty = quote! { snafu::Context<snafu::NoneError, #selector_name> };
+                    source_xfer_field = quote! {};
+                }
+            }
+
+            quote! {
+                impl#generics_list std::convert::From<#other_ty> for #enum_name
+                where
+                    #(#where_clauses),*
+                {
+                    fn from(other: #other_ty) -> Self {
+                        #enum_name::#variant_name {
+                            #source_xfer_field
+                            #backtrace_field
+                            #(#user_fields),*
                         }
                     }
                 }
-            }
-            None => {
-                quote! {}
             }
         };
 
