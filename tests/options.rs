@@ -1,0 +1,28 @@
+extern crate snafu;
+
+use snafu::{Backtrace, OptionExt, Snafu};
+use std::collections::HashMap;
+
+#[derive(Debug, Snafu)]
+enum Error {
+    #[snafu_display("The left-hand argument {} was missing", "id")]
+    LeftHandMissing { id: i32, backtrace: Backtrace },
+    #[snafu_display("The right-hand argument {} was missing", "id")]
+    RightHandMissing { id: i32, backtrace: Backtrace },
+}
+
+type Result<T, E = Error> = std::result::Result<T, E>;
+
+fn example(values: &HashMap<i32, i32>, left: i32, right: i32) -> Result<i32> {
+    let l = values.get(&left).context(LeftHandMissing { id: left })?;
+    let r = values.get(&right).context(RightHandMissing { id: right })?;
+
+    Ok(l + r)
+}
+
+#[test]
+fn implements_error() {
+    fn check<T: std::error::Error>() {}
+    check::<Error>();
+    example(&Default::default(), 1, 2).unwrap_err();
+}
