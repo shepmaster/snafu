@@ -5,6 +5,7 @@ extern crate quote;
 extern crate syn;
 
 use proc_macro::TokenStream;
+use std::iter;
 use syn::parse::{Error as SynError, Result as SynResult};
 
 /// See the crate-level documentation for SNAFU which contains tested
@@ -384,9 +385,11 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
                     #visibility struct #selector_name;
                 }
             } else {
+                let visibilities = iter::repeat(visibility);
+
                 quote! {
                     #visibility struct #selector_name {
-                        #( #names: #types ),*
+                        #( #visibilities #names: #types ),*
                     }
                 }
             }
