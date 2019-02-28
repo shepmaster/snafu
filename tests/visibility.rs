@@ -9,26 +9,32 @@ mod outer {
         #[derive(Debug, Snafu)]
         #[snafu_visibility = "pub(crate)"]
         pub(crate) enum Error {
-            PubCrate,
+            PubCrate {
+                id: i32,
+            },
             #[snafu_visibility = "pub(in ::outer)"]
-            PubInPath,
+            PubInPath {
+                id: i32,
+            },
             #[snafu_visibility]
-            Private,
+            Private {
+                id: i32,
+            },
         }
     }
 
     #[test]
     fn can_set_default_visibility() {
-        let _ = self::inner::PubCrate.fail::<()>();
+        let _ = self::inner::PubCrate { id: 42 }.fail::<()>();
     }
 
     #[test]
     fn can_set_visibility() {
-        let _ = self::inner::PubInPath.fail::<()>();
+        let _ = self::inner::PubInPath { id: 42 }.fail::<()>();
     }
 }
 
 #[test]
 fn can_set_default_visibility() {
-    let _ = self::outer::inner::PubCrate.fail::<()>();
+    let _ = self::outer::inner::PubCrate { id: 42 }.fail::<()>();
 }
