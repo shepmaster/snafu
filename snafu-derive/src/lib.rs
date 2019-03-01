@@ -27,6 +27,7 @@ pub fn snafu_derive(input: TokenStream) -> TokenStream {
 
 struct EnumInfo {
     name: syn::Ident,
+    generics: syn::Generics,
     variants: Vec<VariantInfo>,
     default_visibility: Box<quote::ToTokens>,
 }
@@ -74,6 +75,8 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> SynResult<EnumInfo> {
     };
 
     let name = ty.ident;
+
+    let generics = ty.generics;
 
     let variants: Result<_, SynError> = enum_
         .variants
@@ -135,6 +138,7 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> SynResult<EnumInfo> {
 
     Ok(EnumInfo {
         name,
+        generics,
         variants,
         default_visibility,
     })
@@ -326,6 +330,13 @@ impl EnumInfo {
             #error_compat_impl
         }
     }
+
+    fn parameterized_enum_name(&self) -> Box<quote::ToTokens> {
+        let enum_name = &self.name;
+        let original_generics = self.generics.params.iter();
+
+        Box::new(quote! { #enum_name<#(#original_generics,)*> })
+    }
 }
 
 struct ContextSelectors<'a>(&'a EnumInfo);
@@ -354,6 +365,10 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
         use syn::Ident;
 
         let enum_name = &self.0.name;
+        let original_generics: &Vec<_> = &self.0.generics.params.iter().collect();
+
+        let parameterized_enum_name = &self.0.parameterized_enum_name();
+
         let VariantInfo {
             name: ref variant_name,
             ref source_field,
@@ -362,9 +377,8 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
             ..
         } = *self.1;
 
-        let generic_names: &Vec<_> = &(0..)
-            .map(|i| Ident::new(&format!("T{}", i), Span::call_site()))
-            .take(user_fields.len())
+        let generic_names: &Vec<_> = &(0..user_fields.len())
+            .map(|i| Ident::new(&format!("__T{}", i), Span::call_site()))
             .collect();
 
         let visibility = self
@@ -373,8 +387,8 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
             .as_ref()
             .unwrap_or(&self.0.default_visibility);
 
-        let generics_list = quote! { <#(#generic_names),*> };
-        let selector_name = quote! { #variant_name#generics_list };
+        let generics_list = quote! { <#(#original_generics,)* #(#generic_names,)*> };
+        let selector_name = quote! { #variant_name<#(#generic_names,)*> };
 
         let names: &Vec<_> = &user_fields.iter().map(|f| f.name.clone()).collect();
         let types = generic_names;
@@ -414,11 +428,12 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
         let inherent_impl = if source_field.is_none() {
             let names2 = names;
             quote! {
-                impl#generics_list #selector_name
-                where
-                    #(#where_clauses),*
+                impl<#(#generic_names,)*> #selector_name
                 {
-                    #visibility fn fail<T>(self) -> std::result::Result<T, #enum_name> {
+                    #visibility fn fail<#(#original_generics,)* __T>(self) -> std::result::Result<__T, #parameterized_enum_name>
+                    where
+                        #(#where_clauses),*
+                    {
                         let Self { #(#names),* } = self;
                         let error = #enum_name::#variant_name {
                             #backtrace_field
@@ -458,7 +473,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
             }
 
             quote! {
-                impl#generics_list std::convert::From<#other_ty> for #enum_name
+                impl#generics_list std::convert::From<#other_ty> for #parameterized_enum_name
                 where
                     #(#where_clauses),*
                 {
@@ -531,13 +546,14 @@ impl<'a> DisplayImpl<'a> {
 
 impl<'a> quote::ToTokens for DisplayImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        let enum_name = &self.0.name;
+        let original_generics = &self.0.generics;
+        let parameterized_enum_name = &self.0.parameterized_enum_name();
 
         let variants_to_display = &self.variants_to_display();
 
         stream.extend({
             quote! {
-                impl std::fmt::Display for #enum_name {
+                impl#original_generics std::fmt::Display for #parameterized_enum_name {
                     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                         #[allow(unused_variables)]
                         match *self {
@@ -607,7 +623,8 @@ impl<'a> ErrorImpl<'a> {
 
 impl<'a> quote::ToTokens for ErrorImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        let enum_name = &self.0.name;
+        let original_generics = &self.0.generics;
+        let parameterized_enum_name = &self.0.parameterized_enum_name();
 
         let variants_to_description = &self.variants_to_description();
 
@@ -643,7 +660,10 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
 
         stream.extend({
             quote! {
-                impl std::error::Error for #enum_name {
+                impl#original_generics std::error::Error for #parameterized_enum_name
+                where
+                    Self: std::fmt::Debug + std::fmt::Display,
+                {
                     #description_fn
                     #cause_fn
                     #source_fn
@@ -687,7 +707,8 @@ impl<'a> ErrorCompatImpl<'a> {
 
 impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        let enum_name = &self.0.name;
+        let original_generics = &self.0.generics;
+        let parameterized_enum_name = &self.0.parameterized_enum_name();
 
         let variants = &self.variants_to_backtrace();
 
@@ -705,7 +726,7 @@ impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
 
         stream.extend({
             quote! {
-                impl snafu::ErrorCompat for #enum_name {
+                impl#original_generics snafu::ErrorCompat for #parameterized_enum_name {
                     #backtrace_fn
                 }
             }
