@@ -7,7 +7,7 @@ fn run_mode(mode: &'static str) {
 
     config.mode = mode.parse().expect("Invalid mode");
     config.src_base = PathBuf::from(format!("tests/{}", mode));
-    config.target_rustcflags = Some("-L ../target/debug -L ../target/debug/deps".to_string());
+    config.target_rustcflags = Some("-L target/debug -L target/debug/deps".to_string());
 
     compiletest::run_tests(&config);
 }

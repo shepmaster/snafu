@@ -14,6 +14,8 @@ stable_test_task:
     - cargo test --all
   compatibility_test_script:
     - cargo test --manifest-path compatibility-tests/without-backtrace/Cargo.toml
+  compile_fail_test_script:
+    - cargo test --manifest-path compatibility-tests/compile-fail/Cargo.toml
   lint_script:
     - cargo fmt --all -- --check
   before_cache_script: rm -rf $CARGO_HOME/registry/index
