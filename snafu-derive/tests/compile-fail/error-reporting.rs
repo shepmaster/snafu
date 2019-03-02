@@ -1,18 +1,19 @@
-extern crate snafu_derive;
+extern crate snafu;
 
-use snafu_derive::Snafu;
+use snafu::Snafu;
 
 #[derive(Snafu)]
 struct AStruct;
 //~^ ERROR Can only derive `Snafu` for an enum
 
 #[derive(Snafu)]
-union AUnion {}
+union AUnion { _a: i32 }
 //~^ ERROR Can only derive `Snafu` for an enum
 
-#[derive(Snafu)]
+#[derive(Debug, Snafu)]
 enum UnknownVariantAttributeIsIgnored {
     #[serde]
+    //~^ ERROR The attribute `serde` is currently unknown
     Alpha
 }
 
@@ -26,6 +27,7 @@ enum TupleEnumVariant {
 enum SnafuDisplayWrongKindOfExpression {
     #[snafu::display {}]
     //~^ ERROR A parenthesized format string with optional values is expected
+    //~^^ expected one of `(` or `=`
     Alpha(i32),
 }
 
