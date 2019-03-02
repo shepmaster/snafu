@@ -14,6 +14,8 @@ stable_test_task:
     - cargo test --all
   compatibility_test_script:
     - cargo test --manifest-path compatibility-tests/without-backtrace/Cargo.toml
+  compile_fail_test_script:
+    - cargo test --manifest-path compatibility-tests/compile-fail/Cargo.toml
   lint_script:
     - cargo fmt --all -- --check
   before_cache_script: rm -rf $CARGO_HOME/registry/index
@@ -33,6 +35,7 @@ nightly_test_task:
     - cargo +nightly -Z minimal-versions update
     # These versions determined by trial and error
     - cargo +nightly update -p backtrace-sys --precise 0.1.20
+    - cargo +nightly update -p libc --precise 0.2.7
     - cargo +nightly test
   compatibility_test_script:
     - cd compatibility-tests/nightly/

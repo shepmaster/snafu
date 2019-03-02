@@ -1,0 +1,9 @@
+[package]
+name = "compile-fail"
+version = "0.1.0"
+authors = ["Jake Goulding <jake.goulding@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+compiletest_rs = { version = "0.3.18", features = ["stable", "tmp"] }
+snafu = { path = "../..", features = ["unstable_display_attribute"] }
