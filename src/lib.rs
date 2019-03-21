@@ -189,6 +189,28 @@
 //! }
 //! ```
 //!
+//! #### Controlling backtraces
+//!
+//! If your error contains other SNAFU errors which can report
+//! backtraces, you may wish to delegate returning a backtrace to
+//! those errors. Use `#[snafu_backtrace(delegate)]` to specify this:
+//!
+//! ```rust
+//! # mod another {
+//! #     use snafu::Snafu;
+//! #     #[derive(Debug, Snafu)]
+//! #     pub enum Error {}
+//! # }
+//! # use snafu::Snafu;
+//! #[derive(Debug, Snafu)]
+//! enum Error {
+//!     MyError {
+//!         #[snafu_backtrace(delegate)]
+//!         source: another::Error,
+//!     }
+//! }
+//! ```
+//!
 //! ## Version compatibility
 //!
 //! SNAFU is tested and compatible back to Rust 1.18, released on
