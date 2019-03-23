@@ -146,10 +146,6 @@
 //! you can specify how the `Display` trait will be implemented for
 //! each variant:
 //!
-//! - `#[snafu::display("a format string with arguments: {}", info)]`
-//!
-//!   No special escaping is needed; this looks just like the arguments to a call to `println!`.
-//!
 //! - `#[snafu_display("a format string with arguments: {}", "info")]`
 //!
 //!   Every argument is quoted as a string literal separately.
@@ -214,10 +210,6 @@
 //! - Adds an implementation for `Error::source`
 //! - Adds support for re-exporting the `Snafu` macro directly from
 //!   the `snafu` crate.
-//!
-//! ### `unstable_display_attribute` - supports Rust Nightly
-//!
-//! - Adds support for the `snafu::display` attribute.
 //!
 //! ## Other feature flags
 //!
