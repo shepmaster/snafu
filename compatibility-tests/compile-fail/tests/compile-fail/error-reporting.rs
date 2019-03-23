@@ -24,14 +24,6 @@ enum TupleEnumVariant {
 }
 
 #[derive(Snafu)]
-enum SnafuDisplayWrongKindOfExpression {
-    #[snafu::display {}]
-    //~^ ERROR A parenthesized format string with optional values is expected
-    //~^^ expected one of `(` or `=`
-    Alpha(i32),
-}
-
-#[derive(Snafu)]
 enum OldSnafuDisplayWithoutArgument {
     #[snafu_display]
     //~^ ERROR `snafu_display` requires an argument

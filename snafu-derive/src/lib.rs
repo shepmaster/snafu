@@ -11,14 +11,7 @@ use syn::parse::{Error as SynError, Result as SynResult};
 /// See the crate-level documentation for SNAFU which contains tested
 /// examples of this macro.
 
-#[cfg_attr(
-    not(feature = "unstable_display_attribute"),
-    proc_macro_derive(Snafu, attributes(snafu_visibility, snafu_display))
-)]
-#[cfg_attr(
-    feature = "unstable_display_attribute",
-    proc_macro_derive(Snafu, attributes(snafu_visibility, snafu::display, snafu_display))
-)]
+#[proc_macro_derive(Snafu, attributes(snafu_visibility, snafu_display))]
 pub fn snafu_derive(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).expect("Could not parse type to derive Error for");
 
@@ -144,18 +137,6 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> SynResult<EnumInfo> {
     })
 }
 
-fn is_snafu_display(p: &syn::Path) -> bool {
-    is_path(p, &["snafu", "display"])
-}
-
-fn is_path(p: &syn::Path, parts: &[&str]) -> bool {
-    p.segments
-        .iter()
-        .zip(parts)
-        .map(|(a, b)| a.ident == b)
-        .all(|b| b)
-}
-
 fn parse_snafu_visibility(attrs: &[syn::Attribute]) -> SynResult<Option<Box<quote::ToTokens>>> {
     use syn::spanned::Spanned;
     use syn::Meta;
@@ -206,9 +187,7 @@ fn parse_snafu_display(attrs: &[syn::Attribute]) -> SynResult<Option<DisplayForm
     attrs
         .into_iter()
         .flat_map(|attr| {
-            if is_snafu_display(&attr.path) {
-                Some(parse_snafu_display_beautiful(attr))
-            } else if attr.path.is_ident("snafu_display") {
+            if attr.path.is_ident("snafu_display") {
                 let meta = match attr.parse_meta() {
                     Ok(meta) => meta,
                     Err(e) => return Some(Err(e)),
@@ -229,24 +208,6 @@ fn parse_snafu_display(attrs: &[syn::Attribute]) -> SynResult<Option<DisplayForm
         })
         .next()
         .my_transpose()
-}
-
-fn parse_snafu_display_beautiful(attr: &syn::Attribute) -> SynResult<DisplayFormat> {
-    use syn::spanned::Spanned;
-    use syn::Expr;
-
-    let expr: Expr = syn::parse2(attr.tts.clone())?;
-    let expr: Box<quote::ToTokens> = match expr {
-        Expr::Tuple(expr_tuple) => Box::new(expr_tuple.elems),
-        Expr::Paren(expr_paren) => Box::new(expr_paren.expr),
-        _ => {
-            return Err(SynError::new(
-                expr.span(),
-                "A parenthesized format string with optional values is expected",
-            ));
-        }
-    };
-    Ok(DisplayFormat::Direct(expr))
 }
 
 fn parse_snafu_display_nested(meta: syn::MetaList) -> SynResult<DisplayFormat> {
