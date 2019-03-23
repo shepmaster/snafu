@@ -11,7 +11,7 @@ use syn::parse::{Error as SynError, Result as SynResult};
 /// See the crate-level documentation for SNAFU which contains tested
 /// examples of this macro.
 
-#[proc_macro_derive(Snafu, attributes(snafu_visibility, snafu_display))]
+#[proc_macro_derive(Snafu, attributes(snafu_visibility, snafu_display, snafu_backtrace))]
 pub fn snafu_derive(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).expect("Could not parse type to derive Error for");
 
@@ -29,6 +29,7 @@ struct VariantInfo {
     name: syn::Ident,
     source_field: Option<Field>,
     backtrace_field: Option<Field>,
+    backtrace_delegate: Option<Field>,
     user_fields: Vec<Field>,
     display_format: Option<DisplayFormat>,
     visibility: Option<Box<quote::ToTokens>>,
@@ -39,6 +40,7 @@ enum DisplayFormat {
     Stringified(Vec<Box<quote::ToTokens>>),
 }
 
+#[derive(Clone)]
 struct Field {
     name: syn::Ident,
     ty: syn::Type,
@@ -94,15 +96,23 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> SynResult<EnumInfo> {
             let mut user_fields = Vec::new();
             let mut source_fields = Vec::new();
             let mut backtrace_fields = Vec::new();
+            let mut backtrace_delegates = Vec::new();
 
-            for field in fields {
-                let span = field.span();
-                let name = field
+            for syn_field in fields {
+                let span = syn_field.span();
+                let name = syn_field
                     .ident
                     .ok_or_else(|| SynError::new(span, "Must have a named field"))?;
-                let field = Field { name, ty: field.ty };
+                let field = Field {
+                    name,
+                    ty: syn_field.ty,
+                };
 
                 if field.name == "source" {
+                    if is_snafu_backtrace_delegate(&syn_field.attrs) {
+                        backtrace_delegates.push(field.clone());
+                    }
+
                     source_fields.push(field);
                 } else if field.name == "backtrace" {
                     backtrace_fields.push(field);
@@ -117,10 +127,15 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> SynResult<EnumInfo> {
             let backtrace_field = backtrace_fields.pop();
             // Report a warning if there are multiple?
 
+            let backtrace_delegate = backtrace_delegates.pop();
+            // Report a warning if there are multiple?
+            // Report a warning if delegating and our own?
+
             Ok(VariantInfo {
                 name,
                 source_field,
                 backtrace_field,
+                backtrace_delegate,
                 user_fields,
                 display_format,
                 visibility,
@@ -135,6 +150,10 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> SynResult<EnumInfo> {
         variants,
         default_visibility,
     })
+}
+
+fn is_snafu_backtrace_delegate(attrs: &[syn::Attribute]) -> bool {
+    attrs.iter().any(|a| a.path.is_ident("snafu_backtrace"))
 }
 
 fn parse_snafu_visibility(attrs: &[syn::Attribute]) -> SynResult<Option<Box<quote::ToTokens>>> {
@@ -643,23 +662,31 @@ impl<'a> ErrorCompatImpl<'a> {
             let VariantInfo {
                 name: ref variant_name,
                 ref backtrace_field,
+                ref backtrace_delegate,
                 ..
             } = *variant;
 
-            match *backtrace_field {
-                Some(ref backtrace_field) => {
-                    let Field {
-                        name: ref field_name,
-                        ..
-                    } = *backtrace_field;
-                    quote! {
-                        #enum_name::#variant_name { ref #field_name, .. } => { Some(#field_name) }
-                    }
+
+            if let Some(ref backtrace_delegate) = *backtrace_delegate {
+                let Field {
+                    name: ref field_name,
+                    ..
+                } = *backtrace_delegate;
+                quote! {
+                    #enum_name::#variant_name { ref #field_name, .. } => { snafu::ErrorCompat::backtrace(#field_name) }
                 }
-                None => {
-                    quote! {
-                        #enum_name::#variant_name { .. } => { None }
-                    }
+
+            } else if let Some(ref backtrace_field) = *backtrace_field  {
+                let Field {
+                    name: ref field_name,
+                    ..
+                } = *backtrace_field;
+                quote! {
+                    #enum_name::#variant_name { ref #field_name, .. } => { Some(#field_name) }
+                }
+            } else {
+                quote! {
+                    #enum_name::#variant_name { .. } => { None }
                 }
             }
         }).collect()
