@@ -2,14 +2,7 @@
 
 //! # SNAFU
 //!
-//! ## Design philosophy
-//!
-//! SNAFU believes that it should be easy to bin one underlying error
-//! type (such as [`io::Error`](std::io::Error)) into multiple
-//! domain-specific errors while also optionally adding contextual
-//! information.
-//!
-//! SNAFU is designed to be used in libraries, not just end-user applications.
+//! For detailed information, please see the [user's guide](guide).
 //!
 //! ## Quick example
 //!
@@ -69,177 +62,6 @@
 //!     }
 //! }
 //! ```
-//!
-//! ## The `Snafu` macro
-//!
-//! This procedural macro implements the [`Error`](std::error::Error)
-//! trait and produces the corresponding context selectors.
-//!
-//! ### Detailed example
-//!
-//! ```rust
-//! use snafu::Snafu;
-//! use std::path::PathBuf;
-//!
-//! #[derive(Debug, Snafu)]
-//! enum Error {
-//!     #[snafu_display("Could not open config at {}: {}", "filename.display()", "source")]
-//!     OpenConfig { filename: PathBuf, source: std::io::Error },
-//!     #[snafu_display("Could not open config: {}", "source")]
-//!     SaveConfig { source: std::io::Error },
-//!     #[snafu_display("The user id {} is invalid", "user_id")]
-//!     UserIdInvalid { user_id: i32 },
-//! }
-//! ```
-//!
-//! #### Generated code
-//!
-//! This will generate three additional types called *context
-//! selectors*:
-//!
-//! ```rust,ignore
-//! struct OpenConfig<P> { filename: P }
-//! struct SaveConfig<P> { filename: P }
-//! struct UserIdInvalid<I> { user_id: I }
-//! ```
-//!
-//! Notably:
-//!
-//! 1. One struct is created for each enum variant.
-//! 1. The name of the struct is the same as the enum variant's name.
-//! 1. The `source` and `backtrace` fields have been removed; the
-//!    library will automatically handle this for you.
-//! 1. Each remaining field's type has been replaced with a generic
-//!    type.
-//!
-//! If the original variant had a `source` field, its context selector
-//! will have an implementation of [`From`](std::convert::From) for a
-//! `snafu::Context`:
-//!
-//! ```rust,ignore
-//! impl<P> From<Context<Error, OpenConfig<P>>> for Error
-//! where
-//!     P: Into<PathBuf>,
-//! ```
-//!
-//! Otherwise, the context selector will have an inherent method
-//! `fail` and can be used with the [`ensure`](ensure) macro:
-//!
-//! ```rust,ignore
-//! impl<I> UserIdInvalid<I>
-//! where
-//!     I: Into<i32>,
-//! {
-//!     fn fail<T>(self) -> Result<T, Error> { /* ... */ }
-//! }
-//! ```
-//!
-//! If the original variant had a `backtrace` field, the backtrace
-//! will be automatically constructed when either `From` or `fail` are
-//! called.
-//!
-//! ### Attributes
-//!
-//! #### Controlling `Display`
-//!
-//! For backwards compatibility purposes, there are a number of ways
-//! you can specify how the `Display` trait will be implemented for
-//! each variant:
-//!
-//! - `#[snafu_display("a format string with arguments: {}", "info")]`
-//!
-//!   Every argument is quoted as a string literal separately.
-//!
-//! - `#[snafu_display = r#"("a format string with arguments: {}", info)"#]`
-//!
-//!   The entire
-//!
-//! Each choice has the same capabilities. All of the fields of the
-//! variant will be available and you can call methods on them, such
-//! as `filename.display()`.
-//!
-//! #### Controlling visibility
-//!
-//! By default, each of the context selectors and their inherent
-//! methods will be private. It is our opinion that each module should
-//! have one or more error types that are scoped to that module,
-//! reducing the need to deal with unrelated errors when matching and
-//! increasing cohesiveness.
-//!
-//! If you need access the context selectors outside of their module,
-//! you can use the `#[snafu_visibility]` attribute. This can be
-//! applied to the error type as a default visibility or to specific
-//! context selectors.
-//!
-//! There are two forms of the attribute:
-//!
-//! - `#[snafu_visibility = "X"]`, where `X` is a normal Rust
-//!   visibility modifier (`pub`, `pub(crate)`, `pub(in some::path)`,
-//!   etc.)
-//! - `#[snafu_visibility]` will reset back to private visibility.
-//!
-//! ```
-//! # use snafu::Snafu;
-//! #[derive(Debug, Snafu)]
-//! #[snafu_visibility = "pub(crate)"] // Default
-//! enum Error {
-//!     IsPubCrate, // Uses the default
-//!     #[snafu_visibility]
-//!     IsPrivate,  // Will be private
-//! }
-//! ```
-//!
-//! #### Controlling backtraces
-//!
-//! If your error contains other SNAFU errors which can report
-//! backtraces, you may wish to delegate returning a backtrace to
-//! those errors. Use `#[snafu_backtrace(delegate)]` to specify this:
-//!
-//! ```rust
-//! # mod another {
-//! #     use snafu::Snafu;
-//! #     #[derive(Debug, Snafu)]
-//! #     pub enum Error {}
-//! # }
-//! # use snafu::Snafu;
-//! #[derive(Debug, Snafu)]
-//! enum Error {
-//!     MyError {
-//!         #[snafu_backtrace(delegate)]
-//!         source: another::Error,
-//!     }
-//! }
-//! ```
-//!
-//! ## Version compatibility
-//!
-//! SNAFU is tested and compatible back to Rust 1.18, released on
-//! 2017-06-08. Compatibility is controlled by Cargo feature flags.
-//!
-//! ### Default
-//!
-//! - Targets the current stable version of Rust at the time of
-//!   release of the crate. Check the Cargo.toml for the exact
-//!   version.
-//!
-//! ### No features - supports Rust 1.18
-//!
-//! - Implements `Error` and `Display`.
-//! - Creates context selectors.
-//!
-//! ### `rust_1_30` - supports Rust 1.30
-//!
-//! - Adds an implementation for `Error::source`
-//! - Adds support for re-exporting the `Snafu` macro directly from
-//!   the `snafu` crate.
-//!
-//! ## Other feature flags
-//!
-//! ### `backtraces`
-//!
-//! When enabled, you can use the [`Backtrace`](Backtrace) type in
-//! your enum variant. If you never use backtraces, you can omit this
-//! feature to speed up compilation a small amount.
 
 #[cfg(feature = "backtraces")]
 extern crate backtrace;
@@ -248,6 +70,8 @@ extern crate backtrace;
 extern crate snafu_derive;
 #[cfg(feature = "rust_1_30")]
 pub use snafu_derive::Snafu;
+
+pub mod guide;
 
 /// Ensure a condition is true. If it is not, return from the function
 /// with an error.
@@ -445,7 +269,7 @@ impl<T, E> ResultExt<T, E> for std::result::Result<T, E> {
 /// `Result`
 pub struct NoneError;
 
-/// Additions to [`Option`](std::result::Option).
+/// Additions to [`Option`](std::option::Option).
 pub trait OptionExt<T>: Sized {
     /// Convert an `Option` into a `Result` with additional
     /// context-sensitive information.
