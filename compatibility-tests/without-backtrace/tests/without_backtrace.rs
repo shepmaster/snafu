@@ -4,7 +4,7 @@ use snafu::Snafu;
 
 #[derive(Debug, Snafu)]
 pub enum Error {
-    #[snafu_display("User ID {} is invalid", "user_id")]
+    #[snafu(display = r#"("User ID {} is invalid", user_id)"#)]
     InvalidUser { user_id: i32 },
 }
 

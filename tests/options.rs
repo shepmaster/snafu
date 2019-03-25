@@ -5,9 +5,9 @@ use std::collections::HashMap;
 
 #[derive(Debug, Snafu)]
 enum Error {
-    #[snafu_display("The left-hand argument {} was missing", "id")]
+    #[snafu(display = r#"("The left-hand argument {} was missing", "id")"#)]
     LeftHandMissing { id: i32, backtrace: Backtrace },
-    #[snafu_display("The right-hand argument {} was missing", "id")]
+    #[snafu(display = r#"("The right-hand argument {} was missing", "id")"#)]
     RightHandMissing { id: i32, backtrace: Backtrace },
 }
 

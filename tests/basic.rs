@@ -8,16 +8,16 @@ use std::{
 
 #[derive(Debug, Snafu)]
 enum Error {
-    #[snafu_display("Could not open config file at {}: {}", "filename.display()", "source")]
+    #[snafu(display = r#"("Could not open config file at {}: {}", filename.display(), source)"#)]
     OpenConfig {
         filename: PathBuf,
         source: io::Error,
     },
-    #[snafu_display("Could not open config file at {}", "source")]
+    #[snafu(display = r#"("Could not open config file at {}", source)"#)]
     SaveConfig { source: io::Error },
-    #[snafu_display("User ID {} is invalid", "user_id")]
+    #[snafu(display = r#"("User ID {} is invalid", user_id)"#)]
     InvalidUser { user_id: i32 },
-    #[snafu_display("No user available")]
+    #[snafu(display("No user available"))]
     MissingUser,
 }
 
