@@ -13,9 +13,13 @@
 //!
 //! If you are targeting an older release of Rust, you will be
 //! interested in [the compatibility section](guide::compatibility).
+//!
+//! For upgrading from a previous version, review the [upgrading
+//! guide](guide::upgrading).
 
 pub mod attributes;
 pub mod compatibility;
 pub mod feature_flags;
 pub mod philosophy;
 pub mod the_macro;
+pub mod upgrading;
