@@ -8,13 +8,13 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug, Snafu)]
 enum Error {
-    #[snafu_display = r#"("Could not open config file at {}: {}", filename.display(), source)"#]
+    #[snafu(display = r#"("Could not open config file at {}: {}", filename.display(), source)"#)]
     OpenConfig { filename: PathBuf, source: io::Error },
-    #[snafu_display = r#"("Could not open config file at {}", source)"#]
+    #[snafu(display = r#"("Could not open config file at {}", source)"#)]
     SaveConfig { source: io::Error },
-    #[snafu_display = r#"("User ID {} is invalid", user_id)"#]
+    #[snafu(display = r#"("User ID {} is invalid", user_id)"#)]
     InvalidUser { user_id: i32, backtrace: Backtrace },
-    #[snafu_display = r#"("No user available")"#]
+    #[snafu(display = r#"("No user available")"#)]
     MissingUser,
 }
 

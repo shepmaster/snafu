@@ -18,7 +18,7 @@ mod house {
 #[derive(Debug, Snafu)]
 enum Error {
     MovieTrope {
-        #[snafu_backtrace(delegate)]
+        #[snafu(backtrace(delegate))]
         source: house::Error,
     },
 }

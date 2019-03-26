@@ -2,6 +2,7 @@ extern crate proc_macro;
 extern crate proc_macro2;
 #[macro_use]
 extern crate quote;
+#[macro_use]
 extern crate syn;
 
 use proc_macro::TokenStream;
@@ -11,18 +12,20 @@ use syn::parse::{Error as SynError, Result as SynResult};
 /// See the crate-level documentation for SNAFU which contains tested
 /// examples of this macro.
 
-#[proc_macro_derive(Snafu, attributes(snafu_visibility, snafu_display, snafu_backtrace))]
+#[proc_macro_derive(Snafu, attributes(snafu))]
 pub fn snafu_derive(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).expect("Could not parse type to derive Error for");
 
-    impl_hello_macro(ast)
+    impl_snafu_macro(ast)
 }
+
+type UserInput = Box<quote::ToTokens>;
 
 struct EnumInfo {
     name: syn::Ident,
     generics: syn::Generics,
     variants: Vec<VariantInfo>,
-    default_visibility: Box<quote::ToTokens>,
+    default_visibility: UserInput,
 }
 
 struct VariantInfo {
@@ -31,13 +34,8 @@ struct VariantInfo {
     backtrace_field: Option<Field>,
     backtrace_delegate: Option<Field>,
     user_fields: Vec<Field>,
-    display_format: Option<DisplayFormat>,
-    visibility: Option<Box<quote::ToTokens>>,
-}
-
-enum DisplayFormat {
-    Direct(Box<quote::ToTokens>),
-    Stringified(Vec<Box<quote::ToTokens>>),
+    display_format: Option<UserInput>,
+    visibility: Option<UserInput>,
 }
 
 #[derive(Clone)]
@@ -46,7 +44,7 @@ struct Field {
     ty: syn::Type,
 }
 
-fn impl_hello_macro(ty: syn::DeriveInput) -> TokenStream {
+fn impl_snafu_macro(ty: syn::DeriveInput) -> TokenStream {
     match parse_snafu_information(ty) {
         Ok(info) => info.into(),
         Err(e) => e.to_compile_error().into(),
@@ -59,8 +57,11 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> SynResult<EnumInfo> {
 
     let span = ty.span();
 
-    let default_visibility = parse_snafu_visibility(&ty.attrs)?;
-    let default_visibility = default_visibility.unwrap_or_else(|| private_visibility());
+    let default_visibility = attributes_from_syn(ty.attrs)?
+        .into_iter()
+        .flat_map(SnafuAttribute::into_visibility)
+        .next()
+        .unwrap_or_else(private_visibility);
 
     let enum_ = match ty.data {
         Data::Enum(enum_) => enum_,
@@ -79,8 +80,16 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> SynResult<EnumInfo> {
         .map(|variant| {
             let name = variant.ident;
 
-            let display_format = parse_snafu_display(&variant.attrs)?;
-            let visibility = parse_snafu_visibility(&variant.attrs)?;
+            let mut display_format = None;
+            let mut visibility = None;
+
+            for attr in attributes_from_syn(variant.attrs)? {
+                match attr {
+                    SnafuAttribute::Display(d) => display_format = Some(d),
+                    SnafuAttribute::Visibility(v) => visibility = Some(v),
+                    SnafuAttribute::Backtrace => { /* Report this isn't valid here? */ }
+                }
+            }
 
             let fields = match variant.fields {
                 Fields::Named(f) => f.named.into_iter().collect(),
@@ -108,8 +117,12 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> SynResult<EnumInfo> {
                     ty: syn_field.ty,
                 };
 
+                let has_backtrace = attributes_from_syn(syn_field.attrs)?
+                    .iter()
+                    .any(SnafuAttribute::is_backtrace);
+
                 if field.name == "source" {
-                    if is_snafu_backtrace_delegate(&syn_field.attrs) {
+                    if has_backtrace {
                         backtrace_delegates.push(field.clone());
                     }
 
@@ -152,142 +165,178 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> SynResult<EnumInfo> {
     })
 }
 
-fn is_snafu_backtrace_delegate(attrs: &[syn::Attribute]) -> bool {
-    attrs.iter().any(|a| a.path.is_ident("snafu_backtrace"))
+enum MyMeta<T> {
+    CompatParen(T),
+    CompatDirect(T),
+    Pretty(T),
+    None,
 }
 
-fn parse_snafu_visibility(attrs: &[syn::Attribute]) -> SynResult<Option<Box<quote::ToTokens>>> {
-    use syn::spanned::Spanned;
-    use syn::Meta;
-
-    attrs
-        .into_iter()
-        .flat_map(|attr| {
-            if attr.path.is_ident("snafu_visibility") {
-                let meta = match attr.parse_meta() {
-                    Ok(meta) => meta,
-                    Err(e) => return Some(Err(e)),
-                };
-                match meta {
-                    Meta::Word(_) => Some(Ok(private_visibility())),
-                    Meta::NameValue(nv) => Some(parse_snafu_visibility_nested_name_value(nv)),
-                    meta => Some(Err(SynError::new(
-                        meta.span(),
-                        "`snafu_visibility` either has no argument or uses an equal sign",
-                    ))),
-                }
-            } else {
-                None
-            }
-        })
-        .next()
-        .my_transpose()
-}
-
-fn private_visibility() -> Box<quote::ToTokens> {
-    Box::new(quote! {})
-}
-
-fn parse_snafu_visibility_nested_name_value(
-    nv: syn::MetaNameValue,
-) -> SynResult<Box<quote::ToTokens>> {
-    use syn::Visibility;
-
-    let s = unpack_nv_string_literal(nv)?;
-    let v = s.parse::<Visibility>()?;
-
-    Ok(Box::new(v))
-}
-
-fn parse_snafu_display(attrs: &[syn::Attribute]) -> SynResult<Option<DisplayFormat>> {
-    use syn::spanned::Spanned;
-    use syn::Meta;
-
-    attrs
-        .into_iter()
-        .flat_map(|attr| {
-            if attr.path.is_ident("snafu_display") {
-                let meta = match attr.parse_meta() {
-                    Ok(meta) => meta,
-                    Err(e) => return Some(Err(e)),
-                };
-                match meta {
-                    Meta::List(list) => Some(parse_snafu_display_nested(list)),
-                    Meta::NameValue(nv) => Some(parse_snafu_display_nested_name_value(nv)),
-                    meta => Some(Err(SynError::new(
-                        meta.span(),
-                        "`snafu_display` requires an argument",
-                    ))),
-                }
-            } else {
-                // These are ignored, hopefully they belong to
-                // someone else...
-                None
-            }
-        })
-        .next()
-        .my_transpose()
-}
-
-fn parse_snafu_display_nested(meta: syn::MetaList) -> SynResult<DisplayFormat> {
-    use syn::spanned::Spanned;
-    use syn::{Expr, Lit, NestedMeta};
-
-    let mut nested = meta.nested.into_iter().map(|nested| {
-        let span = nested.span();
-        let non_literal = || Err(SynError::new(span, "A list of string literals is expected"));
-
-        let nested = match nested {
-            NestedMeta::Literal(lit) => lit,
-            _ => return non_literal(),
-        };
-        match nested {
-            Lit::Str(s) => Ok(s),
-            _ => return non_literal(),
+impl<T> MyMeta<T> {
+    fn into_option(self) -> Option<T> {
+        match self {
+            MyMeta::CompatParen(v) => Some(v),
+            MyMeta::CompatDirect(v) => Some(v),
+            MyMeta::Pretty(v) => Some(v),
+            MyMeta::None => None,
         }
-    });
-
-    let fmt_str = nested
-        .next()
-        .map(|x| x.map(|x| Box::new(x) as Box<quote::ToTokens>));
-
-    let fmt_args = nested
-        .map(|x| x.and_then(|x| x.parse::<Expr>()))
-        .map(|x| x.map(|x| Box::new(x) as Box<quote::ToTokens>));
-
-    let nested: Result<_, _> = fmt_str.into_iter().chain(fmt_args).collect();
-    let nested = nested?;
-
-    Ok(DisplayFormat::Stringified(nested))
-}
-
-fn parse_snafu_display_nested_name_value(nv: syn::MetaNameValue) -> SynResult<DisplayFormat> {
-    use syn::Expr;
-
-    let s = unpack_nv_string_literal(nv)?;
-
-    let expr: Box<quote::ToTokens> = match s.parse::<Expr>()? {
-        Expr::Tuple(expr_tuple) => Box::new(expr_tuple.elems),
-        Expr::Paren(expr_paren) => Box::new(expr_paren.expr),
-        _ => {
-            return Err(SynError::new(
-                s.span(),
-                "A parenthesized format string with optional values is expected",
-            ));
-        }
-    };
-
-    Ok(DisplayFormat::Direct(expr))
-}
-
-fn unpack_nv_string_literal(nv: syn::MetaNameValue) -> SynResult<syn::LitStr> {
-    use syn::spanned::Spanned;
-    use syn::Lit;
-
-    match nv.lit {
-        Lit::Str(s) => Ok(s),
-        _ => Err(SynError::new(nv.lit.span(), "A string literal is expected")),
     }
+}
+
+impl<T> syn::parse::Parse for MyMeta<T>
+where
+    T: syn::parse::Parse,
+{
+    fn parse(input: syn::parse::ParseStream) -> SynResult<Self> {
+        use syn::token::{Eq, Paren};
+        use syn::LitStr;
+
+        let lookahead = input.lookahead1();
+
+        if lookahead.peek(Paren) {
+            let inside;
+            parenthesized!(inside in input);
+            let t: T = inside.parse()?;
+
+            Ok(MyMeta::Pretty(t))
+        } else if lookahead.peek(Eq) {
+            let _: Eq = input.parse()?;
+            let s: LitStr = input.parse()?;
+
+            match s.parse::<MyParens<T>>() {
+                Ok(t) => Ok(MyMeta::CompatParen(t.0)),
+                Err(_) => match s.parse::<T>() {
+                    Ok(t) => Ok(MyMeta::CompatDirect(t)),
+                    Err(e) => Err(e),
+                },
+            }
+        } else if input.is_empty() {
+            Ok(MyMeta::None)
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+struct MyParens<T>(T);
+
+impl<T> syn::parse::Parse for MyParens<T>
+where
+    T: syn::parse::Parse,
+{
+    fn parse(input: syn::parse::ParseStream) -> SynResult<Self> {
+        let inside;
+        parenthesized!(inside in input);
+        inside.parse().map(MyParens)
+    }
+}
+
+struct MyExprList(syn::punctuated::Punctuated<syn::Expr, syn::token::Comma>);
+
+impl syn::parse::Parse for MyExprList {
+    fn parse(input: syn::parse::ParseStream) -> SynResult<Self> {
+        use syn::punctuated::Punctuated;
+        let exprs = Punctuated::parse_terminated(input)?;
+        Ok(MyExprList(exprs))
+    }
+}
+
+enum SnafuAttribute {
+    Display(UserInput),
+    Visibility(UserInput),
+    Backtrace,
+}
+
+impl SnafuAttribute {
+    fn into_visibility(self) -> Option<UserInput> {
+        match self {
+            SnafuAttribute::Visibility(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    fn is_backtrace(&self) -> bool {
+        match *self {
+            SnafuAttribute::Backtrace => true,
+            _ => false,
+        }
+    }
+}
+
+impl syn::parse::Parse for SnafuAttribute {
+    fn parse(input: syn::parse::ParseStream) -> SynResult<Self> {
+        use syn::{Ident, Visibility};
+
+        let inside;
+        parenthesized!(inside in input);
+        let name: Ident = inside.parse()?;
+
+        if name == "display" {
+            let m: MyMeta<MyExprList> = inside.parse()?;
+            let v = m.into_option().ok_or_else(|| {
+                SynError::new(name.span(), "`snafu(display)` requires an argument")
+            })?;
+            let v = Box::new(v.0);
+            Ok(SnafuAttribute::Display(v))
+        } else if name == "visibility" {
+            let m: MyMeta<Visibility> = inside.parse()?;
+            let v = m
+                .into_option()
+                .map_or_else(private_visibility, |v| Box::new(v) as UserInput);
+            Ok(SnafuAttribute::Visibility(v))
+        } else if name == "backtrace" {
+            let _: MyParens<Ident> = inside.parse()?;
+            Ok(SnafuAttribute::Backtrace)
+        } else {
+            Err(SynError::new(
+                name.span(),
+                "expected `display`, `visibility`, or `backtrace`",
+            ))
+        }
+    }
+}
+
+struct SnafuAttributeBody(Vec<SnafuAttribute>);
+
+impl syn::parse::Parse for SnafuAttributeBody {
+    fn parse(input: syn::parse::ParseStream) -> SynResult<Self> {
+        use syn::punctuated::Punctuated;
+        use syn::token::Comma;
+
+        let parse_comma_list = Punctuated::<SnafuAttribute, Comma>::parse_terminated;
+        let list = parse_comma_list(input)?;
+
+        Ok(SnafuAttributeBody(
+            list.into_pairs().map(|p| p.into_value()).collect(),
+        ))
+    }
+}
+
+fn attributes_from_syn(attrs: Vec<syn::Attribute>) -> SynResult<Vec<SnafuAttribute>> {
+    use syn::parse2;
+
+    let mut ours = Vec::new();
+
+    let parsed_attrs = attrs
+        .into_iter()
+        .filter(|attr| attr.path.is_ident("snafu"))
+        .map(|attr| {
+            let body: SnafuAttributeBody = parse2(attr.tts)?;
+            Ok(body.0)
+        });
+
+    for attr in parsed_attrs {
+        match attr {
+            Ok(v) => ours.extend(v),
+            Err(e) => return Err(e),
+        }
+    }
+
+    Ok(ours)
+}
+
+fn private_visibility() -> UserInput {
+    Box::new(quote! {})
 }
 
 impl From<EnumInfo> for proc_macro::TokenStream {
@@ -311,7 +360,7 @@ impl EnumInfo {
         }
     }
 
-    fn parameterized_enum_name(&self) -> Box<quote::ToTokens> {
+    fn parameterized_enum_name(&self) -> UserInput {
         let enum_name = &self.name;
         let original_generics = self.generics.params.iter();
 
@@ -497,15 +546,9 @@ impl<'a> DisplayImpl<'a> {
                     ..
                 } = *variant;
 
-                let format = match *display_format {
-                    Some(DisplayFormat::Stringified(ref fmt)) => {
-                        quote! { #(#fmt),* }
-                    }
-                    Some(DisplayFormat::Direct(ref fmt)) => {
-                        quote! { #fmt }
-                    }
-                    None => quote! { stringify!(#variant_name) },
-                };
+                let format = display_format
+                    .as_ref()
+                    .map_or_else(|| quote! { stringify!(#variant_name) }, |v| quote! { #v });
 
                 let field_names = user_fields
                     .iter()

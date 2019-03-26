@@ -2,17 +2,17 @@
 //!
 //! ## Controlling `Display`
 //!
-//! For backwards compatibility purposes, there are a number of ways
-//! you can specify how the `Display` trait will be implemented for
-//! each variant:
+//! There are a number of ways you can specify how the `Display` trait
+//! will be implemented for each variant:
 //!
-//! - `#[snafu_display("a format string with arguments: {}", "info")]`
+//! - `#[snafu(display("a format string with arguments: {}", info))]`
 //!
-//!   Every argument is quoted as a string literal separately.
+//!   The argument is a format string and the arguments. Available in Rust 1.34.
 //!
-//! - `#[snafu_display = r#"("a format string with arguments: {}", info)"#]`
+//! - `#[snafu(display = r#"("a format string with arguments: {}", info)"#)]`
 //!
-//!   The entire
+//!   The same argument as above, but wrapped in a raw string to
+//!   support previous Rust versions.
 //!
 //! Each choice has the same capabilities. All of the fields of the
 //! variant will be available and you can call methods on them, such
@@ -27,24 +27,31 @@
 //! increasing cohesiveness.
 //!
 //! If you need access the context selectors from outside of their
-//! module, you can use the `#[snafu_visibility]` attribute. This can
+//! module, you can use the `#[snafu(visibility)]` attribute. This can
 //! be applied to the error type as a default visibility or to
 //! specific context selectors.
 //!
-//! There are two forms of the attribute:
+//! There are a number of forms of the attribute:
 //!
-//! - `#[snafu_visibility = "X"]`, where `X` is a normal Rust
-//!   visibility modifier (`pub`, `pub(crate)`, `pub(in some::path)`,
-//!   etc.)
-//! - `#[snafu_visibility]` will reset back to private visibility.
+//! - `#[snafu(visibility(X))]`
+//!
+//!   `X` is a normal Rust visibility modifier (`pub`, `pub(crate)`,
+//!   `pub(in some::path)`, etc.). Supported in Rust 1.34.
+//!
+//! - `#[snafu(visibility = "X")]`
+//!
+//!   The same argument as above, but wrapped in a string to support
+//!   previous Rust versions.
+//!
+//! - `#[snafu(visibility)]` will reset back to private visibility.
 //!
 //! ```
 //! # use snafu::Snafu;
 //! #[derive(Debug, Snafu)]
-//! #[snafu_visibility = "pub(crate)"] // Default
+//! #[snafu(visibility = "pub(crate)")] // Default
 //! enum Error {
 //!     IsPubCrate, // Uses the default
-//!     #[snafu_visibility]
+//!     #[snafu(visibility)]
 //!     IsPrivate,  // Will be private
 //! }
 //! ```
@@ -53,7 +60,7 @@
 //!
 //! If your error contains other SNAFU errors which can report
 //! backtraces, you may wish to delegate returning a backtrace to
-//! those errors. Use `#[snafu_backtrace(delegate)]` to specify this:
+//! those errors. Use `#[snafu(backtrace(delegate))]` to specify this:
 //!
 //! ```rust
 //! # mod another {
@@ -65,7 +72,7 @@
 //! #[derive(Debug, Snafu)]
 //! enum Error {
 //!     MyError {
-//!         #[snafu_backtrace(delegate)]
+//!         #[snafu(backtrace(delegate))]
 //!         source: another::Error,
 //!     }
 //! }

@@ -33,6 +33,7 @@ rust_1_30 = ["snafu-derive/rust_1_30"]
 # cannot be in the same crate graph.
 exclude = [
   "compatibility-tests/compile-fail",
+  "compatibility-tests/v1_34",
   "compatibility-tests/v1_30",
   "compatibility-tests/v1_18",
   "compatibility-tests/without-backtrace",
