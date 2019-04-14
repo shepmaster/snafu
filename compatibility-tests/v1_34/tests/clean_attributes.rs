@@ -2,6 +2,9 @@ use snafu::{Snafu, ResultExt};
 use std::{fs, io, path::{Path, PathBuf}};
 
 #[derive(Debug, Snafu)]
+struct PublicError(Error);
+
+#[derive(Debug, Snafu)]
 #[snafu(visibility(pub(crate)))]
 enum Error {
     #[snafu(display("Could not open config file at {}: {}", filename.display(), source))]
@@ -36,5 +39,7 @@ fn example(root: impl AsRef<Path>, username: &str) -> Result<()> {
 fn implements_error() {
     fn check<T: std::error::Error>() {}
     check::<Error>();
+    check::<PublicError>();
+
     example("/some/directory/that/does/not/exist", "").unwrap_err();
 }

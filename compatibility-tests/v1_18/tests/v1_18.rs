@@ -7,6 +7,9 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Snafu)]
+struct PublicError(Error);
+
+#[derive(Debug, Snafu)]
 enum Error {
     #[snafu(display = r#"("Could not open config file at {}: {}", filename.display(), source)"#)]
     OpenConfig { filename: PathBuf, source: io::Error },
@@ -71,6 +74,8 @@ where
 fn implements_error() {
     fn check<T: std::error::Error>() {}
     check::<Error>();
+    check::<PublicError>();
+
     let e = example("/some/directory/that/does/not/exist", None).unwrap_err();
     ErrorCompat::backtrace(&e);
 }

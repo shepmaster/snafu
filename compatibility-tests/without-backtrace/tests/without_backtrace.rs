@@ -3,7 +3,10 @@ extern crate snafu;
 use snafu::Snafu;
 
 #[derive(Debug, Snafu)]
-pub enum Error {
+struct PublicError(Error);
+
+#[derive(Debug, Snafu)]
+enum Error {
     #[snafu(display = r#"("User ID {} is invalid", user_id)"#)]
     InvalidUser { user_id: i32 },
 }
@@ -12,4 +15,5 @@ pub enum Error {
 fn implements_error() {
     fn check<T: std::error::Error>() {}
     check::<Error>();
+    check::<PublicError>();
 }
