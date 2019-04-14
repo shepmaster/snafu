@@ -66,6 +66,9 @@ v1_30_test_task:
   primary_test_script:
     - cd compatibility-tests/v1_30/
     - rustc --version
+    - cargo generate-lockfile
+    # These versions determined by trial and error
+    - cargo update -p rustc-demangle --precise 0.1.13
     - cargo test
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
