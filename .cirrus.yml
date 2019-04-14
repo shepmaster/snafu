@@ -42,8 +42,7 @@ nightly_test_task:
 v1_34_test_task:
   name: "Rust 1.34"
   container:
-    # Should be 1.34 when it's released
-    image: rustlang/rust:nightly
+    image: rust:1.34
     cpu: 0.5
     memory: 768Mi
   cargo_cache:
@@ -67,6 +66,9 @@ v1_30_test_task:
   primary_test_script:
     - cd compatibility-tests/v1_30/
     - rustc --version
+    - cargo generate-lockfile
+    # These versions determined by trial and error
+    - cargo update -p rustc-demangle --precise 0.1.13
     - cargo test
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
