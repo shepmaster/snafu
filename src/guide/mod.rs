@@ -5,7 +5,8 @@
 //! philosophy](guide::philosophy).
 //!
 //! For more advanced usage, take a deeper dive into [how the `Snafu`
-//! macro works](guide::the_macro) and what [attributes are
+//! macro works](guide::the_macro), how to create [opaque error
+//! types](guide::opaque), and what [attributes are
 //! available](guide::attributes).
 //!
 //! For optional features of the crate, see our [list of feature
@@ -20,6 +21,7 @@
 pub mod attributes;
 pub mod compatibility;
 pub mod feature_flags;
+pub mod opaque;
 pub mod philosophy;
 pub mod the_macro;
 pub mod upgrading;

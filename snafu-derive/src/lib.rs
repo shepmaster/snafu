@@ -21,6 +21,11 @@ pub fn snafu_derive(input: TokenStream) -> TokenStream {
 
 type UserInput = Box<quote::ToTokens>;
 
+enum SnafuInfo {
+    Enum(EnumInfo),
+    Struct(StructInfo),
+}
+
 struct EnumInfo {
     name: syn::Ident,
     generics: syn::Generics,
@@ -38,6 +43,12 @@ struct VariantInfo {
     visibility: Option<UserInput>,
 }
 
+struct StructInfo {
+    name: syn::Ident,
+    generics: syn::Generics,
+    inner_type: syn::Type,
+}
+
 #[derive(Clone)]
 struct Field {
     name: syn::Ident,
@@ -51,28 +62,47 @@ fn impl_snafu_macro(ty: syn::DeriveInput) -> TokenStream {
     }
 }
 
-fn parse_snafu_information(ty: syn::DeriveInput) -> SynResult<EnumInfo> {
+fn parse_snafu_information(ty: syn::DeriveInput) -> SynResult<SnafuInfo> {
     use syn::spanned::Spanned;
-    use syn::{Data, Fields};
+    use syn::Data;
 
     let span = ty.span();
+    let syn::DeriveInput {
+        ident,
+        generics,
+        data,
+        attrs,
+        ..
+    } = ty;
 
-    let default_visibility = attributes_from_syn(ty.attrs)?
+    match data {
+        Data::Enum(enum_) => parse_snafu_enum(enum_, ident, generics, attrs).map(SnafuInfo::Enum),
+        Data::Struct(struct_) => {
+            parse_snafu_struct(struct_, ident, generics, span).map(SnafuInfo::Struct)
+        }
+        _ => {
+            return Err(SynError::new(
+                span,
+                "Can only derive `Snafu` for an enum or a newtype",
+            ));
+        }
+    }
+}
+
+fn parse_snafu_enum(
+    enum_: syn::DataEnum,
+    name: syn::Ident,
+    generics: syn::Generics,
+    attrs: Vec<syn::Attribute>,
+) -> SynResult<EnumInfo> {
+    use syn::spanned::Spanned;
+    use syn::Fields;
+
+    let default_visibility = attributes_from_syn(attrs)?
         .into_iter()
         .flat_map(SnafuAttribute::into_visibility)
         .next()
         .unwrap_or_else(private_visibility);
-
-    let enum_ = match ty.data {
-        Data::Enum(enum_) => enum_,
-        _ => {
-            return Err(SynError::new(span, "Can only derive `Snafu` for an enum"));
-        }
-    };
-
-    let name = ty.ident;
-
-    let generics = ty.generics;
 
     let variants: Result<_, SynError> = enum_
         .variants
@@ -162,6 +192,45 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> SynResult<EnumInfo> {
         generics,
         variants,
         default_visibility,
+    })
+}
+
+fn parse_snafu_struct(
+    struct_: syn::DataStruct,
+    name: syn::Ident,
+    generics: syn::Generics,
+    span: proc_macro2::Span,
+) -> SynResult<StructInfo> {
+    use syn::Fields;
+
+    let mut fields = match struct_.fields {
+        Fields::Unnamed(f) => f,
+        _ => {
+            return Err(SynError::new(
+                span,
+                "Can only derive `Snafu` for tuple structs",
+            ));
+        }
+    };
+
+    fn one_field_error(span: proc_macro2::Span) -> SynError {
+        SynError::new(
+            span,
+            "Can only derive `Snafu` for tuple structs with exactly one field",
+        )
+    }
+
+    let inner = fields.unnamed.pop().ok_or_else(|| one_field_error(span))?;
+    if !fields.unnamed.is_empty() {
+        return Err(one_field_error(span));
+    }
+
+    let inner_type = inner.into_value().ty;
+
+    Ok(StructInfo {
+        name,
+        inner_type,
+        generics,
     })
 }
 
@@ -339,8 +408,23 @@ fn private_visibility() -> UserInput {
     Box::new(quote! {})
 }
 
+impl From<SnafuInfo> for proc_macro::TokenStream {
+    fn from(other: SnafuInfo) -> proc_macro::TokenStream {
+        match other {
+            SnafuInfo::Enum(e) => e.into(),
+            SnafuInfo::Struct(s) => s.into(),
+        }
+    }
+}
+
 impl From<EnumInfo> for proc_macro::TokenStream {
     fn from(other: EnumInfo) -> proc_macro::TokenStream {
+        other.generate_snafu().into()
+    }
+}
+
+impl From<StructInfo> for proc_macro::TokenStream {
+    fn from(other: StructInfo) -> proc_macro::TokenStream {
         other.generate_snafu().into()
     }
 }
@@ -762,6 +846,67 @@ impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
                 }
             }
         })
+    }
+}
+
+impl StructInfo {
+    fn generate_snafu(self) -> proc_macro2::TokenStream {
+        let StructInfo {
+            inner_type,
+            generics,
+            name,
+        } = self;
+        let parameterized_struct_name = quote! { #name#generics };
+
+        let source_fn = if cfg!(feature = "rust_1_30") {
+            quote! {
+                fn source(&self) -> Option<&(std::error::Error + 'static)> {
+                    std::error::Error::source(&self.0)
+                }
+            }
+        } else {
+            quote! {}
+        };
+
+        let backtrace_fn = if cfg!(feature = "backtraces") {
+            quote! {
+                fn backtrace(&self) -> Option<&snafu::Backtrace> {
+                    snafu::ErrorCompat::backtrace(&self.0)
+                }
+            }
+        } else {
+            quote! {}
+        };
+
+        quote! {
+            impl#generics std::error::Error for #parameterized_struct_name {
+                fn description(&self) -> &str {
+                    std::error::Error::description(&self.0)
+                }
+
+                fn cause(&self) -> Option<&std::error::Error> {
+                    std::error::Error::cause(&self.0)
+                }
+
+                #source_fn
+            }
+
+            impl#generics snafu::ErrorCompat for #parameterized_struct_name {
+                #backtrace_fn
+            }
+
+            impl#generics std::fmt::Display for #parameterized_struct_name {
+                fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                    std::fmt::Display::fmt(&self.0, f)
+                }
+            }
+
+            impl#generics From<#inner_type> for #parameterized_struct_name {
+                fn from(other: #inner_type) -> Self {
+                    #name(other)
+                }
+            }
+        }
     }
 }
 
