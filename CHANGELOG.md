@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2019-04-14
+
+### Added
+
+- Deriving `Snafu` on a newtype struct now creates an opaque error
+  type, suitable for conservative public APIs.
+
+[0.2.1]: https://github.com/shepmaster/snafu/releases/tag/0.2.1
+
 ## [0.2.0] - 2019-03-02
 
 ### Removed
@@ -15,8 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Backtraces can now be delegated to an underlying error via
   `#[snafu(backtrace(delegate))]`.
-
-### Changed
 
 [0.2.0]: https://github.com/shepmaster/snafu/releases/tag/0.2.0
 
