@@ -15,11 +15,11 @@
 //!
 //! #[derive(Debug, Snafu)]
 //! enum Error {
-//!     #[snafu(display = r#"("Could not open config at {}: {}", filename.display(), source)"#)]
+//!     #[snafu(display("Could not open config at {}: {}", filename.display(), source))]
 //!     OpenConfig { filename: PathBuf, source: std::io::Error },
-//!     #[snafu(display = r#"("Could not open config: {}", "source")"#)]
+//!     #[snafu(display("Could not open config: {}", "source"))]
 //!     SaveConfig { source: std::io::Error },
-//!     #[snafu(display = r#"("The user id {} is invalid", user_id)"#)]
+//!     #[snafu(display("The user id {} is invalid", user_id))]
 //!     UserIdInvalid { user_id: i32, backtrace: Backtrace },
 //! }
 //! ```

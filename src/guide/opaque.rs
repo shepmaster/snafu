@@ -26,9 +26,9 @@
 //!
 //! #[derive(Debug, Snafu)]
 //! enum InnerError {
-//!     #[snafu(display = r#"("User ID {} is invalid", user_id)"#)]
+//!     #[snafu(display("User ID {} is invalid", user_id))]
 //!     InvalidUser { user_id: i32 },
-//!     #[snafu(display = r#"("User ID {} is locked", user_id)"#)]
+//!     #[snafu(display("User ID {} is locked", user_id))]
 //!     UserLocked { user_id: i32 },
 //! }
 //!
