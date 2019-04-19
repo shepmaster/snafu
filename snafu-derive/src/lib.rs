@@ -713,13 +713,13 @@ impl<'a> ErrorImpl<'a> {
                         } = *source_field;
                         quote! {
                             #enum_name::#variant_name { ref #field_name, .. } => {
-                                Some(std::borrow::Borrow::borrow(#field_name))
+                                std::option::Option::Some(std::borrow::Borrow::borrow(#field_name))
                             }
                         }
                     }
                     None => {
                         quote! {
-                            #enum_name::#variant_name { .. } => { None }
+                            #enum_name::#variant_name { .. } => { std::option::Option::None }
                         }
                     }
                 }
@@ -809,11 +809,11 @@ impl<'a> ErrorCompatImpl<'a> {
                     ..
                 } = *backtrace_field;
                 quote! {
-                    #enum_name::#variant_name { ref #field_name, .. } => { Some(#field_name) }
+                    #enum_name::#variant_name { ref #field_name, .. } => { std::option::Option::Some(#field_name) }
                 }
             } else {
                 quote! {
-                    #enum_name::#variant_name { .. } => { None }
+                    #enum_name::#variant_name { .. } => { std::option::Option::None }
                 }
             }
         }).collect()
