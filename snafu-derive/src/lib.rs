@@ -856,7 +856,20 @@ impl StructInfo {
             generics,
             name,
         } = self;
+
         let parameterized_struct_name = quote! { #name#generics };
+
+        let description_fn = quote! {
+            fn description(&self) -> &str {
+                std::error::Error::description(&self.0)
+            }
+        };
+
+        let cause_fn = quote! {
+            fn cause(&self) -> Option<&std::error::Error> {
+                std::error::Error::cause(&self.0)
+            }
+        };
 
         let source_fn = if cfg!(feature = "rust_1_30") {
             quote! {
@@ -878,34 +891,41 @@ impl StructInfo {
             quote! {}
         };
 
-        quote! {
+        let error_impl = quote! {
             impl#generics std::error::Error for #parameterized_struct_name {
-                fn description(&self) -> &str {
-                    std::error::Error::description(&self.0)
-                }
-
-                fn cause(&self) -> Option<&std::error::Error> {
-                    std::error::Error::cause(&self.0)
-                }
-
+                #description_fn
+                #cause_fn
                 #source_fn
             }
+        };
 
+        let error_compat_impl = quote! {
             impl#generics snafu::ErrorCompat for #parameterized_struct_name {
                 #backtrace_fn
             }
+        };
 
+        let display_impl = quote! {
             impl#generics std::fmt::Display for #parameterized_struct_name {
                 fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                     std::fmt::Display::fmt(&self.0, f)
                 }
             }
+        };
 
+        let from_impl = quote! {
             impl#generics From<#inner_type> for #parameterized_struct_name {
                 fn from(other: #inner_type) -> Self {
                     #name(other)
                 }
             }
+        };
+
+        quote! {
+            #error_impl
+            #error_compat_impl
+            #display_impl
+            #from_impl
         }
     }
 }
