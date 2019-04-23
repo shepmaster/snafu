@@ -450,6 +450,14 @@ impl EnumInfo {
 
         Box::new(quote! { #enum_name<#(#original_generics,)*> })
     }
+
+    fn provided_where_clauses(&self) -> Vec<proc_macro2::TokenStream> {
+        self.generics
+            .where_clause
+            .iter()
+            .flat_map(|c| c.predicates.iter().map(|p| quote! { #p }))
+            .collect()
+    }
 }
 
 struct ContextSelectors<'a>(&'a EnumInfo);
@@ -536,6 +544,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
                 let Field { ref ty, .. } = *f;
                 quote! { #gen_ty: std::convert::Into<#ty> }
             })
+            .chain(self.0.provided_where_clauses())
             .collect();
 
         let inherent_impl = if source_field.is_none() {
@@ -655,12 +664,16 @@ impl<'a> quote::ToTokens for DisplayImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let original_generics = &self.0.generics;
         let parameterized_enum_name = &self.0.parameterized_enum_name();
+        let where_clauses = &self.0.provided_where_clauses();
 
         let variants_to_display = &self.variants_to_display();
 
         stream.extend({
             quote! {
-                impl#original_generics std::fmt::Display for #parameterized_enum_name {
+                impl#original_generics std::fmt::Display for #parameterized_enum_name
+                where
+                    #(#where_clauses),*
+                {
                     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                         #[allow(unused_variables)]
                         match *self {
@@ -732,6 +745,7 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let original_generics = &self.0.generics;
         let parameterized_enum_name = &self.0.parameterized_enum_name();
+        let where_clauses: &Vec<_> = &self.0.provided_where_clauses();
 
         let variants_to_description = &self.variants_to_description();
 
@@ -770,6 +784,7 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
                 impl#original_generics std::error::Error for #parameterized_enum_name
                 where
                     Self: std::fmt::Debug + std::fmt::Display,
+                    #(#where_clauses),*
                 {
                     #description_fn
                     #cause_fn
@@ -824,6 +839,7 @@ impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let original_generics = &self.0.generics;
         let parameterized_enum_name = &self.0.parameterized_enum_name();
+        let where_clauses = &self.0.provided_where_clauses();
 
         let variants = &self.variants_to_backtrace();
 
@@ -841,7 +857,10 @@ impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
 
         stream.extend({
             quote! {
-                impl#original_generics snafu::ErrorCompat for #parameterized_enum_name {
+                impl#original_generics snafu::ErrorCompat for #parameterized_enum_name
+                where
+                    #(#where_clauses),*
+                {
                     #backtrace_fn
                 }
             }
@@ -858,6 +877,11 @@ impl StructInfo {
         } = self;
 
         let parameterized_struct_name = quote! { #name#generics };
+        let where_clauses: &Vec<_> = &generics
+            .where_clause
+            .iter()
+            .flat_map(|c| c.predicates.iter().map(|p| quote! { #p }))
+            .collect();
 
         let description_fn = quote! {
             fn description(&self) -> &str {
@@ -892,7 +916,10 @@ impl StructInfo {
         };
 
         let error_impl = quote! {
-            impl#generics std::error::Error for #parameterized_struct_name {
+            impl#generics std::error::Error for #parameterized_struct_name
+            where
+                #(#where_clauses),*
+            {
                 #description_fn
                 #cause_fn
                 #source_fn
@@ -900,13 +927,19 @@ impl StructInfo {
         };
 
         let error_compat_impl = quote! {
-            impl#generics snafu::ErrorCompat for #parameterized_struct_name {
+            impl#generics snafu::ErrorCompat for #parameterized_struct_name
+            where
+                #(#where_clauses),*
+            {
                 #backtrace_fn
             }
         };
 
         let display_impl = quote! {
-            impl#generics std::fmt::Display for #parameterized_struct_name {
+            impl#generics std::fmt::Display for #parameterized_struct_name
+            where
+                #(#where_clauses),*
+            {
                 fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                     std::fmt::Display::fmt(&self.0, f)
                 }
@@ -914,7 +947,10 @@ impl StructInfo {
         };
 
         let from_impl = quote! {
-            impl#generics From<#inner_type> for #parameterized_struct_name {
+            impl#generics From<#inner_type> for #parameterized_struct_name
+            where
+                #(#where_clauses),*
+            {
                 fn from(other: #inner_type) -> Self {
                     #name(other)
                 }
