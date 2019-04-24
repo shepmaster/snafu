@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2019-04-24
+
+### Fixed
+
+- User-provided `where` clauses on error types are now copied to
+  SNAFU-created `impl` blocks.
+- User-provided inline trait bounds (`<T: SomeTrait>`) are no longer
+  included in SNAFU-generated type names.
+
+[0.2.3]: https://github.com/shepmaster/snafu/releases/tag/0.2.3
+
 ## [0.2.2] - 2019-04-19
 
 ### Fixed
