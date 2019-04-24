@@ -5,16 +5,7 @@ use snafu::{Backtrace, ResultExt, Snafu};
 type BoxError = Box<std::error::Error>;
 
 #[derive(Debug, Snafu)]
-struct ApiError<'a, 'x, A, Y>(Error<'a, 'x, A, Y>)
-where
-    A: std::fmt::Debug,
-    Y: std::fmt::Debug;
-
-#[derive(Debug, Snafu)]
-enum Error<'a, 'x, A, Y>
-where
-    Y: std::fmt::Debug,
-{
+enum Error<'a, 'x, A, Y> {
     Everything {
         source: BoxError,
         name: &'a str,
@@ -24,7 +15,6 @@ where
     Lifetime {
         key: &'x i32,
     },
-    #[snafu(display("Type: {:?}", value))]
     Type {
         value: Y,
     },
@@ -60,4 +50,53 @@ fn implements_error() {
     let value = vec![false];
 
     example(&name, &key, value).unwrap();
+}
+
+mod bounds {
+    mod inline {
+        use snafu::Snafu;
+        use std::fmt::{Debug, Display};
+
+        #[derive(Debug, Snafu)]
+        pub struct ApiError<T: Debug + Display>(Error<T>);
+
+        #[derive(Debug, Snafu)]
+        enum Error<T: Display> {
+            #[snafu(display("Boom: {}", value))]
+            Boom { value: T },
+        }
+
+        #[test]
+        fn implements_error() {
+            fn check_bounds<T: std::error::Error>() {}
+            check_bounds::<Error<i32>>();
+            check_bounds::<ApiError<i32>>();
+        }
+    }
+
+    mod where_clause {
+        use snafu::Snafu;
+        use std::fmt::{Debug, Display};
+
+        #[derive(Debug, Snafu)]
+        pub struct ApiError<T>(Error<T>)
+        where
+            T: Debug + Display;
+
+        #[derive(Debug, Snafu)]
+        enum Error<T>
+        where
+            T: Display,
+        {
+            #[snafu(display("Boom: {}", value))]
+            Boom { value: T },
+        }
+
+        #[test]
+        fn implements_error() {
+            fn check_bounds<T: std::error::Error>() {}
+            check_bounds::<Error<i32>>();
+            check_bounds::<ApiError<i32>>();
+        }
+    }
 }

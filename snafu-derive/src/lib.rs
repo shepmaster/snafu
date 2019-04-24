@@ -429,6 +429,41 @@ impl From<StructInfo> for proc_macro::TokenStream {
     }
 }
 
+trait GenericAwareNames {
+    fn name(&self) -> &syn::Ident;
+
+    fn generics(&self) -> &syn::Generics;
+
+    fn parameterized_name(&self) -> UserInput {
+        let enum_name = self.name();
+        let original_generics = self.provided_generic_names();
+
+        Box::new(quote! { #enum_name<#(#original_generics,)*> })
+    }
+
+    fn provided_generic_names(&self) -> Vec<proc_macro2::TokenStream> {
+        use syn::{ConstParam, GenericParam, LifetimeDef, TypeParam};
+
+        self.generics()
+            .params
+            .iter()
+            .map(|p| match *p {
+                GenericParam::Type(TypeParam { ref ident, .. }) => quote! { #ident },
+                GenericParam::Lifetime(LifetimeDef { ref lifetime, .. }) => quote! { #lifetime },
+                GenericParam::Const(ConstParam { ref ident, .. }) => quote! { #ident },
+            })
+            .collect()
+    }
+
+    fn provided_where_clauses(&self) -> Vec<proc_macro2::TokenStream> {
+        self.generics()
+            .where_clause
+            .iter()
+            .flat_map(|c| c.predicates.iter().map(|p| quote! { #p }))
+            .collect()
+    }
+}
+
 impl EnumInfo {
     fn generate_snafu(self) -> proc_macro2::TokenStream {
         let context_selectors = ContextSelectors(&self);
@@ -443,20 +478,15 @@ impl EnumInfo {
             #error_compat_impl
         }
     }
+}
 
-    fn parameterized_enum_name(&self) -> UserInput {
-        let enum_name = &self.name;
-        let original_generics = self.generics.params.iter();
-
-        Box::new(quote! { #enum_name<#(#original_generics,)*> })
+impl GenericAwareNames for EnumInfo {
+    fn name(&self) -> &syn::Ident {
+        &self.name
     }
 
-    fn provided_where_clauses(&self) -> Vec<proc_macro2::TokenStream> {
-        self.generics
-            .where_clause
-            .iter()
-            .flat_map(|c| c.predicates.iter().map(|p| quote! { #p }))
-            .collect()
+    fn generics(&self) -> &syn::Generics {
+        &self.generics
     }
 }
 
@@ -488,7 +518,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
         let enum_name = &self.0.name;
         let original_generics: &Vec<_> = &self.0.generics.params.iter().collect();
 
-        let parameterized_enum_name = &self.0.parameterized_enum_name();
+        let parameterized_enum_name = &self.0.parameterized_name();
 
         let VariantInfo {
             name: ref variant_name,
@@ -663,7 +693,7 @@ impl<'a> DisplayImpl<'a> {
 impl<'a> quote::ToTokens for DisplayImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let original_generics = &self.0.generics;
-        let parameterized_enum_name = &self.0.parameterized_enum_name();
+        let parameterized_enum_name = &self.0.parameterized_name();
         let where_clauses = &self.0.provided_where_clauses();
 
         let variants_to_display = &self.variants_to_display();
@@ -744,7 +774,7 @@ impl<'a> ErrorImpl<'a> {
 impl<'a> quote::ToTokens for ErrorImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let original_generics = &self.0.generics;
-        let parameterized_enum_name = &self.0.parameterized_enum_name();
+        let parameterized_enum_name = &self.0.parameterized_name();
         let where_clauses: &Vec<_> = &self.0.provided_where_clauses();
 
         let variants_to_description = &self.variants_to_description();
@@ -838,7 +868,7 @@ impl<'a> ErrorCompatImpl<'a> {
 impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let original_generics = &self.0.generics;
-        let parameterized_enum_name = &self.0.parameterized_enum_name();
+        let parameterized_enum_name = &self.0.parameterized_name();
         let where_clauses = &self.0.provided_where_clauses();
 
         let variants = &self.variants_to_backtrace();
@@ -870,13 +900,14 @@ impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
 
 impl StructInfo {
     fn generate_snafu(self) -> proc_macro2::TokenStream {
+        let parameterized_struct_name = self.parameterized_name();
+
         let StructInfo {
             inner_type,
             generics,
             name,
         } = self;
 
-        let parameterized_struct_name = quote! { #name#generics };
         let where_clauses: &Vec<_> = &generics
             .where_clause
             .iter()
@@ -963,6 +994,16 @@ impl StructInfo {
             #display_impl
             #from_impl
         }
+    }
+}
+
+impl GenericAwareNames for StructInfo {
+    fn name(&self) -> &syn::Ident {
+        &self.name
+    }
+
+    fn generics(&self) -> &syn::Generics {
+        &self.generics
     }
 }
 
