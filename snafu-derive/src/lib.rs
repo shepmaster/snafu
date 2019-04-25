@@ -645,12 +645,14 @@ trait GenericAwareNames {
 impl EnumInfo {
     fn generate_snafu(self) -> proc_macro2::TokenStream {
         let context_selectors = ContextSelectors(&self);
+        let borrow_impl = BorrowImpl(&self);
         let display_impl = DisplayImpl(&self);
         let error_impl = ErrorImpl(&self);
         let error_compat_impl = ErrorCompatImpl(&self);
 
         quote! {
             #context_selectors
+            #borrow_impl
             #display_impl
             #error_impl
             #error_compat_impl
@@ -828,6 +830,30 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
                 #variant_selector_struct
                 #inherent_impl
                 #enum_from_variant_selector_impl
+            }
+        })
+    }
+}
+
+struct BorrowImpl<'a>(&'a EnumInfo);
+
+impl<'a> quote::ToTokens for BorrowImpl<'a> {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        let original_generics = &self.0.generics;
+        let parameterized_enum_name = &self.0.parameterized_name();
+        let where_clauses = &self.0.provided_where_clauses();
+
+        stream.extend({
+            quote! {
+                impl#original_generics std::borrow::Borrow<std::error::Error> for std::boxed::Box<#parameterized_enum_name>
+                where
+                    Self: std::error::Error + 'static,
+                    #(#where_clauses),*
+                {
+                    fn borrow(&self) -> &(std::error::Error + 'static) {
+                        self
+                    }
+                }
             }
         })
     }
@@ -1169,6 +1195,18 @@ impl StructInfo {
             }
         };
 
+        let borrow_impl = quote! {
+            impl#generics std::borrow::Borrow<std::error::Error> for std::boxed::Box<#parameterized_struct_name>
+            where
+                Self: std::error::Error + 'static,
+                #(#where_clauses),*
+            {
+                fn borrow(&self) -> &(std::error::Error + 'static) {
+                    self
+                }
+            }
+        };
+
         let from_impl = quote! {
             impl#generics From<#inner_type> for #parameterized_struct_name
             where
@@ -1184,7 +1222,9 @@ impl StructInfo {
             #error_impl
             #error_compat_impl
             #display_impl
+            #borrow_impl
             #from_impl
+
         }
     }
 }

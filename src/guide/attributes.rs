@@ -107,6 +107,10 @@
 //!         source: Box<another::Error>,
 //!     },
 //! }
+//!
+//! #[derive(Debug, Snafu)]
+//! #[snafu(source(from(Error, Box::new)))]
+//! struct ApiError(Box<Error>);
 //! ```
 //!
 //! ## Controlling backtraces
