@@ -669,9 +669,14 @@ impl<'a> DisplayImpl<'a> {
                     ..
                 } = *variant;
 
-                let format = display_format
-                    .as_ref()
-                    .map_or_else(|| quote! { stringify!(#variant_name) }, |v| quote! { #v });
+                let format = match (display_format, source_field) {
+                    (&Some(ref v), _) => quote! { #v },
+                    (&None, &Some(ref f)) => {
+                        let field_name = &f.name;
+                        quote! { concat!(stringify!(#variant_name), ": {}"), #field_name }
+                    }
+                    (&None, &None) => quote! { stringify!(#variant_name)},
+                };
 
                 let field_names = user_fields
                     .iter()
