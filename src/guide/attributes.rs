@@ -86,6 +86,28 @@
 //!
 //! ## Controlling backtraces
 //!
+//! If your error enum variant contains a backtrace but the field
+//! cannot be named `backtrace`, or if it contains a field named
+//! `backtrace` which is not actually a backtrace, you can use
+//! `#[snafu(backtrace)]` to indicate if a field is actually a
+//!  backtrace or not:
+//!
+//! ```rust
+//! # use snafu::{Backtrace, Snafu};
+//! #[derive(Debug, Snafu)]
+//! enum Error {
+//!     BacktraceIsNotABacktrace {
+//!         #[snafu(backtrace(false))]
+//!         backtrace: bool,
+//!     },
+//!
+//!     TraceIsABacktrace {
+//!         #[snafu(backtrace)]
+//!         trace: Backtrace,
+//!     },
+//! }
+//! ```
+//!
 //! If your error contains other SNAFU errors which can report
 //! backtraces, you may wish to delegate returning a backtrace to
 //! those errors. Use `#[snafu(backtrace(delegate))]` to specify this:

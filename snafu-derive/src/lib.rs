@@ -118,7 +118,7 @@ fn parse_snafu_enum(
                     SnafuAttribute::Display(d) => display_format = Some(d),
                     SnafuAttribute::Visibility(v) => visibility = Some(v),
                     SnafuAttribute::Source(..) => { /* Report this isn't valid here? */ }
-                    SnafuAttribute::Backtrace => { /* Report this isn't valid here? */ }
+                    SnafuAttribute::Backtrace(..) => { /* Report this isn't valid here? */ }
                 }
             }
 
@@ -150,19 +150,24 @@ fn parse_snafu_enum(
 
                 let mut has_backtrace = false;
                 let mut is_source = None;
+                let mut is_backtrace = None;
 
                 for attr in attributes_from_syn(syn_field.attrs)? {
                     match attr {
                         SnafuAttribute::Source(s) => match s {
                             Source::Flag(v) => is_source = Some(v),
                         },
-                        SnafuAttribute::Backtrace => has_backtrace = true,
+                        SnafuAttribute::Backtrace(b) => match b {
+                            Backtrace::Flag(v) => is_backtrace = Some(v),
+                            Backtrace::Delegate => has_backtrace = true,
+                        },
                         SnafuAttribute::Visibility(_) => { /* Report this isn't valid here? */ }
                         SnafuAttribute::Display(_) => { /* Report this isn't valid here? */ }
                     }
                 }
 
                 let is_source = is_source.unwrap_or(field.name == "source");
+                let is_backtrace = is_backtrace.unwrap_or(field.name == "backtrace");
 
                 if is_source {
                     if has_backtrace {
@@ -170,7 +175,7 @@ fn parse_snafu_enum(
                     }
 
                     source_fields.push(field);
-                } else if field.name == "backtrace" {
+                } else if is_backtrace {
                     backtrace_fields.push(field);
                 } else {
                     user_fields.push(field);
@@ -335,11 +340,42 @@ impl syn::parse::Parse for Source {
     }
 }
 
+enum Backtrace {
+    Flag(bool),
+    Delegate,
+}
+
+impl syn::parse::Parse for Backtrace {
+    fn parse(input: syn::parse::ParseStream) -> SynResult<Self> {
+        use syn::{Ident, LitBool};
+
+        let lookahead = input.lookahead1();
+
+        if lookahead.peek(LitBool) {
+            let val: LitBool = input.parse()?;
+            Ok(Backtrace::Flag(val.value))
+        } else if lookahead.peek(Ident) {
+            let name: Ident = input.parse()?;
+
+            if name == "delegate" {
+                Ok(Backtrace::Delegate)
+            } else {
+                Err(SynError::new(
+                    name.span(),
+                    "expected `true`, `false`, or `delegate`",
+                ))
+            }
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
 enum SnafuAttribute {
     Display(UserInput),
     Visibility(UserInput),
     Source(Source),
-    Backtrace,
+    Backtrace(Backtrace),
 }
 
 impl SnafuAttribute {
@@ -380,8 +416,12 @@ impl syn::parse::Parse for SnafuAttribute {
                 Ok(SnafuAttribute::Source(v.0))
             }
         } else if name == "backtrace" {
-            let _: MyParens<Ident> = inside.parse()?;
-            Ok(SnafuAttribute::Backtrace)
+            if inside.is_empty() {
+                Ok(SnafuAttribute::Backtrace(Backtrace::Flag(true)))
+            } else {
+                let v: MyParens<Backtrace> = inside.parse()?;
+                Ok(SnafuAttribute::Backtrace(v.0))
+            }
         } else {
             Err(SynError::new(
                 name.span(),
