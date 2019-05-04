@@ -117,6 +117,7 @@ fn parse_snafu_enum(
                 match attr {
                     SnafuAttribute::Display(d) => display_format = Some(d),
                     SnafuAttribute::Visibility(v) => visibility = Some(v),
+                    SnafuAttribute::Source(..) => { /* Report this isn't valid here? */ }
                     SnafuAttribute::Backtrace => { /* Report this isn't valid here? */ }
                 }
             }
@@ -147,11 +148,23 @@ fn parse_snafu_enum(
                     ty: syn_field.ty,
                 };
 
-                let has_backtrace = attributes_from_syn(syn_field.attrs)?
-                    .iter()
-                    .any(SnafuAttribute::is_backtrace);
+                let mut has_backtrace = false;
+                let mut is_source = None;
 
-                if field.name == "source" {
+                for attr in attributes_from_syn(syn_field.attrs)? {
+                    match attr {
+                        SnafuAttribute::Source(s) => match s {
+                            Source::Flag(v) => is_source = Some(v),
+                        },
+                        SnafuAttribute::Backtrace => has_backtrace = true,
+                        SnafuAttribute::Visibility(_) => { /* Report this isn't valid here? */ }
+                        SnafuAttribute::Display(_) => { /* Report this isn't valid here? */ }
+                    }
+                }
+
+                let is_source = is_source.unwrap_or(field.name == "source");
+
+                if is_source {
                     if has_backtrace {
                         backtrace_delegates.push(field.clone());
                     }
@@ -310,9 +323,22 @@ impl syn::parse::Parse for MyExprList {
     }
 }
 
+enum Source {
+    Flag(bool),
+}
+
+impl syn::parse::Parse for Source {
+    fn parse(input: syn::parse::ParseStream) -> SynResult<Self> {
+        use syn::LitBool;
+        let val: LitBool = input.parse()?;
+        Ok(Source::Flag(val.value))
+    }
+}
+
 enum SnafuAttribute {
     Display(UserInput),
     Visibility(UserInput),
+    Source(Source),
     Backtrace,
 }
 
@@ -321,13 +347,6 @@ impl SnafuAttribute {
         match self {
             SnafuAttribute::Visibility(v) => Some(v),
             _ => None,
-        }
-    }
-
-    fn is_backtrace(&self) -> bool {
-        match *self {
-            SnafuAttribute::Backtrace => true,
-            _ => false,
         }
     }
 }
@@ -353,13 +372,20 @@ impl syn::parse::Parse for SnafuAttribute {
                 .into_option()
                 .map_or_else(private_visibility, |v| Box::new(v) as UserInput);
             Ok(SnafuAttribute::Visibility(v))
+        } else if name == "source" {
+            if inside.is_empty() {
+                Ok(SnafuAttribute::Source(Source::Flag(true)))
+            } else {
+                let v: MyParens<Source> = inside.parse()?;
+                Ok(SnafuAttribute::Source(v.0))
+            }
         } else if name == "backtrace" {
             let _: MyParens<Ident> = inside.parse()?;
             Ok(SnafuAttribute::Backtrace)
         } else {
             Err(SynError::new(
                 name.span(),
-                "expected `display`, `visibility`, or `backtrace`",
+                "expected `display`, `visibility`, `source`, or `backtrace`",
             ))
         }
     }

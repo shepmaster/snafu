@@ -56,6 +56,34 @@
 //! }
 //! ```
 //!
+//! ## Controlling error sources
+//!
+//! If your error enum variant contains other errors but the field
+//! cannot be named `source`, or if it contains a field named `source`
+//! which is not actually an error, you can use `#[snafu(source)]` to
+//! indicate if a field is an underlying cause or not:
+//!
+//! ```rust
+//! # mod another {
+//! #     use snafu::Snafu;
+//! #     #[derive(Debug, Snafu)]
+//! #     pub enum Error {}
+//! # }
+//! # use snafu::Snafu;
+//! #[derive(Debug, Snafu)]
+//! enum Error {
+//!     SourceIsNotAnError {
+//!         #[snafu(source(false))]
+//!         source: String,
+//!     },
+//!
+//!     CauseIsAnError {
+//!         #[snafu(source)]
+//!         cause: another::Error,
+//!     },
+//! }
+//! ```
+//!
 //! ## Controlling backtraces
 //!
 //! If your error contains other SNAFU errors which can report
