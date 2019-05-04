@@ -35,7 +35,7 @@ struct EnumInfo {
 
 struct VariantInfo {
     name: syn::Ident,
-    source_field: Option<Field>,
+    source_field: Option<SourceField>,
     backtrace_field: Option<Field>,
     backtrace_delegate: Option<Field>,
     user_fields: Vec<Field>,
@@ -46,13 +46,51 @@ struct VariantInfo {
 struct StructInfo {
     name: syn::Ident,
     generics: syn::Generics,
-    inner_type: syn::Type,
+    transformation: Transformation,
 }
 
 #[derive(Clone)]
 struct Field {
     name: syn::Ident,
     ty: syn::Type,
+}
+
+impl Field {
+    fn name(&self) -> &syn::Ident {
+        &self.name
+    }
+}
+
+struct SourceField {
+    name: syn::Ident,
+    transformation: Transformation,
+}
+
+impl SourceField {
+    fn name(&self) -> &syn::Ident {
+        &self.name
+    }
+}
+
+enum Transformation {
+    None { ty: syn::Type },
+    Transform { ty: syn::Type, expr: syn::Expr },
+}
+
+impl Transformation {
+    fn ty(&self) -> &syn::Type {
+        match *self {
+            Transformation::None { ref ty } => ty,
+            Transformation::Transform { ref ty, .. } => ty,
+        }
+    }
+
+    fn transformation(&self) -> proc_macro2::TokenStream {
+        match *self {
+            Transformation::None { .. } => quote! { |v| v },
+            Transformation::Transform { ref expr, .. } => quote! { #expr },
+        }
+    }
 }
 
 fn impl_snafu_macro(ty: syn::DeriveInput) -> TokenStream {
@@ -78,7 +116,7 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> SynResult<SnafuInfo> {
     match data {
         Data::Enum(enum_) => parse_snafu_enum(enum_, ident, generics, attrs).map(SnafuInfo::Enum),
         Data::Struct(struct_) => {
-            parse_snafu_struct(struct_, ident, generics, span).map(SnafuInfo::Struct)
+            parse_snafu_struct(struct_, ident, generics, attrs, span).map(SnafuInfo::Struct)
         }
         _ => {
             return Err(SynError::new(
@@ -151,12 +189,18 @@ fn parse_snafu_enum(
                 let mut has_backtrace = false;
                 let mut is_source = None;
                 let mut is_backtrace = None;
+                let mut transformation = None;
 
                 for attr in attributes_from_syn(syn_field.attrs)? {
                     match attr {
-                        SnafuAttribute::Source(s) => match s {
-                            Source::Flag(v) => is_source = Some(v),
-                        },
+                        SnafuAttribute::Source(ss) => {
+                            for s in ss {
+                                match s {
+                                    Source::Flag(v) => is_source = Some(v),
+                                    Source::From(t, e) => transformation = Some((t, e)),
+                                }
+                            }
+                        }
                         SnafuAttribute::Backtrace(b) => match b {
                             Backtrace::Flag(v) => is_backtrace = Some(v),
                             Backtrace::Delegate => has_backtrace = true,
@@ -174,7 +218,16 @@ fn parse_snafu_enum(
                         backtrace_delegates.push(field.clone());
                     }
 
-                    source_fields.push(field);
+                    let Field { name, ty } = field;
+                    let transformation = match transformation {
+                        Some((ty, expr)) => Transformation::Transform { ty, expr },
+                        None => Transformation::None { ty },
+                    };
+
+                    source_fields.push(SourceField {
+                        name,
+                        transformation,
+                    });
                 } else if is_backtrace {
                     backtrace_fields.push(field);
                 } else {
@@ -217,9 +270,28 @@ fn parse_snafu_struct(
     struct_: syn::DataStruct,
     name: syn::Ident,
     generics: syn::Generics,
+    attrs: Vec<syn::Attribute>,
     span: proc_macro2::Span,
 ) -> SynResult<StructInfo> {
     use syn::Fields;
+
+    let mut transformation = None;
+
+    for attr in attributes_from_syn(attrs)? {
+        match attr {
+            SnafuAttribute::Display(..) => { /* Report this isn't valid here? */ }
+            SnafuAttribute::Visibility(..) => { /* Report this isn't valid here? */ }
+            SnafuAttribute::Source(ss) => {
+                for s in ss {
+                    match s {
+                        Source::Flag(..) => { /* Report this isn't valid here? */ }
+                        Source::From(t, e) => transformation = Some((t, e)),
+                    }
+                }
+            }
+            SnafuAttribute::Backtrace(..) => { /* Report this isn't valid here? */ }
+        }
+    }
 
     let mut fields = match struct_.fields {
         Fields::Unnamed(f) => f,
@@ -243,12 +315,17 @@ fn parse_snafu_struct(
         return Err(one_field_error(span));
     }
 
-    let inner_type = inner.into_value().ty;
+    let transformation = match transformation {
+        Some((ty, expr)) => Transformation::Transform { ty, expr },
+        None => Transformation::None {
+            ty: inner.into_value().ty,
+        },
+    };
 
     Ok(StructInfo {
         name,
-        inner_type,
         generics,
+        transformation,
     })
 }
 
@@ -331,15 +408,47 @@ where
     }
 }
 
+impl<T> List<T> {
+    fn into_vec(self) -> Vec<T> {
+        self.0.into_iter().collect()
+    }
+}
+
 enum Source {
     Flag(bool),
+    From(syn::Type, syn::Expr),
 }
 
 impl syn::parse::Parse for Source {
     fn parse(input: syn::parse::ParseStream) -> SynResult<Self> {
-        use syn::LitBool;
-        let val: LitBool = input.parse()?;
-        Ok(Source::Flag(val.value))
+        use syn::token::Comma;
+        use syn::{Expr, Ident, LitBool, Type};
+
+        let lookahead = input.lookahead1();
+
+        if lookahead.peek(LitBool) {
+            let val: LitBool = input.parse()?;
+            Ok(Source::Flag(val.value))
+        } else if lookahead.peek(Ident) {
+            let name: Ident = input.parse()?;
+
+            if name == "from" {
+                let inside;
+                parenthesized!(inside in input);
+                let ty: Type = inside.parse()?;
+                let _: Comma = inside.parse()?;
+                let expr: Expr = inside.parse()?;
+
+                Ok(Source::From(ty, expr))
+            } else {
+                Err(SynError::new(
+                    name.span(),
+                    "expected `true`, `false`, or `from`",
+                ))
+            }
+        } else {
+            Err(lookahead.error())
+        }
     }
 }
 
@@ -377,7 +486,7 @@ impl syn::parse::Parse for Backtrace {
 enum SnafuAttribute {
     Display(UserInput),
     Visibility(UserInput),
-    Source(Source),
+    Source(Vec<Source>),
     Backtrace(Backtrace),
 }
 
@@ -413,10 +522,10 @@ impl syn::parse::Parse for SnafuAttribute {
             Ok(SnafuAttribute::Visibility(v))
         } else if name == "source" {
             if inside.is_empty() {
-                Ok(SnafuAttribute::Source(Source::Flag(true)))
+                Ok(SnafuAttribute::Source(vec![Source::Flag(true)]))
             } else {
-                let v: MyParens<Source> = inside.parse()?;
-                Ok(SnafuAttribute::Source(v.0))
+                let v: MyParens<List<Source>> = inside.parse()?;
+                Ok(SnafuAttribute::Source(v.0.into_vec()))
             }
         } else if name == "backtrace" {
             if inside.is_empty() {
@@ -680,13 +789,17 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
 
             match *source_field {
                 Some(ref source_field) => {
-                    let Field {
+                    let SourceField {
                         name: ref source_name,
-                        ty: ref source_ty,
+                        transformation: ref source_transformation,
                     } = *source_field;
 
+                    let source_ty = source_transformation.ty();
+                    let source_transformation = source_transformation.transformation();
+
                     other_ty = quote! { snafu::Context<#source_ty, #selector_name> };
-                    source_xfer_field = quote! { #source_name: other.error, };
+                    source_xfer_field =
+                        quote! { #source_name: (#source_transformation)(other.error), };
                 }
                 None => {
                     other_ty = quote! { snafu::Context<snafu::NoneError, #selector_name> };
@@ -750,9 +863,10 @@ impl<'a> DisplayImpl<'a> {
 
                 let field_names = user_fields
                     .iter()
-                    .chain(source_field)
                     .chain(backtrace_field)
-                    .map(|f| &f.name);
+                    .map(Field::name)
+                    .chain(source_field.as_ref().map(SourceField::name));
+
                 let field_names = quote! { #(ref #field_names),* };
 
                 quote! {
@@ -825,7 +939,7 @@ impl<'a> ErrorImpl<'a> {
 
                 match *source_field {
                     Some(ref source_field) => {
-                        let Field {
+                        let SourceField {
                             name: ref field_name,
                             ..
                         } = *source_field;
@@ -978,10 +1092,13 @@ impl StructInfo {
         let parameterized_struct_name = self.parameterized_name();
 
         let StructInfo {
-            inner_type,
             generics,
             name,
+            transformation,
         } = self;
+
+        let inner_type = transformation.ty();
+        let transformation = transformation.transformation();
 
         let where_clauses: &Vec<_> = &generics
             .where_clause
@@ -1058,7 +1175,7 @@ impl StructInfo {
                 #(#where_clauses),*
             {
                 fn from(other: #inner_type) -> Self {
-                    #name(other)
+                    #name((#transformation)(other))
                 }
             }
         };
