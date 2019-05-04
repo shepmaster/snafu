@@ -318,13 +318,16 @@ where
     }
 }
 
-struct MyExprList(syn::punctuated::Punctuated<syn::Expr, syn::token::Comma>);
+struct List<T>(syn::punctuated::Punctuated<T, syn::token::Comma>);
 
-impl syn::parse::Parse for MyExprList {
+impl<T> syn::parse::Parse for List<T>
+where
+    T: syn::parse::Parse,
+{
     fn parse(input: syn::parse::ParseStream) -> SynResult<Self> {
         use syn::punctuated::Punctuated;
         let exprs = Punctuated::parse_terminated(input)?;
-        Ok(MyExprList(exprs))
+        Ok(List(exprs))
     }
 }
 
@@ -389,14 +392,14 @@ impl SnafuAttribute {
 
 impl syn::parse::Parse for SnafuAttribute {
     fn parse(input: syn::parse::ParseStream) -> SynResult<Self> {
-        use syn::{Ident, Visibility};
+        use syn::{Expr, Ident, Visibility};
 
         let inside;
         parenthesized!(inside in input);
         let name: Ident = inside.parse()?;
 
         if name == "display" {
-            let m: MyMeta<MyExprList> = inside.parse()?;
+            let m: MyMeta<List<Expr>> = inside.parse()?;
             let v = m.into_option().ok_or_else(|| {
                 SynError::new(name.span(), "`snafu(display)` requires an argument")
             })?;
