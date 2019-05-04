@@ -561,8 +561,9 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
         };
 
         let backtrace_field = match *backtrace_field {
-            Some(_) => {
-                quote! { backtrace: std::default::Default::default(), }
+            Some(ref field) => {
+                let name = &field.name;
+                quote! { #name: std::default::Default::default(), }
             }
             None => quote! {},
         };
