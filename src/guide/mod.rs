@@ -18,8 +18,12 @@
 //!
 //! For upgrading from a previous version, review the [upgrading
 //! guide](guide::upgrading).
+//!
+//! For comparisons and migration tips from another error library,
+//! see the [comparison list](guide::comparison).
 
 pub mod attributes;
+pub mod comparison;
 pub mod compatibility;
 pub mod feature_flags;
 pub mod generics;
