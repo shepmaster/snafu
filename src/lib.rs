@@ -2,7 +2,9 @@
 
 //! # SNAFU
 //!
-//! For detailed information, please see the [user's guide](guide).
+//! SNAFU is a library to easily assign underlying errors into
+//! domain-specific errors while adding context. For detailed
+//! information, please see the [user's guide](guide).
 //!
 //! ## Quick example
 //!
