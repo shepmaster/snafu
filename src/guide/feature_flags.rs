@@ -14,3 +14,14 @@
 //! When enabled, you can use the [`Backtrace`](crate::Backtrace) type in
 //! your enum variant. If you never use backtraces, you can omit this
 //! feature to speed up compilation a small amount.
+//!
+//! ### `futures-0.1`
+//!
+//! **default**: disabled
+//!
+//! When enabled, you can use the [`futures01::FutureExt`] and
+//! [`futures01::StreamExt`] traits to add context methods to futures
+//! and streams.
+//!
+//! [`futures01::FutureExt`]: crate::futures01::FutureExt
+//! [`futures01::StreamExt`]: crate::futures01::StreamExt
