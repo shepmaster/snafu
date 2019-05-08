@@ -5,6 +5,7 @@
 //! - produces the corresponding context selectors
 //! - implements the [`Error`][Error] trait
 //! - implements the [`Display`][Display] trait
+//! - implements the [`Borrow<Error>`][Borrow] trait
 //! - implements the [`ErrorCompat`][ErrorCompat] trait
 //!
 //! ## Detailed example
@@ -127,6 +128,22 @@
 //! by default. If the field is an underlying error, that error's
 //! `Display` implementation will also be included.
 //!
+//! #### `Borrow`
+//!
+//! To allow a boxed SNAFU error to be used as an underlying error
+//! cause, `Borrow` is implemented for the boxed type.
+//!
+//! ```rust,ignore
+//! impl std::borrow::Borrow<std::error::Error> for Box<Error>
+//! where
+//!     Self: 'static,
+//! {
+//!     fn borrow(&self) -> &(std::error::Error + 'static) {
+//!         self
+//!     }
+//! }
+//! ```
+//!
 //! #### `ErrorCompat`
 //!
 //! Every variant that carries a backtrace will return a reference to
@@ -144,6 +161,7 @@
 //! }
 //! ```
 //!
+//! [Borrow]: std::borrow::Borrow
 //! [Context]: crate::Context
 //! [Display]: std::fmt::Display
 //! [ErrorCompat]: crate::ErrorCompat

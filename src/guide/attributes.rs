@@ -58,6 +58,8 @@
 //!
 //! ## Controlling error sources
 //!
+//! ### Selecting the source field
+//!
 //! If your error enum variant contains other errors but the field
 //! cannot be named `source`, or if it contains a field named `source`
 //! which is not actually an error, you can use `#[snafu(source)]` to
@@ -82,6 +84,33 @@
 //!         cause: another::Error,
 //!     },
 //! }
+//! ```
+//!
+//! ### Transforming the source
+//!
+//! If your error type contains an underlying cause that needs to be
+//! transformed, you can use `#[snafu(source(from(...)))]`. This takes
+//! two arguments: the real type and an expression to transform from
+//! that type to the type held by the error.
+//!
+//! ```rust
+//! # mod another {
+//! #     use snafu::Snafu;
+//! #     #[derive(Debug, Snafu)]
+//! #     pub enum Error {}
+//! # }
+//! # use snafu::Snafu;
+//! #[derive(Debug, Snafu)]
+//! enum Error {
+//!     SourceNeedsToBeBoxed {
+//!         #[snafu(source(from(another::Error, Box::new)))]
+//!         source: Box<another::Error>,
+//!     },
+//! }
+//!
+//! #[derive(Debug, Snafu)]
+//! #[snafu(source(from(Error, Box::new)))]
+//! struct ApiError(Box<Error>);
 //! ```
 //!
 //! ## Controlling backtraces

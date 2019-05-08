@@ -453,6 +453,26 @@ pub trait ErrorCompat {
     }
 }
 
+impl<'a, E> ErrorCompat for &'a E
+where
+    E: ErrorCompat,
+{
+    #[cfg(feature = "backtraces")]
+    fn backtrace(&self) -> Option<&Backtrace> {
+        (**self).backtrace()
+    }
+}
+
+impl<E> ErrorCompat for Box<E>
+where
+    E: ErrorCompat,
+{
+    #[cfg(feature = "backtraces")]
+    fn backtrace(&self) -> Option<&Backtrace> {
+        (**self).backtrace()
+    }
+}
+
 #[cfg(feature = "backtraces")]
 pub use backtrace_shim::*;
 
