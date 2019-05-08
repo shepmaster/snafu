@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2019-05-08
+
+### Added
+
+- `Borrow<std::error::Error>` is now automatically implemented for
+  SNAFU types. This is a **breaking change** as it may conflict with
+  an existing user implementation of the same trait. It is expected
+  that the number of affected users is very small.
+
+- `#[snafu(source)]` can be used to identify the field that
+  corresponds to the underlying error if it is not called `source`. It
+  can also be used to disable automatically using a field called
+  `source` for the underlying error.
+
+- `#[snafu(backtrace)]` can be used to identify the field that
+  corresponds to the backtrace if it is not called `backtrace`. It can
+  also be used to disable automatically using a field called
+  `backtrace` for the backtrace.
+
+- `#[snafu(source(from(...type..., ...expression...)))]` can be used
+  to perform transformations on the underlying error before it is
+  stored. This allows boxing of large errors to avoid bloated return
+  types or recursive errors.
+
+- The user guide has a basic comparison to Failure and migration paths
+  for common Failure patterns.
+
+### Changed
+
+- The default `Display` implementation includes the underlying error
+  message.
+
 ## [0.2.3] - 2019-04-24
 
 ### Fixed
