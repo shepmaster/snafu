@@ -591,3 +591,82 @@ mod backtrace_shim {
         }
     }
 }
+
+use std::error;
+
+/// Converts the receiver into an [`Error`][] trait object, suitable
+/// for use in [`Error::source`][]. Most users of SNAFU will not need
+/// to interact with this trait.
+///
+/// [`Error`]: std::error::Error
+/// [`Error::source`]: std::error::Error::source
+//
+// Given an error enum with multiple types of underlying causes:
+//
+// ```rust
+// enum Error {
+//     BoxTraitObjectSendSync(Box<dyn error::Error + Send + Sync + 'static>),
+//     BoxTraitObject(Box<dyn error::Error + 'static>),
+//     Boxed(Box<io::Error>),
+//     Unboxed(io::Error),
+// }
+// ```
+//
+// This trait provides the answer to what consistent expression can go
+// in each match arm:
+//
+// ```rust
+// impl error::Error for Error {
+//     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+//         use Error::*;
+//
+//         let v = match *self {
+//             BoxTraitObjectSendSync(ref e) => ...,
+//             BoxTraitObject(ref e) => ...,
+//             Boxed(ref e) => ...,
+//             Unboxed(ref e) => ...,
+//         };
+//
+//         Some(v)
+//     }
+// }
+//
+// Existing methods like returning `e`, `&**e`, `Borrow::borrow(e)`,
+// `Deref::deref(e)`, and `AsRef::as_ref(e)` do not work for various
+// reasons.
+pub trait AsErrorSource {
+    /// For maximum effectiveness, this needs to be called as a method
+    /// to benefit from Rust's automatic dereferencing of method
+    /// receivers.
+    fn as_error_source(&self) -> &(error::Error + 'static);
+}
+
+impl AsErrorSource for error::Error + 'static {
+    fn as_error_source(&self) -> &(error::Error + 'static) {
+        self
+    }
+}
+
+impl AsErrorSource for error::Error + Send + 'static {
+    fn as_error_source(&self) -> &(error::Error + 'static) {
+        self
+    }
+}
+
+impl AsErrorSource for error::Error + Sync + 'static {
+    fn as_error_source(&self) -> &(error::Error + 'static) {
+        self
+    }
+}
+
+impl AsErrorSource for error::Error + Send + Sync + 'static {
+    fn as_error_source(&self) -> &(error::Error + 'static) {
+        self
+    }
+}
+
+impl<T: error::Error + 'static> AsErrorSource for T {
+    fn as_error_source(&self) -> &(error::Error + 'static) {
+        self
+    }
+}
