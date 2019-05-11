@@ -1,6 +1,6 @@
 [package]
 name = "snafu-derive"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Jake Goulding <jake.goulding@gmail.com>"]
 
 description = "An ergonomic error handling library"
