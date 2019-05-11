@@ -971,7 +971,7 @@ impl<'a> ErrorImpl<'a> {
                         } = *source_field;
                         quote! {
                             #enum_name::#variant_name { ref #field_name, .. } => {
-                                std::option::Option::Some(std::borrow::Borrow::borrow(#field_name))
+                                std::option::Option::Some(#field_name.as_error_source())
                             }
                         }
                     }
@@ -1006,6 +1006,7 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
 
         let cause_fn = quote! {
             fn cause(&self) -> Option<&std::error::Error> {
+                use snafu::AsErrorSource;
                 match *self {
                     #(#variants_to_source)*
                 }
@@ -1015,6 +1016,7 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
         let source_fn = if cfg!(feature = "rust_1_30") {
             quote! {
                 fn source(&self) -> Option<&(std::error::Error + 'static)> {
+                    use snafu::AsErrorSource;
                     match *self {
                         #(#variants_to_source)*
                     }
