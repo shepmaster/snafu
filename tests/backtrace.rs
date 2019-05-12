@@ -60,12 +60,12 @@ fn trigger() -> Result<(), AnotherError> {
 
 #[test]
 fn errors_with_sources_can_have_backtraces() {
-    let _e: Error = trigger().eager_context(WithSource).unwrap_err();
+    let _e: Error = trigger().context(WithSource).unwrap_err();
 }
 
 #[test]
 fn errors_with_sources_and_other_info_can_have_backtraces() {
     let _e: Error = trigger()
-        .eager_context(WithSourceAndOtherInfo { user_id: 42 })
+        .context(WithSourceAndOtherInfo { user_id: 42 })
         .unwrap_err();
 }

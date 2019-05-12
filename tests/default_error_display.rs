@@ -15,6 +15,6 @@ enum Error {
 
 #[test]
 fn default_error_display() {
-    let err: Error = AnError.fail::<()>().eager_context(NoDisplay).unwrap_err();
+    let err: Error = AnError.fail::<()>().context(NoDisplay).unwrap_err();
     assert_eq!(format!("{}", err), "NoDisplay: inner error",);
 }

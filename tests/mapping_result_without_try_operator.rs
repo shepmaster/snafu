@@ -20,7 +20,7 @@ fn function_1() -> Result<i32, InnerError> {
 }
 
 fn function_2() -> Result<bool, OuterError> {
-    function_1().map(|v| v < 42).eager_context(Beta)
+    function_1().map(|v| v < 42).context(Beta)
 }
 
 #[test]
