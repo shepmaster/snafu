@@ -86,6 +86,13 @@ extern crate futures01 as futures01_crate;
 #[cfg(feature = "futures-0.1")]
 pub mod futures01;
 
+#[cfg(feature = "unstable-futures")]
+extern crate futures_core;
+#[cfg(feature = "unstable-futures")]
+extern crate pin_project;
+#[cfg(feature = "unstable-futures")]
+pub mod futures;
+
 #[cfg(feature = "rust_1_30")]
 extern crate snafu_derive;
 #[cfg(feature = "rust_1_30")]

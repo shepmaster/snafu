@@ -39,6 +39,10 @@ nightly_test_task:
     - cargo +nightly update -p backtrace-sys --precise 0.1.20
     - cargo +nightly update -p libc --precise 0.2.7
     - cargo +nightly test
+  futures_test_script:
+    - cd compatibility-tests/futures/
+    - rustc --version
+    - cargo test
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
 v1_34_test_task:
