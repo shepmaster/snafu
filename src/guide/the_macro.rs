@@ -58,11 +58,10 @@
 //!    selector will not require curly braces.
 //!
 //! If the original variant had a `source` field, its context selector
-//! will have an implementation of [`From`][From] for a
-//! [`Context`][Context]:
+//! will have an implementation of [`IntoError`][IntoError]:
 //!
 //! ```rust,ignore
-//! impl<P> From<Context<std::io::Error, OpenConfig<P>>> for Error
+//! impl<P> IntoError<Error> for OpenConfig<P>
 //! where
 //!     P: Into<PathBuf>,
 //! ```
@@ -80,8 +79,8 @@
 //! ```
 //!
 //! If the original variant had a `backtrace` field, the backtrace
-//! will be automatically constructed when either `From` or `fail` are
-//! called.
+//! will be automatically constructed when either `IntoError` or
+//! `fail` are called.
 //!
 //! #### `Error`
 //!
@@ -162,11 +161,10 @@
 //! ```
 //!
 //! [Borrow]: std::borrow::Borrow
-//! [Context]: crate::Context
 //! [Display]: std::fmt::Display
 //! [ErrorCompat]: crate::ErrorCompat
 //! [Error]: std::error::Error
-//! [From]: std::convert::From
+//! [IntoError]: crate::IntoError
 //! [cause]: std::error::Error::cause
 //! [description]: std::error::Error::description
 //! [source]: std::error::Error::source
