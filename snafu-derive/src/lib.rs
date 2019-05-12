@@ -727,12 +727,14 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
         let variant_selector_struct = {
             if user_fields.is_empty() {
                 quote! {
+                    #[derive(Debug, Copy, Clone)]
                     #visibility struct #selector_name;
                 }
             } else {
                 let visibilities = iter::repeat(visibility);
 
                 quote! {
+                    #[derive(Debug, Copy, Clone)]
                     #visibility struct #selector_name {
                         #( #visibilities #names: #types ),*
                     }
