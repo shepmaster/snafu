@@ -52,7 +52,7 @@
 //! enum Error {
 //!     IsPubCrate, // Uses the default
 //!     #[snafu(visibility)]
-//!     IsPrivate,  // Will be private
+//!     IsPrivate, // Will be private
 //! }
 //! ```
 //!
@@ -153,6 +153,6 @@
 //!     MyError {
 //!         #[snafu(backtrace(delegate))]
 //!         source: another::Error,
-//!     }
+//!     },
 //! }
 //! ```

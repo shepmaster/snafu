@@ -18,15 +18,24 @@
 //! method to provide ergonomic error handling.
 //!
 //! ```rust
-//! use snafu::{Snafu, ResultExt, Backtrace, ErrorCompat, ensure};
-//! use std::{fs, path::{Path, PathBuf}};
+//! use snafu::{ensure, Backtrace, ErrorCompat, ResultExt, Snafu};
+//! use std::{
+//!     fs,
+//!     path::{Path, PathBuf},
+//! };
 //!
 //! #[derive(Debug, Snafu)]
 //! enum Error {
 //!     #[snafu(display("Could not open config from {}: {}", filename.display(), source))]
-//!     OpenConfig { filename: PathBuf, source: std::io::Error },
+//!     OpenConfig {
+//!         filename: PathBuf,
+//!         source: std::io::Error,
+//!     },
 //!     #[snafu(display("Could not save config to {}: {}", filename.display(), source))]
-//!     SaveConfig { filename: PathBuf, source: std::io::Error },
+//!     SaveConfig {
+//!         filename: PathBuf,
+//!         source: std::io::Error,
+//!     },
 //!     #[snafu(display("The user id {} is invalid", user_id))]
 //!     UserIdInvalid { user_id: i32, backtrace: Backtrace },
 //! }
@@ -79,7 +88,7 @@ pub mod guide;
 /// with an error.
 ///
 /// ```rust
-/// use snafu::{Snafu, ensure};
+/// use snafu::{ensure, Snafu};
 ///
 /// #[derive(Debug, Snafu)]
 /// enum Error {
@@ -104,18 +113,27 @@ macro_rules! ensure {
 
 /// Additions to [`Result`](std::result::Result).
 pub trait ResultExt<T, E>: Sized {
-    /// Extend a `Result` with additional context-sensitive information.
+    /// Extend a [`Result`]'s error with additional context-sensitive information.
+    ///
+    /// [`Result`]: std::result::Result
     ///
     /// ```rust
-    /// use snafu::{Snafu, ResultExt};
+    /// use snafu::{ResultExt, Snafu};
     ///
     /// #[derive(Debug, Snafu)]
     /// enum Error {
-    ///     Authenticating { user_name: String, user_id: i32, source: ApiError },
+    ///     Authenticating {
+    ///         user_name: String,
+    ///         user_id: i32,
+    ///         source: ApiError,
+    ///     },
     /// }
     ///
     /// fn example() -> Result<(), Error> {
-    ///     another_function().context(Authenticating { user_name: "admin", user_id: 42 })?;
+    ///     another_function().context(Authenticating {
+    ///         user_name: "admin",
+    ///         user_id: 42,
+    ///     })?;
     ///     Ok(())
     /// }
     ///
@@ -134,14 +152,20 @@ pub trait ResultExt<T, E>: Sized {
         C: IntoError<E2, Source = E>,
         E2: std::error::Error + ErrorCompat;
 
-    /// Extend a `Result` with lazily-generated context-sensitive information.
+    /// Extend a [`Result`][]'s error with lazily-generated context-sensitive information.
+    ///
+    /// [`Result`]: std::result::Result
     ///
     /// ```rust
-    /// use snafu::{Snafu, ResultExt};
+    /// use snafu::{ResultExt, Snafu};
     ///
     /// #[derive(Debug, Snafu)]
     /// enum Error {
-    ///     Authenticating { user_name: String, user_id: i32, source: ApiError },
+    ///     Authenticating {
+    ///         user_name: String,
+    ///         user_id: i32,
+    ///         source: ApiError,
+    ///     },
     /// }
     ///
     /// fn example() -> Result<(), Error> {
@@ -212,17 +236,23 @@ impl<T, E> ResultExt<T, E> for std::result::Result<T, E> {
     }
 }
 
-/// A temporary error type used when converting an `Option` into a
-/// `Result`
+/// A temporary error type used when converting an [`Option`][] into a
+/// [`Result`][]
+///
+/// [`Option`]: std::option::Option
+/// [`Result`]: std::result::Result
 pub struct NoneError;
 
 /// Additions to [`Option`](std::option::Option).
 pub trait OptionExt<T>: Sized {
-    /// Convert an `Option` into a `Result` with additional
+    /// Convert an [`Option`][] into a [`Result`][] with additional
     /// context-sensitive information.
     ///
+    /// [Option]: std::option::Option
+    /// [Result]: std::option::Result
+    ///
     /// ```rust
-    /// use snafu::{Snafu, OptionExt};
+    /// use snafu::{OptionExt, Snafu};
     ///
     /// #[derive(Debug, Snafu)]
     /// enum Error {
@@ -249,15 +279,21 @@ pub trait OptionExt<T>: Sized {
         C: IntoError<E, Source = NoneError>,
         E: std::error::Error + ErrorCompat;
 
-    /// Convert an `Option` into a `Result` with lazily-generated
-    /// context-sensitive information.
+    /// Convert an [`Option`][] into a [`Result`][] with
+    /// lazily-generated context-sensitive information.
+    ///
+    /// [`Option`]: std::option::Option
+    /// [`Result`]: std::result::Result
     ///
     /// ```
-    /// use snafu::{Snafu, OptionExt};
+    /// use snafu::{OptionExt, Snafu};
     ///
     /// #[derive(Debug, Snafu)]
     /// enum Error {
-    ///     UserLookup { user_id: i32, previous_ids: Vec<i32> },
+    ///     UserLookup {
+    ///         user_id: i32,
+    ///         previous_ids: Vec<i32>,
+    ///     },
     /// }
     ///
     /// fn example(user_id: i32) -> Result<(), Error> {

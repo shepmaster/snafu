@@ -63,7 +63,7 @@
 //! explicit duplicate type constraints:
 //!
 //! ```rust
-//! use snafu:: Snafu;
+//! use snafu::Snafu;
 //!
 //! #[derive(Debug, Snafu)]
 //! struct ApiError<T>(Error<T>)

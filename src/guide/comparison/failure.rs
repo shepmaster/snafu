@@ -32,10 +32,16 @@
 //!
 //! fn check_range(x: usize, range: Range<usize>) -> Result<usize, Error> {
 //!     if x < range.start {
-//!         return Any { detail: format!("{} is below {}", x, range.start) }.fail();
+//!         return Any {
+//!             detail: format!("{} is below {}", x, range.start),
+//!         }
+//!         .fail();
 //!     }
 //!     if x >= range.end {
-//!         return Any { detail: format!("{} is above {}", x, range.end) }.fail();
+//!         return Any {
+//!             detail: format!("{} is above {}", x, range.end),
+//!         }
+//!         .fail();
 //!     }
 //!     Ok(x)
 //! }
@@ -55,7 +61,10 @@
 //!
 //! #[derive(Debug, Snafu)]
 //! enum Error {
-//!     Any { detail: String, backtrace: Backtrace },
+//!     Any {
+//!         detail: String,
+//!         backtrace: Backtrace,
+//!     },
 //! }
 //!
 //! macro_rules! format_err {
@@ -111,7 +120,7 @@
 //! underlying error and an error variant:
 //!
 //! ```rust
-//! use snafu::{Snafu, ResultExt};
+//! use snafu::{ResultExt, Snafu};
 //! use std::num::ParseIntError;
 //!
 //! #[derive(Debug, Snafu)]
@@ -129,7 +138,10 @@
 //!     },
 //! }
 //!
-//! fn two_errors_from_same_underlying_error(area_code: &str, exchange: &str) -> Result<(i32, i32), Error> {
+//! fn two_errors_from_same_underlying_error(
+//!     area_code: &str,
+//!     exchange: &str,
+//! ) -> Result<(i32, i32), Error> {
 //!     let area_code: i32 = area_code
 //!         .parse()
 //!         .context(AreaCodeInvalid { value: area_code })?;
