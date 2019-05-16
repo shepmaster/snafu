@@ -34,7 +34,7 @@ enum Error {
 }
 
 fn example() -> Result<(), Error> {
-    Boom.fail().eager_context(Wrapper)
+    Boom.fail().context(Wrapper)
 }
 
 #[test]

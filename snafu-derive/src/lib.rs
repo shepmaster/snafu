@@ -783,10 +783,10 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
         let enum_from_variant_selector_impl = {
             let user_fields = user_fields.iter().map(|f| {
                 let Field { ref name, .. } = *f;
-                quote! { #name: other.context.#name.into() }
+                quote! { #name: self.#name.into() }
             });
 
-            let other_ty;
+            let source_ty;
             let source_xfer_field;
 
             match *source_field {
@@ -796,25 +796,27 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
                         transformation: ref source_transformation,
                     } = *source_field;
 
-                    let source_ty = source_transformation.ty();
+                    let source_ty2 = source_transformation.ty();
                     let source_transformation = source_transformation.transformation();
 
-                    other_ty = quote! { snafu::Context<#source_ty, #selector_name> };
-                    source_xfer_field =
-                        quote! { #source_name: (#source_transformation)(other.error), };
+                    source_ty = quote! { #source_ty2 };
+                    source_xfer_field = quote! { #source_name: (#source_transformation)(error), };
                 }
                 None => {
-                    other_ty = quote! { snafu::Context<snafu::NoneError, #selector_name> };
+                    source_ty = quote! { snafu::NoneError };
                     source_xfer_field = quote! {};
                 }
             }
 
             quote! {
-                impl#generics_list std::convert::From<#other_ty> for #parameterized_enum_name
+                impl#generics_list snafu::IntoError<#parameterized_enum_name> for #selector_name
                 where
+                    #parameterized_enum_name: std::error::Error + snafu::ErrorCompat,
                     #(#where_clauses),*
                 {
-                    fn from(other: #other_ty) -> Self {
+                    type Source = #source_ty;
+
+                    fn into_error(self, error: Self::Source) -> #parameterized_enum_name {
                         #enum_name::#variant_name {
                             #source_xfer_field
                             #backtrace_field

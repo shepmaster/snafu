@@ -30,7 +30,7 @@ fn lookup() -> Result<()> {
 }
 
 fn add() -> Result<()> {
-    lookup().eager_context(BoxedSelf)
+    lookup().context(BoxedSelf)
 }
 
 fn public() -> Result<(), ApiError> {
@@ -39,7 +39,7 @@ fn public() -> Result<(), ApiError> {
 }
 
 fn re_private() -> Result<()> {
-    public().eager_context(BoxedPublic)
+    public().context(BoxedPublic)
 }
 
 #[test]
