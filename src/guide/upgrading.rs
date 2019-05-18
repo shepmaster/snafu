@@ -1,6 +1,45 @@
 //! # Upgrading from previous releases
 //!
-//! ## Version 0.2
+//! ## Version 0.3 → 0.4
+//!
+//! ### `Context` vs. `IntoError`
+//!
+//! The `Context` type and related `From` implementations have been
+//! removed in favor of the [`IntoError`](crate::IntoError) trait. If
+//! you were making use of this for custom conversions, you will need
+//! to update your trait bounds:
+//!
+//! #### Before
+//!
+//! ```rust,ignore
+//! fn example<C, E>(context: C) -> MyType<E>
+//! where
+//!     snafu::Context<SomeError, C>: Into<E>;
+//! ```
+//!
+//! #### After
+//!
+//! ```rust,ignore
+//! fn example<C, E>(context: C) -> MyType<E>
+//! where
+//!     C: snafu::IntoError<E, Source = SomeError>,
+//!     E: std::error::Error + snafu::ErrorCompat;
+//! ```
+//!
+//! ### `Borrow<std::error::Error>`
+//!
+//! SNAFU no longer generates `Borrow<std::error::Error>`
+//! implementations for SNAFU error types (sorry for the whiplash if
+//! you were affected by this when upgrading to 0.3).
+//!
+//! ## Version 0.2 → 0.3
+//!
+//! Minimal changes should be required: if you previously implemented
+//! `Borrow<std::error::Error>` for a SNAFU error type, you should
+//! remove that implementation and allow SNAFU to implement it for
+//! you.
+//!
+//! ## Version 0.1 → 0.2
 //!
 //! Support for the `snafu::display` attribute was removed as this
 //! type of attribute was [never intended to be

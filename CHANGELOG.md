@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2018-05-18
+
+### Added
+
+- Context selectors now automatically implement `Debug`, `Copy`, and
+  `Clone`. This is a **breaking change**.
+
+- Support for futures 0.1 futures and streams is available using the
+  `futures-0.1` feature flag.
+
+- **Experimental** support for standard library futures and streams is
+  available using the `unstable-futures` feature flag.
+
+### Deprecated
+
+- `eager_context` and `with_eager_context` have been deprecated.
+
+### Removed
+
+- The `Context` type is no longer needed. This is a **breaking
+  change**.
+
+- SNAFU types no longer implement `Borrow<std::error::Error>`. This is
+  a **breaking change**.
+
 ## [0.3.1] - 2019-05-10
 
 ### Fixed
