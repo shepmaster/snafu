@@ -31,6 +31,13 @@ backtraces = ["snafu-derive/backtraces", "backtrace"]
 # New methods on `Error`; re-export of proc-macro
 rust_1_30 = ["snafu-derive/rust_1_30"]
 
+# The standard library's implementation of futures
+"unstable-futures" = ["futures-core-preview", "pin-project"]
+
+# No public user should make use of this feature
+# https://github.com/rust-lang/cargo/issues/1596
+"internal-dev-dependencies" = ["futures-preview"]
+
 [workspace]
 # The compatibility tests each set feature flags for the library and
 # cannot be in the same crate graph.
@@ -40,6 +47,7 @@ exclude = [
   "compatibility-tests/v1_30",
   "compatibility-tests/v1_18",
   "compatibility-tests/futures-0.1",
+  "compatibility-tests/futures",
   "compatibility-tests/without-backtrace",
 ]
 
@@ -47,6 +55,9 @@ exclude = [
 snafu-derive = { path = "snafu-derive", version = "0.3.1" }
 backtrace = { version = "0.3.0", optional = true }
 futures01 = { version = "0.1", optional = true, default-features = false }
+futures-preview = { version = "0.3.0-alpha.16", optional = true, default-features = false }
+futures-core-preview = { version = "0.3.0-alpha.16", optional = true, default-features = false }
+pin-project = { version = "0.3.2", optional = true, default-features = false }
 
 [package.metadata.docs.rs]
 all-features = true

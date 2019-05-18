@@ -1,0 +1,9 @@
+[package]
+name = "futures_compat"
+version = "0.1.0"
+authors = ["Jake Goulding <jake.goulding@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+snafu = { path = "../..", features = ["unstable-futures"] }
+futures-preview = "0.3.0-alpha.16"

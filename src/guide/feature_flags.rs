@@ -15,6 +15,21 @@
 //! your enum variant. If you never use backtraces, you can omit this
 //! feature to speed up compilation a small amount.
 //!
+//! ### `unstable-futures`
+//!
+//! **default**: disabled
+//!
+//! When enabled, you can use the [`futures::TryFutureExt`] and
+//! [`futures::TryStreamExt`] traits to add context methods to futures
+//! and streams returning `Result`s.
+//!
+//! Note that this feature requires nightly Rust and may break at any
+//! time. When the standard library implementation stabilizes, this
+//! feature flag will be renamed and stabilized.
+//!
+//! [`futures::TryFutureExt`]: crate::futures::TryFutureExt
+//! [`futures::TryStreamExt`]: crate::futures::TryStreamExt
+//!
 //! ### `futures-0.1`
 //!
 //! **default**: disabled
