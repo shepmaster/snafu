@@ -1,6 +1,6 @@
 //! Additions to the Futures 0.1 [`Future`] and [`Stream`] traits.
 //!
-//! This module is only available when the `futures-0.1` [feature
+//! This module is only available when the `futures-01` [feature
 //! flag] is enabled.
 //!
 //! [`Future`]: futures01_crate::Future

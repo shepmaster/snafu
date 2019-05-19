@@ -26,7 +26,7 @@ default = ["rust_1_30", "backtraces"]
 backtraces = ["snafu-derive/backtraces", "backtrace"]
 
 # Add extension traits for the futures 0.1 crate
-"futures-0.1" = ["futures01"]
+"futures-01" = ["futures01"]
 
 # New methods on `Error`; re-export of proc-macro
 rust_1_30 = ["snafu-derive/rust_1_30"]

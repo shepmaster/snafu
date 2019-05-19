@@ -30,7 +30,7 @@
 //! [`futures::TryFutureExt`]: crate::futures::TryFutureExt
 //! [`futures::TryStreamExt`]: crate::futures::TryStreamExt
 //!
-//! ### `futures-0.1`
+//! ### `futures-01`
 //!
 //! **default**: disabled
 //!
