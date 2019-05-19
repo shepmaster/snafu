@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Clone`. This is a **breaking change**.
 
 - Support for futures 0.1 futures and streams is available using the
-  `futures-0.1` feature flag.
+  `futures-01` feature flag.
 
 - **Experimental** support for standard library futures and streams is
   available using the `unstable-futures` feature flag.

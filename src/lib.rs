@@ -81,9 +81,9 @@ mod backtrace_shim;
 #[cfg(feature = "backtraces")]
 pub use backtrace_shim::*;
 
-#[cfg(feature = "futures-0.1")]
+#[cfg(feature = "futures-01")]
 extern crate futures01 as futures01_crate;
-#[cfg(feature = "futures-0.1")]
+#[cfg(feature = "futures-01")]
 pub mod futures01;
 
 #[cfg(feature = "unstable-futures")]
