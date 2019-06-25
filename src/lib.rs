@@ -141,6 +141,9 @@ generate_guide! {
     }
 }
 
+#[cfg(feature = "rust_1_30")]
+doc_comment::doctest!("../README.md", readme_tests);
+
 use std::error;
 
 /// Ensure a condition is true. If it is not, return from the function
