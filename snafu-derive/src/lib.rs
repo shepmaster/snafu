@@ -1,3 +1,5 @@
+#![recursion_limit = "128"] // https://github.com/rust-lang/rust/issues/62059
+
 extern crate proc_macro;
 extern crate proc_macro2;
 #[macro_use]
