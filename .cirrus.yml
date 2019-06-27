@@ -74,6 +74,8 @@ v1_30_test_task:
     - rustc --version
     - cargo generate-lockfile
     # These versions determined by trial and error
+    - cargo update -p backtrace --precise 0.3.30
+    - cargo update -p backtrace-sys --precise 0.1.28
     - cargo update -p rustc-demangle --precise 0.1.13
     - cargo test
   before_cache_script: rm -rf $CARGO_HOME/registry/index
@@ -99,5 +101,6 @@ v1_18_test_task:
     - cargo update -p backtrace --precise 0.3.0
     - cargo update -p backtrace-sys --precise 0.1.3
     - cargo update -p libc --precise 0.2.7
+    - cargo update -p syn --precise 0.15.37
     - cargo test
   before_cache_script: rm -rf $CARGO_HOME/registry/index
