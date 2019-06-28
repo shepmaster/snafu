@@ -1178,7 +1178,7 @@ impl StructInfo {
         };
 
         let from_impl = quote! {
-            impl#generics From<#inner_type> for #parameterized_struct_name
+            impl#generics std::convert::From<#inner_type> for #parameterized_struct_name
             where
                 #(#where_clauses),*
             {
