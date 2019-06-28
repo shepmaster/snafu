@@ -7,9 +7,38 @@
 [![Build Status][CI Logo]][CI]
 
 SNAFU is a library to easily assign underlying errors into
-domain-specific errors while adding context. Please see [the
-documentation][Doc] and the [user's guide][Guide] for a full
-description.
+domain-specific errors while adding context.
+
+```rust
+use snafu::{ResultExt, Snafu};
+use std::{fs, io, path::PathBuf};
+
+#[derive(Debug, Snafu)]
+enum Error {
+    #[snafu(display("Unable to read configuration from {}: {}", path.display(), source))]
+    ReadConfiguration { source: io::Error, path: PathBuf },
+
+    #[snafu(display("Unable to write result to {}: {}", path.display(), source))]
+    WriteResult { source: io::Error, path: PathBuf },
+}
+
+type Result<T, E = Error> = std::result::Result<T, E>;
+
+fn process_data() -> Result<()> {
+    let path = "config.toml";
+    let configuration = fs::read_to_string(path).context(ReadConfiguration { path })?;
+    let path = unpack_config(&configuration);
+    fs::write(&path, b"My complex calculation").context(WriteResult { path })?;
+    Ok(())
+}
+
+fn unpack_config(data: &str) -> &str {
+    "/some/path/that/does/not/exist"
+}
+```
+
+Please see [the documentation][Doc] and the [user's guide][Guide] for
+a full description.
 
 [Crate]: https://crates.io/crates/snafu
 [Crate Logo]: https://img.shields.io/crates/v/snafu.svg

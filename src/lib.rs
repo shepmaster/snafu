@@ -98,7 +98,51 @@ extern crate snafu_derive;
 #[cfg(feature = "rust_1_30")]
 pub use snafu_derive::Snafu;
 
-pub mod guide;
+#[cfg(feature = "rust_1_30")]
+extern crate doc_comment;
+
+#[cfg(feature = "rust_1_30")]
+macro_rules! generate_guide {
+    (pub mod $name:ident; $($rest:tt)*) => {
+        generate_guide!(@gen ".", pub mod $name { } $($rest)*);
+    };
+    (pub mod $name:ident { $($children:tt)* } $($rest:tt)*) => {
+        generate_guide!(@gen ".", pub mod $name { $($children)* } $($rest)*);
+    };
+    (@gen $prefix:expr, ) => {};
+    (@gen $prefix:expr, pub mod $name:ident; $($rest:tt)*) => {
+        generate_guide!(@gen $prefix, pub mod $name { } $($rest)*);
+    };
+    (@gen $prefix:expr, pub mod $name:ident { $($children:tt)* } $($rest:tt)*) => {
+        doc_comment::doc_comment! {
+            include_str!(concat!($prefix, "/", stringify!($name), ".md")),
+            pub mod $name {
+                generate_guide!(@gen concat!($prefix, "/", stringify!($name)), $($children)*);
+            }
+        }
+        generate_guide!(@gen $prefix, $($rest)*);
+    };
+}
+
+#[cfg(feature = "rust_1_30")]
+generate_guide! {
+    pub mod guide {
+        pub mod attributes;
+        pub mod comparison {
+            pub mod failure;
+        }
+        pub mod compatibility;
+        pub mod feature_flags;
+        pub mod generics;
+        pub mod opaque;
+        pub mod philosophy;
+        pub mod the_macro;
+        pub mod upgrading;
+    }
+}
+
+#[cfg(feature = "rust_1_30")]
+doc_comment::doctest!("../README.md", readme_tests);
 
 use std::error;
 
