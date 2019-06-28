@@ -1,0 +1,75 @@
+error: Can only derive `Snafu` for an enum or a newtype
+ --> $DIR/error-reporting.rs:5:5
+  |
+5 |     union AUnion { _a: i32 }
+  |     ^^^^^
+
+error: Only struct-like and unit enum variants are supported
+ --> $DIR/error-reporting.rs:9:14
+  |
+9 |         Alpha(i32),
+  |              ^^^^^
+
+error: `snafu(display)` requires an argument
+  --> $DIR/error-reporting.rs:28:17
+   |
+28 |         #[snafu(display)]
+   |                 ^^^^^^^
+
+error: format argument must be a string literal
+  --> $DIR/error-reporting.rs:37:29
+   |
+37 |             #[snafu(display(foo()))]
+   |                             ^^^^^
+help: you might be missing a string literal to format with
+   |
+37 |             #[snafu(display("{}", foo()))]
+   |                             ^^^^^
+
+error: expected string literal
+  --> $DIR/error-reporting.rs:47:31
+   |
+47 |             #[snafu(display = 42)]
+   |                               ^^
+
+error: format argument must be a string literal
+  --> $DIR/error-reporting.rs:53:31
+   |
+53 |             #[snafu(display = "42")]
+   |                               ^^^^
+help: you might be missing a string literal to format with
+   |
+53 |             #[snafu(display = "{}", "42")]
+   |                               ^^^^^
+
+error: Can only derive `Snafu` for tuple structs
+  --> $DIR/error-reporting.rs:63:5
+   |
+63 |     struct UnitStruct;
+   |     ^^^^^^
+
+error: Can only derive `Snafu` for tuple structs
+  --> $DIR/error-reporting.rs:66:5
+   |
+66 |     struct NamedFieldStruct { alpha: i32 }
+   |     ^^^^^^
+
+error: Can only derive `Snafu` for tuple structs with exactly one field
+  --> $DIR/error-reporting.rs:69:5
+   |
+69 |     struct ShortTupleStruct();
+   |     ^^^^^^
+
+error: Can only derive `Snafu` for tuple structs with exactly one field
+  --> $DIR/error-reporting.rs:72:5
+   |
+72 |     struct LongTupleStruct(i32, i32);
+   |     ^^^^^^
+
+error[E0658]: The attribute `serde` is currently unknown to the compiler and may have meaning added to it in the future (see issue #29642)
+  --> $DIR/error-reporting.rs:18:9
+   |
+18 |         #[serde]
+   |         ^^^^^^^^
+
+For more information about this error, try `rustc --explain E0658`.
