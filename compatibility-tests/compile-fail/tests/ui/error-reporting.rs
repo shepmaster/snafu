@@ -14,9 +14,9 @@ mod other_attributes {
     use snafu::Snafu;
 
     #[derive(Debug, Snafu)]
-    enum UnknownVariantAttributeIsIgnored {
+    enum Error {
         #[serde]
-        Alpha
+        UnknownVariantAttributeIsIgnored,
     }
 }
 
@@ -24,35 +24,21 @@ mod display {
     use snafu::Snafu;
 
     #[derive(Debug, Snafu)]
-    enum DisplayWithoutArgument {
+    enum FailedAttributeParsing {
         #[snafu(display)]
-        Alpha
+        DisplayWithoutArgument,
+
+        #[snafu(display = 42)]
+        StringStyleNotStringLiteral,
     }
 
-    mod clean_style {
-        use snafu::Snafu;
+    #[derive(Debug, Snafu)]
+    enum InvalidGeneratedCode {
+        #[snafu(display(foo()))]
+        CleanStyleBadFormatString,
 
-        #[derive(Debug, Snafu)]
-        enum BadFormatString {
-            #[snafu(display(foo()))]
-            Alpha { a: i32 },
-        }
-    }
-
-    mod string_style {
-        use snafu::Snafu;
-
-        #[derive(Debug, Snafu)]
-        enum NotStringLiteral {
-            #[snafu(display = 42)]
-            Alpha { a: i32 },
-        }
-
-        #[derive(Debug, Snafu)]
-        enum BadFormatString {
-            #[snafu(display = "42")]
-            Alpha { a: i32 },
-        }
+        #[snafu(display = "42")]
+        StringStyleBadFormatString,
     }
 }
 
@@ -63,7 +49,7 @@ mod opaque {
     struct UnitStruct;
 
     #[derive(Debug, Snafu)]
-    struct NamedFieldStruct { alpha: i32 }
+    struct NamedFieldStruct { some_field: i32 }
 
     #[derive(Debug, Snafu)]
     struct ShortTupleStruct();
