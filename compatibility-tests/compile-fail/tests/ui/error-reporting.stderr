@@ -16,54 +16,54 @@ error: `snafu(display)` requires an argument
 28 |         #[snafu(display)]
    |                 ^^^^^^^
 
-error: format argument must be a string literal
-  --> $DIR/error-reporting.rs:37:29
-   |
-37 |             #[snafu(display(foo()))]
-   |                             ^^^^^
-help: you might be missing a string literal to format with
-   |
-37 |             #[snafu(display("{}", foo()))]
-   |                             ^^^^^
-
 error: expected string literal
-  --> $DIR/error-reporting.rs:47:31
+  --> $DIR/error-reporting.rs:31:27
    |
-47 |             #[snafu(display = 42)]
-   |                               ^^
+31 |         #[snafu(display = 42)]
+   |                           ^^
 
 error: format argument must be a string literal
-  --> $DIR/error-reporting.rs:53:31
+  --> $DIR/error-reporting.rs:37:25
    |
-53 |             #[snafu(display = "42")]
-   |                               ^^^^
+37 |         #[snafu(display(foo()))]
+   |                         ^^^^^
 help: you might be missing a string literal to format with
    |
-53 |             #[snafu(display = "{}", "42")]
-   |                               ^^^^^
+37 |         #[snafu(display("{}", foo()))]
+   |                         ^^^^^
+
+error: format argument must be a string literal
+  --> $DIR/error-reporting.rs:40:27
+   |
+40 |         #[snafu(display = "42")]
+   |                           ^^^^
+help: you might be missing a string literal to format with
+   |
+40 |         #[snafu(display = "{}", "42")]
+   |                           ^^^^^
 
 error: Can only derive `Snafu` for tuple structs
-  --> $DIR/error-reporting.rs:63:5
+  --> $DIR/error-reporting.rs:49:5
    |
-63 |     struct UnitStruct;
+49 |     struct UnitStruct;
    |     ^^^^^^
 
 error: Can only derive `Snafu` for tuple structs
-  --> $DIR/error-reporting.rs:66:5
+  --> $DIR/error-reporting.rs:52:5
    |
-66 |     struct NamedFieldStruct { alpha: i32 }
+52 |     struct NamedFieldStruct { some_field: i32 }
    |     ^^^^^^
 
 error: Can only derive `Snafu` for tuple structs with exactly one field
-  --> $DIR/error-reporting.rs:69:5
+  --> $DIR/error-reporting.rs:55:5
    |
-69 |     struct ShortTupleStruct();
+55 |     struct ShortTupleStruct();
    |     ^^^^^^
 
 error: Can only derive `Snafu` for tuple structs with exactly one field
-  --> $DIR/error-reporting.rs:72:5
+  --> $DIR/error-reporting.rs:58:5
    |
-72 |     struct LongTupleStruct(i32, i32);
+58 |     struct LongTupleStruct(i32, i32);
    |     ^^^^^^
 
 error[E0658]: The attribute `serde` is currently unknown to the compiler and may have meaning added to it in the future (see issue #29642)

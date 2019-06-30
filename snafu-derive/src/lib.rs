@@ -9,7 +9,7 @@ extern crate syn;
 
 use proc_macro::TokenStream;
 use std::iter;
-use syn::parse::{Error as SynError, Result as SynResult};
+use syn::parse::Result as SynResult;
 
 /// See the crate-level documentation for SNAFU which contains tested
 /// examples of this macro.
@@ -20,6 +20,8 @@ pub fn snafu_derive(input: TokenStream) -> TokenStream {
 
     impl_snafu_macro(ast)
 }
+
+type MultiSynResult<T> = std::result::Result<T, Vec<syn::Error>>;
 
 type UserInput = Box<quote::ToTokens>;
 
@@ -98,11 +100,16 @@ impl Transformation {
 fn impl_snafu_macro(ty: syn::DeriveInput) -> TokenStream {
     match parse_snafu_information(ty) {
         Ok(info) => info.into(),
-        Err(e) => e.to_compile_error().into(),
+        Err(e) => to_compile_errors(e).into(),
     }
 }
 
-fn parse_snafu_information(ty: syn::DeriveInput) -> SynResult<SnafuInfo> {
+fn to_compile_errors(errors: Vec<syn::Error>) -> proc_macro2::TokenStream {
+    let compile_errors = errors.iter().map(syn::Error::to_compile_error);
+    quote! { #(#compile_errors)* }
+}
+
+fn parse_snafu_information(ty: syn::DeriveInput) -> MultiSynResult<SnafuInfo> {
     use syn::spanned::Spanned;
     use syn::Data;
 
@@ -120,12 +127,10 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> SynResult<SnafuInfo> {
         Data::Struct(struct_) => {
             parse_snafu_struct(struct_, ident, generics, attrs, span).map(SnafuInfo::Struct)
         }
-        _ => {
-            return Err(SynError::new(
-                span,
-                "Can only derive `Snafu` for an enum or a newtype",
-            ));
-        }
+        _ => Err(vec![syn::Error::new(
+            span,
+            "Can only derive `Snafu` for an enum or a newtype",
+        )]),
     }
 }
 
@@ -134,7 +139,7 @@ fn parse_snafu_enum(
     name: syn::Ident,
     generics: syn::Generics,
     attrs: Vec<syn::Attribute>,
-) -> SynResult<EnumInfo> {
+) -> MultiSynResult<EnumInfo> {
     use syn::spanned::Spanned;
     use syn::Fields;
 
@@ -144,7 +149,7 @@ fn parse_snafu_enum(
         .next()
         .unwrap_or_else(private_visibility);
 
-    let variants: Result<_, SynError> = enum_
+    let variants: sponge::AllErrors<_, _> = enum_
         .variants
         .into_iter()
         .map(|variant| {
@@ -165,10 +170,10 @@ fn parse_snafu_enum(
             let fields = match variant.fields {
                 Fields::Named(f) => f.named.into_iter().collect(),
                 Fields::Unnamed(_) => {
-                    return Err(SynError::new(
+                    return Err(vec![syn::Error::new(
                         variant.fields.span(),
                         "Only struct-like and unit enum variants are supported",
-                    ));
+                    )]);
                 }
                 Fields::Unit => vec![],
             };
@@ -182,7 +187,7 @@ fn parse_snafu_enum(
                 let span = syn_field.span();
                 let name = syn_field
                     .ident
-                    .ok_or_else(|| SynError::new(span, "Must have a named field"))?;
+                    .ok_or_else(|| vec![syn::Error::new(span, "Must have a named field")])?;
                 let field = Field {
                     name,
                     ty: syn_field.ty,
@@ -258,7 +263,7 @@ fn parse_snafu_enum(
             })
         })
         .collect();
-    let variants = variants?;
+    let variants = variants.into_result()?;
 
     Ok(EnumInfo {
         name,
@@ -274,7 +279,7 @@ fn parse_snafu_struct(
     generics: syn::Generics,
     attrs: Vec<syn::Attribute>,
     span: proc_macro2::Span,
-) -> SynResult<StructInfo> {
+) -> MultiSynResult<StructInfo> {
     use syn::Fields;
 
     let mut transformation = None;
@@ -298,23 +303,26 @@ fn parse_snafu_struct(
     let mut fields = match struct_.fields {
         Fields::Unnamed(f) => f,
         _ => {
-            return Err(SynError::new(
+            return Err(vec![syn::Error::new(
                 span,
                 "Can only derive `Snafu` for tuple structs",
-            ));
+            )]);
         }
     };
 
-    fn one_field_error(span: proc_macro2::Span) -> SynError {
-        SynError::new(
+    fn one_field_error(span: proc_macro2::Span) -> syn::Error {
+        syn::Error::new(
             span,
             "Can only derive `Snafu` for tuple structs with exactly one field",
         )
     }
 
-    let inner = fields.unnamed.pop().ok_or_else(|| one_field_error(span))?;
+    let inner = fields
+        .unnamed
+        .pop()
+        .ok_or_else(|| vec![one_field_error(span)])?;
     if !fields.unnamed.is_empty() {
-        return Err(one_field_error(span));
+        return Err(vec![one_field_error(span)]);
     }
 
     let transformation = match transformation {
@@ -443,7 +451,7 @@ impl syn::parse::Parse for Source {
 
                 Ok(Source::From(ty, expr))
             } else {
-                Err(SynError::new(
+                Err(syn::Error::new(
                     name.span(),
                     "expected `true`, `false`, or `from`",
                 ))
@@ -474,7 +482,7 @@ impl syn::parse::Parse for Backtrace {
             if name == "delegate" {
                 Ok(Backtrace::Delegate)
             } else {
-                Err(SynError::new(
+                Err(syn::Error::new(
                     name.span(),
                     "expected `true`, `false`, or `delegate`",
                 ))
@@ -512,7 +520,7 @@ impl syn::parse::Parse for SnafuAttribute {
         if name == "display" {
             let m: MyMeta<List<Expr>> = inside.parse()?;
             let v = m.into_option().ok_or_else(|| {
-                SynError::new(name.span(), "`snafu(display)` requires an argument")
+                syn::Error::new(name.span(), "`snafu(display)` requires an argument")
             })?;
             let v = Box::new(v.0);
             Ok(SnafuAttribute::Display(v))
@@ -537,7 +545,7 @@ impl syn::parse::Parse for SnafuAttribute {
                 Ok(SnafuAttribute::Backtrace(v.0))
             }
         } else {
-            Err(SynError::new(
+            Err(syn::Error::new(
                 name.span(),
                 "expected `display`, `visibility`, `source`, or `backtrace`",
             ))
@@ -561,10 +569,11 @@ impl syn::parse::Parse for SnafuAttributeBody {
     }
 }
 
-fn attributes_from_syn(attrs: Vec<syn::Attribute>) -> SynResult<Vec<SnafuAttribute>> {
+fn attributes_from_syn(attrs: Vec<syn::Attribute>) -> MultiSynResult<Vec<SnafuAttribute>> {
     use syn::parse2;
 
     let mut ours = Vec::new();
+    let mut errs = Vec::new();
 
     let parsed_attrs = attrs
         .into_iter()
@@ -577,11 +586,15 @@ fn attributes_from_syn(attrs: Vec<syn::Attribute>) -> SynResult<Vec<SnafuAttribu
     for attr in parsed_attrs {
         match attr {
             Ok(v) => ours.extend(v),
-            Err(e) => return Err(e),
+            Err(e) => errs.push(e),
         }
     }
 
-    Ok(ours)
+    if errs.is_empty() {
+        Ok(ours)
+    } else {
+        Err(errs)
+    }
 }
 
 fn private_visibility() -> UserInput {
@@ -1217,6 +1230,47 @@ impl<T, E> Transpose<T, E> for Option<Result<T, E>> {
             Some(Ok(v)) => Ok(Some(v)),
             Some(Err(e)) => Err(e),
             None => Ok(None),
+        }
+    }
+}
+
+mod sponge {
+    use std::iter::FromIterator;
+
+    pub struct AllErrors<T, E>(Result<T, Vec<E>>);
+
+    impl<T, E> AllErrors<T, E> {
+        pub fn into_result(self) -> Result<T, Vec<E>> {
+            self.0
+        }
+    }
+
+    impl<C, T, E> FromIterator<Result<C, Vec<E>>> for AllErrors<T, E>
+    where
+        T: FromIterator<C>,
+    {
+        fn from_iter<I>(i: I) -> Self
+        where
+            I: IntoIterator<Item = Result<C, Vec<E>>>,
+        {
+            let mut errors = Vec::new();
+
+            let inner = i
+                .into_iter()
+                .flat_map(|v| match v {
+                    Ok(v) => Ok(v),
+                    Err(e) => {
+                        errors.extend(e);
+                        Err(())
+                    }
+                })
+                .collect();
+
+            if errors.is_empty() {
+                AllErrors(Ok(inner))
+            } else {
+                AllErrors(Err(errors))
+            }
         }
     }
 }

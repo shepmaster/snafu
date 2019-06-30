@@ -2,8 +2,8 @@ stable_test_task:
   name: "Rust Stable"
   container:
     image: rust:latest
-    cpu: 0.5
-    memory: 768Mi
+    cpu: 1
+    memory: 2Gi
   cargo_cache:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
@@ -26,8 +26,8 @@ nightly_test_task:
   name: "Rust Nightly"
   container:
     image: rustlang/rust:nightly
-    cpu: 0.5
-    memory: 768Mi
+    cpu: 1
+    memory: 2Gi
   cargo_cache:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
@@ -49,8 +49,8 @@ v1_34_test_task:
   name: "Rust 1.34"
   container:
     image: rust:1.34
-    cpu: 0.5
-    memory: 768Mi
+    cpu: 1
+    memory: 2Gi
   cargo_cache:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
@@ -64,8 +64,8 @@ v1_30_test_task:
   name: "Rust 1.30"
   container:
     image: rust:1.30
-    cpu: 0.5
-    memory: 768Mi
+    cpu: 1
+    memory: 2Gi
   cargo_cache:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
@@ -85,8 +85,8 @@ v1_18_test_task:
   container:
     # No Docker container for 1.18
     image: rust:latest
-    cpu: 0.5
-    memory: 768Mi
+    cpu: 1
+    memory: 2Gi
   cargo_cache:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
