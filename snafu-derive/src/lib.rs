@@ -38,12 +38,42 @@ struct EnumInfo {
 
 struct VariantInfo {
     name: syn::Ident,
-    source_field: Option<SourceField>,
     backtrace_field: Option<Field>,
-    user_fields: Vec<Field>,
+    selector_kind: ContextSelectorKind,
     display_format: Option<UserInput>,
     doc_comment: String,
     visibility: Option<UserInput>,
+}
+
+enum ContextSelectorKind {
+    Context {
+        source_field: Option<SourceField>,
+        user_fields: Vec<Field>,
+    },
+
+    NoContext {
+        source_field: SourceField,
+    },
+}
+
+impl ContextSelectorKind {
+    fn user_fields(&self) -> &[Field] {
+        match *self {
+            ContextSelectorKind::Context {
+                ref user_fields, ..
+            } => user_fields,
+            ContextSelectorKind::NoContext { .. } => &[],
+        }
+    }
+
+    fn source_field(&self) -> Option<&SourceField> {
+        match *self {
+            ContextSelectorKind::Context {
+                ref source_field, ..
+            } => source_field.as_ref(),
+            ContextSelectorKind::NoContext { ref source_field } => Some(source_field),
+        }
+    }
 }
 
 struct StructInfo {
@@ -56,6 +86,7 @@ struct StructInfo {
 struct Field {
     name: syn::Ident,
     ty: syn::Type,
+    original: syn::Field,
 }
 
 impl Field {
@@ -119,7 +150,7 @@ impl SyntaxErrors {
     }
 
     /// Adds the given list of errors.
-    fn extend(&mut self, errors: Vec<syn::Error>) {
+    fn extend(&mut self, errors: impl IntoIterator<Item = syn::Error>) {
         self.inner.extend(errors);
     }
 
@@ -136,6 +167,18 @@ impl SyntaxErrors {
             Ok(())
         } else {
             Err(self.inner)
+        }
+    }
+
+    /// Consume the SyntaxErrors and a Result, returning the success
+    /// value if neither have errors, otherwise combining the errors.
+    fn absorb<T>(mut self, res: MultiSynResult<T>) -> MultiSynResult<T> {
+        match res {
+            Ok(v) => self.finish().map(|()| v),
+            Err(e) => {
+                self.inner.extend(e);
+                Err(self.inner)
+            }
         }
     }
 }
@@ -395,6 +438,17 @@ fn parse_snafu_enum(
                     },
                 );
             }
+            SnafuAttribute::Context(tokens, ..) => {
+                errors.add(
+                    tokens,
+                    OnlyValidOn {
+                        // TODO: enums for these
+                        attribute: "context",
+                        valid_on: "an error variant",
+                        not_on: "an enum",
+                    },
+                );
+            }
             SnafuAttribute::DocComment(..) => { /* Just a regular doc comment. */ }
         }
     }
@@ -408,9 +462,11 @@ fn parse_snafu_enum(
         .into_iter()
         .map(|variant| {
             let name = variant.ident;
+            let variant_span = name.span();
 
             let mut display_formats = AtMostOne::new("display", "on an error variant");
             let mut visibilities = AtMostOne::new("visibility", "on an error variant");
+            let mut contexts = AtMostOne::new("context", "on an error variant");
             let mut doc_comment = String::new();
             let mut reached_end_of_doc_comment = false;
 
@@ -418,6 +474,7 @@ fn parse_snafu_enum(
                 match attr {
                     SnafuAttribute::Display(tokens, d) => display_formats.add(d, tokens),
                     SnafuAttribute::Visibility(tokens, v) => visibilities.add(v, tokens),
+                    SnafuAttribute::Context(tokens, c) => contexts.add(c, tokens),
                     SnafuAttribute::Source(tokens, ..) => {
                         errors.add(
                             tokens,
@@ -473,6 +530,7 @@ fn parse_snafu_enum(
             let mut backtrace_fields = AtMostOne::new("backtrace", "within an error variant");
 
             for syn_field in fields {
+                let original = syn_field.clone();
                 let span = syn_field.span();
                 let name = syn_field
                     .ident
@@ -481,6 +539,7 @@ fn parse_snafu_enum(
                 let field = Field {
                     name: name.clone(),
                     ty: syn_field.ty.clone(),
+                    original,
                 };
 
                 // Check whether we have multiple source/backtrace attributes on this field.
@@ -587,6 +646,16 @@ fn parse_snafu_enum(
                                 },
                             );
                         }
+                        SnafuAttribute::Context(tokens, ..) => {
+                            errors.add(
+                                tokens,
+                                OnlyValidOn {
+                                    attribute: "context",
+                                    valid_on: "variants of an error enum",
+                                    not_on: "a field",
+                                },
+                            );
+                        }
                         SnafuAttribute::DocComment(..) => { /* Just a regular doc comment. */ }
                     }
                 }
@@ -614,7 +683,7 @@ fn parse_snafu_enum(
                 });
 
                 if let Some((maybe_transformation, location)) = source_attr {
-                    let Field { name, ty } = field;
+                    let Field { name, ty, .. } = field;
                     let transformation = maybe_transformation
                         .map(|(ty, expr)| Transformation::Transform { ty, expr })
                         .unwrap_or_else(|| Transformation::None { ty });
@@ -664,11 +733,40 @@ fn parse_snafu_enum(
             let (visibility, errs) = visibilities.finish();
             errors.extend(errs);
 
+            let (is_context, errs) = contexts.finish();
+            errors.extend(errs);
+
+            let source_field = source.map(|(val, _tts)| val);
+
+            let selector_kind = if is_context.unwrap_or(true) {
+                ContextSelectorKind::Context {
+                    source_field,
+                    user_fields,
+                }
+            } else {
+                errors.extend(
+                    user_fields.into_iter().map(|Field { original, .. }| {
+                        syn::Error::new_spanned(
+                            original,
+                            "Context selectors without context must not have context fields",
+                        )
+                    })
+                );
+
+                let source_field = source_field.ok_or_else(|| {
+                        vec![syn::Error::new(
+                            variant_span,
+                            "Context selectors without context must have a source field",
+                        )]
+                    })?;
+
+                ContextSelectorKind::NoContext { source_field }
+            };
+
             Ok(VariantInfo {
                 name,
-                source_field: source.map(|(val, _tts)| val),
                 backtrace_field: backtrace.map(|(val, _tts)| val),
-                user_fields,
+                selector_kind,
                 display_format,
                 doc_comment,
                 visibility,
@@ -676,9 +774,7 @@ fn parse_snafu_enum(
         })
         .collect();
 
-    errors.finish()?;
-
-    let variants = variants.into_result()?;
+    let variants = errors.absorb(variants.into_result())?;
 
     Ok(EnumInfo {
         name,
@@ -746,6 +842,16 @@ fn parse_snafu_struct(
                     OnlyValidOn {
                         attribute: "backtrace",
                         valid_on: "fields of an error variant",
+                        not_on: "a struct",
+                    },
+                );
+            }
+            SnafuAttribute::Context(tokens, ..) => {
+                errors.add(
+                    tokens,
+                    OnlyValidOn {
+                        attribute: "context",
+                        valid_on: "variants of an error enum",
                         not_on: "a struct",
                     },
                 );
@@ -961,13 +1067,14 @@ enum SnafuAttribute {
     Visibility(proc_macro2::TokenStream, UserInput),
     Source(proc_macro2::TokenStream, Vec<Source>),
     Backtrace(proc_macro2::TokenStream, bool),
+    Context(proc_macro2::TokenStream, bool),
     DocComment(proc_macro2::TokenStream, String),
 }
 
 impl syn::parse::Parse for SnafuAttribute {
     fn parse(input: syn::parse::ParseStream) -> SynResult<Self> {
         use syn::token::{Comma, Paren};
-        use syn::{Expr, Ident, Visibility};
+        use syn::{Expr, Ident, LitBool, Visibility};
 
         let input_tts = input.cursor().token_stream();
         let name: Ident = input.parse()?;
@@ -1005,10 +1112,17 @@ impl syn::parse::Parse for SnafuAttribute {
             } else {
                 Err(lookahead.error())
             }
+        } else if name == "context" {
+            if input.is_empty() {
+                Ok(SnafuAttribute::Context(input_tts, true))
+            } else {
+                let v: MyParens<LitBool> = input.parse()?;
+                Ok(SnafuAttribute::Context(input_tts, v.0.value))
+            }
         } else {
             Err(syn::Error::new(
                 name.span(),
-                "expected `display`, `visibility`, `source`, or `backtrace`",
+                "expected `display`, `visibility`, `source`, `backtrace`, or `context`",
             ))
         }
     }
@@ -1247,53 +1361,10 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
 
         let VariantInfo {
             name: ref variant_name,
-            ref source_field,
+            ref selector_kind,
             ref backtrace_field,
-            ref user_fields,
             ..
         } = *self.1;
-
-        let generic_names: Vec<_> = (0..user_fields.len())
-            .map(|i| format_ident!("__T{}", i))
-            .collect();
-
-        let visibility = self
-            .1
-            .visibility
-            .as_ref()
-            .unwrap_or(&self.0.default_visibility);
-
-        let generics_list = quote! { <#(#original_lifetimes,)* #(#generic_names,)* #(#original_generic_types_without_defaults,)*> };
-        let selector_name = quote! { #variant_name<#(#generic_names,)*> };
-
-        let names: Vec<_> = user_fields.iter().map(|f| f.name.clone()).collect();
-        let selector_doc = format!(
-            "SNAFU context selector for the `{}::{}` error variant",
-            enum_name, variant_name,
-        );
-
-        let variant_selector_struct = {
-            if user_fields.is_empty() {
-                quote! {
-                    #[derive(Debug, Copy, Clone)]
-                    #[doc = #selector_doc]
-                    #visibility struct #selector_name;
-                }
-            } else {
-                let visibilities = iter::repeat(visibility);
-
-                quote! {
-                    #[derive(Debug, Copy, Clone)]
-                    #[doc = #selector_doc]
-                    #visibility struct #selector_name {
-                        #(
-                            #[allow(missing_docs)]
-                            #visibilities #names: #generic_names
-                        ),*
-                    }
-                }
-            }
-        };
 
         let backtrace_field = match *backtrace_field {
             Some(ref field) => {
@@ -1303,93 +1374,177 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
             None => quote! {},
         };
 
-        let where_clauses: Vec<_> = generic_names
-            .iter()
-            .zip(user_fields)
-            .map(|(gen_ty, f)| {
-                let Field { ref ty, .. } = *f;
-                quote! { #gen_ty: core::convert::Into<#ty> }
-            })
-            .chain(self.0.provided_where_clauses())
-            .collect();
+        match *selector_kind {
+            ContextSelectorKind::Context {
+                ref user_fields,
+                ref source_field,
+            } => {
+                let generic_names: Vec<_> = (0..user_fields.len())
+                    .map(|i| format_ident!("__T{}", i))
+                    .collect();
 
-        let inherent_impl = if source_field.is_none() {
-            quote! {
-                impl<#(#generic_names,)*> #selector_name
-                {
-                    #[doc = "Consume the selector and return a `Result` with the associated error"]
-                    #visibility fn fail<#(#original_generics_without_defaults,)* __T>(self) -> core::result::Result<__T, #parameterized_enum_name>
-                    where
-                        #(#where_clauses),*
-                    {
-                        let Self { #(#names),* } = self;
-                        let error = #enum_name::#variant_name {
-                            #backtrace_field
-                            #( #names: core::convert::Into::into(#names) ),*
-                        };
-                        core::result::Result::Err(error)
-                    }
-                }
-            }
-        } else {
-            quote! {}
-        };
+                let visibility = self
+                    .1
+                    .visibility
+                    .as_ref()
+                    .unwrap_or(&self.0.default_visibility);
 
-        let enum_from_variant_selector_impl = {
-            let user_fields = user_fields.iter().map(|f| {
-                let Field { ref name, .. } = *f;
-                quote! { #name: self.#name.into() }
-            });
+                let generics_list = quote! { <#(#original_lifetimes,)* #(#generic_names,)* #(#original_generic_types_without_defaults,)*> };
+                let selector_name = quote! { #variant_name<#(#generic_names,)*> };
 
-            let source_ty;
-            let source_xfer_field;
+                let names: Vec<_> = user_fields.iter().map(|f| f.name.clone()).collect();
+                let selector_doc = format!(
+                    "SNAFU context selector for the `{}::{}` error variant",
+                    enum_name, variant_name,
+                );
 
-            match *source_field {
-                Some(ref source_field) => {
-                    let SourceField {
-                        name: ref source_name,
-                        transformation: ref source_transformation,
-                        ..
-                    } = *source_field;
+                let variant_selector_struct = {
+                    if user_fields.is_empty() {
+                        quote! {
+                            #[derive(Debug, Copy, Clone)]
+                            #[doc = #selector_doc]
+                            #visibility struct #selector_name;
+                        }
+                    } else {
+                        let visibilities = iter::repeat(visibility);
 
-                    let source_ty2 = source_transformation.ty();
-                    let source_transformation = source_transformation.transformation();
-
-                    source_ty = quote! { #source_ty2 };
-                    source_xfer_field = quote! { #source_name: (#source_transformation)(error), };
-                }
-                None => {
-                    source_ty = quote! { snafu::NoneError };
-                    source_xfer_field = quote! {};
-                }
-            }
-
-            quote! {
-                impl#generics_list snafu::IntoError<#parameterized_enum_name> for #selector_name
-                where
-                    #parameterized_enum_name: snafu::Error + snafu::ErrorCompat,
-                    #(#where_clauses),*
-                {
-                    type Source = #source_ty;
-
-                    fn into_error(self, error: Self::Source) -> #parameterized_enum_name {
-                        #enum_name::#variant_name {
-                            #source_xfer_field
-                            #backtrace_field
-                            #(#user_fields),*
+                        quote! {
+                            #[derive(Debug, Copy, Clone)]
+                            #[doc = #selector_doc]
+                            #visibility struct #selector_name {
+                                #(
+                                    #[allow(missing_docs)]
+                                    #visibilities #names: #generic_names
+                                ),*
+                            }
                         }
                     }
-                }
-            }
-        };
+                };
 
-        stream.extend({
-            quote! {
-                #variant_selector_struct
-                #inherent_impl
-                #enum_from_variant_selector_impl
+                let where_clauses: Vec<_> = generic_names
+                    .iter()
+                    .zip(user_fields)
+                    .map(|(gen_ty, f)| {
+                        let Field { ref ty, .. } = *f;
+                        quote! { #gen_ty: core::convert::Into<#ty> }
+                    })
+                    .chain(self.0.provided_where_clauses())
+                    .collect();
+
+                let inherent_impl = if source_field.is_none() {
+                    quote! {
+                    impl<#(#generic_names,)*> #selector_name
+                    {
+                        #[doc = "Consume the selector and return a `Result` with the associated error"]
+                        #visibility fn fail<#(#original_generics_without_defaults,)* __T>(self) -> core::result::Result<__T, #parameterized_enum_name>
+                        where
+                            #(#where_clauses),*
+                        {
+                            let Self { #(#names),* } = self;
+                            let error = #enum_name::#variant_name {
+                                #backtrace_field
+                                #( #names: core::convert::Into::into(#names) ),*
+                            };
+                            core::result::Result::Err(error)
+                                }
+                            }
+                        }
+                } else {
+                    quote! {}
+                };
+
+                let enum_from_variant_selector_impl = {
+                    let user_fields = user_fields.iter().map(|f| {
+                        let Field { ref name, .. } = *f;
+                        quote! { #name: self.#name.into() }
+                    });
+
+                    let source_ty;
+                    let source_xfer_field;
+
+                    match *source_field {
+                        Some(ref source_field) => {
+                            let SourceField {
+                                name: ref source_name,
+                                transformation: ref source_transformation,
+                                ..
+                            } = *source_field;
+
+                            let source_ty2 = source_transformation.ty();
+                            let source_transformation = source_transformation.transformation();
+
+                            source_ty = quote! { #source_ty2 };
+                            source_xfer_field =
+                                quote! { #source_name: (#source_transformation)(error), };
+                        }
+                        None => {
+                            source_ty = quote! { snafu::NoneError };
+                            source_xfer_field = quote! {};
+                        }
+                    }
+
+                    quote! {
+                        impl#generics_list snafu::IntoError<#parameterized_enum_name> for #selector_name
+                        where
+                            #parameterized_enum_name: snafu::Error + snafu::ErrorCompat,
+                            #(#where_clauses),*
+                        {
+                            type Source = #source_ty;
+
+                            fn into_error(self, error: Self::Source) -> #parameterized_enum_name {
+                                #enum_name::#variant_name {
+                                    #source_xfer_field
+                                    #backtrace_field
+                                    #(#user_fields),*
+                                }
+                            }
+                        }
+                    }
+                };
+
+                stream.extend({
+                    quote! {
+                        #variant_selector_struct
+                        #inherent_impl
+                        #enum_from_variant_selector_impl
+                    }
+                })
             }
-        })
+
+            ContextSelectorKind::NoContext { ref source_field } => {
+                let original_generics = self.0.provided_generics_without_defaults();
+                let generics_list = quote! { <#(#original_generics,)*> };
+                let wheres = self.0.provided_where_clauses();
+
+                let SourceField {
+                    name: ref source_name,
+                    transformation: ref source_transformation,
+                    ..
+                } = *source_field;
+
+                let source_ty = source_transformation.ty();
+                let source_transformation = source_transformation.transformation();
+
+                let source_ty = quote! { #source_ty };
+                let source_xfer_field = quote! { #source_name: (#source_transformation)(other), };
+
+                stream.extend({
+                    quote! {
+                        impl#generics_list From<#source_ty> for #parameterized_enum_name
+                        where
+                            #(#wheres),*
+                        {
+                            fn from(other: #source_ty) -> Self {
+                                #enum_name::#variant_name {
+                                    #source_xfer_field
+                                    #backtrace_field
+                                }
+                            }
+                        }
+                    }
+                })
+            }
+        }
     }
 }
 
@@ -1405,13 +1560,15 @@ impl<'a> DisplayImpl<'a> {
             .map(|variant| {
                 let VariantInfo {
                     name: ref variant_name,
-                    ref user_fields,
-                    ref source_field,
+                    ref selector_kind,
                     ref backtrace_field,
                     ref display_format,
                     ref doc_comment,
                     ..
                 } = *variant;
+
+                let user_fields = selector_kind.user_fields();
+                let source_field = selector_kind.source_field();
 
                 let format = match (display_format, source_field) {
                     (Some(ref v), _) => quote! { #v },
@@ -1429,7 +1586,7 @@ impl<'a> DisplayImpl<'a> {
                     .iter()
                     .chain(backtrace_field)
                     .map(Field::name)
-                    .chain(source_field.as_ref().map(SourceField::name));
+                    .chain(source_field.map(SourceField::name));
 
                 let field_names = quote! { #(ref #field_names),* };
 
@@ -1497,12 +1654,14 @@ impl<'a> ErrorImpl<'a> {
             .map(|variant| {
                 let VariantInfo {
                     name: ref variant_name,
-                    ref source_field,
+                    ref selector_kind,
                     ..
                 } = *variant;
 
-                match *source_field {
-                    Some(ref source_field) => {
+                let source_field = selector_kind.source_field();
+
+                match source_field {
+                    Some(source_field) => {
                         let SourceField {
                             name: ref field_name,
                             ..
@@ -1595,13 +1754,12 @@ impl<'a> ErrorCompatImpl<'a> {
         self.0.variants.iter().map(|variant| {
             let VariantInfo {
                 name: ref variant_name,
-                ref source_field,
+                ref selector_kind,
                 ref backtrace_field,
                 ..
             } = *variant;
 
-
-            match (source_field, backtrace_field) {
+            match (selector_kind.source_field(), backtrace_field) {
                 (Some(ref source_field), _) if source_field.backtrace_delegate => {
                     let SourceField {
                         name: ref field_name,
@@ -1795,6 +1953,35 @@ mod sponge {
     impl<T, E> AllErrors<T, E> {
         pub fn into_result(self) -> Result<T, Vec<E>> {
             self.0
+        }
+    }
+
+    impl<C, T, E> FromIterator<Result<C, E>> for AllErrors<T, E>
+    where
+        T: FromIterator<C>,
+    {
+        fn from_iter<I>(i: I) -> Self
+        where
+            I: IntoIterator<Item = Result<C, E>>,
+        {
+            let mut errors = Vec::new();
+
+            let inner = i
+                .into_iter()
+                .flat_map(|v| match v {
+                    Ok(v) => Ok(v),
+                    Err(e) => {
+                        errors.push(e);
+                        Err(())
+                    }
+                })
+                .collect();
+
+            if errors.is_empty() {
+                AllErrors(Ok(inner))
+            } else {
+                AllErrors(Err(errors))
+            }
         }
     }
 
