@@ -44,6 +44,7 @@ struct VariantInfo {
     backtrace_delegate: Option<Field>,
     user_fields: Vec<Field>,
     display_format: Option<UserInput>,
+    doc_comment: String,
     visibility: Option<UserInput>,
 }
 
@@ -157,6 +158,8 @@ fn parse_snafu_enum(
 
             let mut display_format = None;
             let mut visibility = None;
+            let mut doc_comment = String::new();
+            let mut reached_end_of_doc_comment = false;
 
             for attr in attributes_from_syn(variant.attrs)? {
                 match attr {
@@ -164,6 +167,22 @@ fn parse_snafu_enum(
                     SnafuAttribute::Visibility(v) => visibility = Some(v),
                     SnafuAttribute::Source(..) => { /* Report this isn't valid here? */ }
                     SnafuAttribute::Backtrace(..) => { /* Report this isn't valid here? */ }
+                    SnafuAttribute::DocComment(doc_comment_line) => {
+                        // We join all the doc comment attributes with a space,
+                        // but end once the summary of the doc comment is
+                        // complete, which is indicated by an empty line.
+                        if !reached_end_of_doc_comment {
+                            let trimmed = doc_comment_line.trim();
+                            if trimmed.is_empty() {
+                                reached_end_of_doc_comment = true;
+                            } else {
+                                if !doc_comment.is_empty() {
+                                    doc_comment.push_str(" ");
+                                }
+                                doc_comment.push_str(trimmed);
+                            }
+                        }
+                    }
                 }
             }
 
@@ -214,6 +233,7 @@ fn parse_snafu_enum(
                         },
                         SnafuAttribute::Visibility(_) => { /* Report this isn't valid here? */ }
                         SnafuAttribute::Display(_) => { /* Report this isn't valid here? */ }
+                        SnafuAttribute::DocComment(_) => { /* Just a regular doc comment. */ }
                     }
                 }
 
@@ -259,6 +279,7 @@ fn parse_snafu_enum(
                 backtrace_delegate,
                 user_fields,
                 display_format,
+                doc_comment,
                 visibility,
             })
         })
@@ -297,6 +318,7 @@ fn parse_snafu_struct(
                 }
             }
             SnafuAttribute::Backtrace(..) => { /* Report this isn't valid here? */ }
+            SnafuAttribute::DocComment(_) => { /* Just a regular doc comment. */ }
         }
     }
 
@@ -498,6 +520,7 @@ enum SnafuAttribute {
     Visibility(UserInput),
     Source(Vec<Source>),
     Backtrace(Backtrace),
+    DocComment(String),
 }
 
 impl SnafuAttribute {
@@ -569,19 +592,35 @@ impl syn::parse::Parse for SnafuAttributeBody {
     }
 }
 
+struct DocComment(SnafuAttribute);
+
+impl syn::parse::Parse for DocComment {
+    fn parse(input: syn::parse::ParseStream) -> SynResult<Self> {
+        use syn::token::Eq;
+        use syn::LitStr;
+
+        let _: Eq = input.parse()?;
+        let doc: LitStr = input.parse()?;
+
+        Ok(DocComment(SnafuAttribute::DocComment(doc.value())))
+    }
+}
+
 fn attributes_from_syn(attrs: Vec<syn::Attribute>) -> MultiSynResult<Vec<SnafuAttribute>> {
     use syn::parse2;
 
     let mut ours = Vec::new();
     let mut errs = Vec::new();
 
-    let parsed_attrs = attrs
-        .into_iter()
-        .filter(|attr| attr.path.is_ident("snafu"))
-        .map(|attr| {
-            let body: SnafuAttributeBody = parse2(attr.tts)?;
-            Ok(body.0)
-        });
+    let parsed_attrs = attrs.into_iter().flat_map(|attr| {
+        if attr.path.is_ident("snafu") {
+            Some(parse2::<SnafuAttributeBody>(attr.tts).map(|body| body.0))
+        } else if attr.path.is_ident("doc") {
+            Some(parse2::<DocComment>(attr.tts).map(|comment| vec![comment.0]))
+        } else {
+            None
+        }
+    });
 
     for attr in parsed_attrs {
         match attr {
@@ -868,11 +907,15 @@ impl<'a> DisplayImpl<'a> {
                     ref source_field,
                     ref backtrace_field,
                     ref display_format,
+                    ref doc_comment,
                     ..
                 } = *variant;
 
                 let format = match (display_format, source_field) {
                     (&Some(ref v), _) => quote! { #v },
+                    (&None, _) if !doc_comment.is_empty() => {
+                        quote! { #doc_comment }
+                    }
                     (&None, &Some(ref f)) => {
                         let field_name = &f.name;
                         quote! { concat!(stringify!(#variant_name), ": {}"), #field_name }
