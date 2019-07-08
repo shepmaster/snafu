@@ -8,6 +8,7 @@ extern crate quote;
 extern crate syn;
 
 use proc_macro::TokenStream;
+use std::fmt;
 use std::iter;
 use syn::parse::Result as SynResult;
 
@@ -98,6 +99,76 @@ impl Transformation {
     }
 }
 
+/// SyntaxErrors is a convenience wrapper for a list of syntax errors discovered while parsing
+/// something that derives Snafu.  It makes it easier for developers to add and return syntax
+/// errors while walking through the parse tree.
+#[derive(Debug, Default)]
+struct SyntaxErrors {
+    inner: Vec<syn::Error>,
+}
+
+impl SyntaxErrors {
+    /// Adds a new syntax error.  The given description will be used in the compile error pointing
+    /// to the given span.  Helper structs are available to format common descriptions, e.g.
+    /// OnlyValidOn.
+    fn add<D>(&mut self, span: proc_macro2::Span, description: D)
+    where
+        D: fmt::Display,
+    {
+        self.inner.push(syn::Error::new(span, description));
+    }
+
+    /// Consume the SyntaxErrors, returning Ok if there were no syntax errors added, or Err(list)
+    /// if there were syntax errors.
+    fn finish(self) -> MultiSynResult<()> {
+        if self.inner.is_empty() {
+            Ok(())
+        } else {
+            Err(self.inner)
+        }
+    }
+}
+
+/// Helper structure to simplify parameters to SyntaxErrors.add, handling cases where an attribute
+/// was used on an element where it's not valid.
+#[derive(Debug)]
+struct OnlyValidOn {
+    /// The name of the attribute that was misused.
+    attribute: &'static str,
+    /// A description of where that attribute is valid.
+    valid_on: &'static str,
+    /// A description of where the attribute was incorrectly used.
+    not_on: &'static str,
+}
+
+impl fmt::Display for OnlyValidOn {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "'{}' attribute is only valid on {}; attempted to place on this {}:",
+            self.attribute, self.valid_on, self.not_on
+        )
+    }
+}
+
+/// Helper structure to simplify parameters to SyntaxErrors.add, handling cases where two
+/// incompatible attributes were specified on the same element.
+#[derive(Debug)]
+struct IncompatibleAttributes {
+    attributes: &'static [&'static str],
+    location: &'static str,
+}
+
+impl fmt::Display for IncompatibleAttributes {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Incompatible attributes {:?} specified on {} here:",
+            self.attributes, self.location,
+        )
+    }
+}
+
 fn impl_snafu_macro(ty: syn::DeriveInput) -> TokenStream {
     match parse_snafu_information(ty) {
         Ok(info) => info.into(),
@@ -144,11 +215,64 @@ fn parse_snafu_enum(
     use syn::spanned::Spanned;
     use syn::Fields;
 
-    let default_visibility = attributes_from_syn(attrs)?
-        .into_iter()
-        .flat_map(SnafuAttribute::into_visibility)
-        .next()
-        .unwrap_or_else(private_visibility);
+    let mut errors = SyntaxErrors::default();
+
+    let mut default_visibility = private_visibility();
+
+    for attr in attributes_from_syn(attrs)? {
+        match attr {
+            SnafuAttribute::Visibility(v) => {
+                default_visibility = v;
+            }
+            SnafuAttribute::Display(..) => {
+                errors.add(
+                    name.span(),
+                    OnlyValidOn {
+                        attribute: "display",
+                        valid_on: "variants of an error enum",
+                        not_on: "enum",
+                    },
+                );
+            }
+            SnafuAttribute::Source(ss) => {
+                for s in ss {
+                    match s {
+                        Source::Flag(..) => {
+                            errors.add(
+                                name.span(),
+                                OnlyValidOn {
+                                    attribute: "source(bool)",
+                                    valid_on: "fields of an error variant",
+                                    not_on: "enum",
+                                },
+                            );
+                        }
+                        Source::From(_t, _e) => {
+                            errors.add(
+                                name.span(),
+                                OnlyValidOn {
+                                    attribute: "source(from)",
+                                    valid_on: "fields of an error variant",
+                                    not_on: "enum",
+                                },
+                            );
+                        }
+                    }
+                }
+            }
+            SnafuAttribute::Backtrace(..) => {
+                errors.add(
+                    name.span(),
+                    OnlyValidOn {
+                        attribute: "backtrace",
+                        valid_on: "fields of an error variant",
+                        not_on: "enum",
+                    },
+                );
+            }
+            SnafuAttribute::DocComment(_) => { /* Just a regular doc comment. */ }
+        }
+    }
 
     let variants: sponge::AllErrors<_, _> = enum_
         .variants
@@ -165,8 +289,26 @@ fn parse_snafu_enum(
                 match attr {
                     SnafuAttribute::Display(d) => display_format = Some(d),
                     SnafuAttribute::Visibility(v) => visibility = Some(v),
-                    SnafuAttribute::Source(..) => { /* Report this isn't valid here? */ }
-                    SnafuAttribute::Backtrace(..) => { /* Report this isn't valid here? */ }
+                    SnafuAttribute::Source(..) => {
+                        errors.add(
+                            name.span(),
+                            OnlyValidOn {
+                                attribute: "source",
+                                valid_on: "fields of an error variant",
+                                not_on: "variant",
+                            },
+                        );
+                    }
+                    SnafuAttribute::Backtrace(..) => {
+                        errors.add(
+                            name.span(),
+                            OnlyValidOn {
+                                attribute: "backtrace",
+                                valid_on: "fields of an error variant",
+                                not_on: "variant",
+                            },
+                        );
+                    }
                     SnafuAttribute::DocComment(doc_comment_line) => {
                         // We join all the doc comment attributes with a space,
                         // but end once the summary of the doc comment is
@@ -208,7 +350,7 @@ fn parse_snafu_enum(
                     .ident
                     .ok_or_else(|| vec![syn::Error::new(span, "Must have a named field")])?;
                 let field = Field {
-                    name,
+                    name: name.clone(),
                     ty: syn_field.ty,
                 };
 
@@ -220,10 +362,33 @@ fn parse_snafu_enum(
                 for attr in attributes_from_syn(syn_field.attrs)? {
                     match attr {
                         SnafuAttribute::Source(ss) => {
+                            static INCOMPATIBLE: &[&str] = &["source(false)", "source(from)"];
                             for s in ss {
                                 match s {
-                                    Source::Flag(v) => is_source = Some(v),
-                                    Source::From(t, e) => transformation = Some((t, e)),
+                                    Source::Flag(v) => {
+                                        if !v && transformation.is_some() {
+                                            errors.add(
+                                                name.span(),
+                                                IncompatibleAttributes {
+                                                    attributes: INCOMPATIBLE,
+                                                    location: "one field",
+                                                },
+                                            );
+                                        }
+                                        is_source = Some(v);
+                                    }
+                                    Source::From(t, e) => {
+                                        if is_source == Some(false) {
+                                            errors.add(
+                                                name.span(),
+                                                IncompatibleAttributes {
+                                                    attributes: INCOMPATIBLE,
+                                                    location: "one field",
+                                                },
+                                            );
+                                        }
+                                        transformation = Some((t, e));
+                                    }
                                 }
                             }
                         }
@@ -231,8 +396,26 @@ fn parse_snafu_enum(
                             Backtrace::Flag(v) => is_backtrace = Some(v),
                             Backtrace::Delegate => has_backtrace = true,
                         },
-                        SnafuAttribute::Visibility(_) => { /* Report this isn't valid here? */ }
-                        SnafuAttribute::Display(_) => { /* Report this isn't valid here? */ }
+                        SnafuAttribute::Visibility(_) => {
+                            errors.add(
+                                name.span(),
+                                OnlyValidOn {
+                                    attribute: "visibility",
+                                    valid_on: "an error enum and its variants",
+                                    not_on: "field",
+                                },
+                            );
+                        }
+                        SnafuAttribute::Display(_) => {
+                            errors.add(
+                                name.span(),
+                                OnlyValidOn {
+                                    attribute: "display",
+                                    valid_on: "variants of an error enum",
+                                    not_on: "field",
+                                },
+                            );
+                        }
                         SnafuAttribute::DocComment(_) => { /* Just a regular doc comment. */ }
                     }
                 }
@@ -284,6 +467,9 @@ fn parse_snafu_enum(
             })
         })
         .collect();
+
+    errors.finish()?;
+
     let variants = variants.into_result()?;
 
     Ok(EnumInfo {
@@ -305,19 +491,57 @@ fn parse_snafu_struct(
 
     let mut transformation = None;
 
+    let mut errors = SyntaxErrors::default();
+
     for attr in attributes_from_syn(attrs)? {
         match attr {
-            SnafuAttribute::Display(..) => { /* Report this isn't valid here? */ }
-            SnafuAttribute::Visibility(..) => { /* Report this isn't valid here? */ }
+            SnafuAttribute::Display(..) => {
+                errors.add(
+                    name.span(),
+                    OnlyValidOn {
+                        attribute: "display",
+                        valid_on: "variants of an error enum",
+                        not_on: "struct",
+                    },
+                );
+            }
+            SnafuAttribute::Visibility(..) => {
+                errors.add(
+                    name.span(),
+                    OnlyValidOn {
+                        attribute: "visibility",
+                        valid_on: "an error enum and its variants",
+                        not_on: "struct",
+                    },
+                );
+            }
             SnafuAttribute::Source(ss) => {
                 for s in ss {
                     match s {
-                        Source::Flag(..) => { /* Report this isn't valid here? */ }
+                        Source::Flag(..) => {
+                            errors.add(
+                                name.span(),
+                                OnlyValidOn {
+                                    attribute: "source(bool)",
+                                    valid_on: "fields of an error variant",
+                                    not_on: "struct",
+                                },
+                            );
+                        }
                         Source::From(t, e) => transformation = Some((t, e)),
                     }
                 }
             }
-            SnafuAttribute::Backtrace(..) => { /* Report this isn't valid here? */ }
+            SnafuAttribute::Backtrace(..) => {
+                errors.add(
+                    name.span(),
+                    OnlyValidOn {
+                        attribute: "backtrace",
+                        valid_on: "fields of an error variant",
+                        not_on: "struct",
+                    },
+                );
+            }
             SnafuAttribute::DocComment(_) => { /* Just a regular doc comment. */ }
         }
     }
@@ -353,6 +577,8 @@ fn parse_snafu_struct(
             ty: inner.into_value().ty,
         },
     };
+
+    errors.finish()?;
 
     Ok(StructInfo {
         name,
@@ -521,15 +747,6 @@ enum SnafuAttribute {
     Source(Vec<Source>),
     Backtrace(Backtrace),
     DocComment(String),
-}
-
-impl SnafuAttribute {
-    fn into_visibility(self) -> Option<UserInput> {
-        match self {
-            SnafuAttribute::Visibility(v) => Some(v),
-            _ => None,
-        }
-    }
 }
 
 impl syn::parse::Parse for SnafuAttribute {
