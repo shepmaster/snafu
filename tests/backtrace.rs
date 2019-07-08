@@ -2,7 +2,7 @@ extern crate snafu;
 
 use snafu::{ensure, Backtrace, ErrorCompat, ResultExt, Snafu};
 
-type AnotherError = Box<std::error::Error>;
+type AnotherError = Box<dyn std::error::Error>;
 
 #[derive(Debug, Snafu)]
 enum Error {
