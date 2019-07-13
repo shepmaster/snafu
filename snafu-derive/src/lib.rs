@@ -1,3 +1,4 @@
+#![allow(unknown_lints, bare_trait_objects)]
 #![recursion_limit = "128"] // https://github.com/rust-lang/rust/issues/62059
 
 extern crate proc_macro;

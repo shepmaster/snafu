@@ -1,3 +1,4 @@
+#![allow(unknown_lints, bare_trait_objects)]
 #![deny(missing_docs)]
 
 //! # SNAFU

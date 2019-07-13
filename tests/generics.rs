@@ -2,7 +2,7 @@ extern crate snafu;
 
 use snafu::{Backtrace, ResultExt, Snafu};
 
-type BoxError = Box<std::error::Error>;
+type BoxError = Box<dyn std::error::Error>;
 
 #[derive(Debug, Snafu)]
 enum Error<'a, 'x, A, Y> {

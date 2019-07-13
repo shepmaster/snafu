@@ -67,7 +67,7 @@ mod transformation {
 
         TransformationToTraitObject {
             #[snafu(source(from(InnerError, Box::new)))]
-            source: Box<std::error::Error>,
+            source: Box<dyn std::error::Error>,
         },
     }
 
