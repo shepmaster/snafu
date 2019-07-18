@@ -674,6 +674,50 @@ trait GenericAwareNames {
         Box::new(quote! { #enum_name<#(#original_generics,)*> })
     }
 
+    fn provided_generic_types_without_defaults(&self) -> Vec<proc_macro2::TokenStream> {
+        use syn::TypeParam;
+        self.generics()
+            .type_params()
+            .map(|t: &TypeParam| {
+                let &TypeParam {
+                    ref attrs,
+                    ref ident,
+                    ref colon_token,
+                    ref bounds,
+                    ..
+                } = t;
+                quote! {
+                    #(#attrs)*
+                    #ident
+                    #colon_token
+                    #bounds
+                }
+            })
+            .collect()
+    }
+
+    fn provided_generics_without_defaults(&self) -> Vec<proc_macro2::TokenStream> {
+        self.provided_generic_lifetimes()
+            .into_iter()
+            .chain(self.provided_generic_types_without_defaults().into_iter())
+            .collect()
+    }
+
+    fn provided_generic_lifetimes(&self) -> Vec<proc_macro2::TokenStream> {
+        use syn::{GenericParam, LifetimeDef};
+
+        self.generics()
+            .params
+            .iter()
+            .flat_map(|p| match *p {
+                GenericParam::Lifetime(LifetimeDef { ref lifetime, .. }) => {
+                    Some(quote! { #lifetime })
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
     fn provided_generic_names(&self) -> Vec<proc_macro2::TokenStream> {
         use syn::{ConstParam, GenericParam, LifetimeDef, TypeParam};
 
@@ -749,7 +793,10 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
         use syn::Ident;
 
         let enum_name = &self.0.name;
-        let original_generics: &Vec<_> = &self.0.generics.params.iter().collect();
+        let original_lifetimes = self.0.provided_generic_lifetimes();
+        let original_generic_types_without_defaults =
+            self.0.provided_generic_types_without_defaults();
+        let original_generics_without_defaults = self.0.provided_generics_without_defaults();
 
         let parameterized_enum_name = &self.0.parameterized_name();
 
@@ -771,7 +818,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
             .as_ref()
             .unwrap_or(&self.0.default_visibility);
 
-        let generics_list = quote! { <#(#original_generics,)* #(#generic_names,)*> };
+        let generics_list = quote! { <#(#original_lifetimes,)* #(#generic_names,)* #(#original_generic_types_without_defaults,)*> };
         let selector_name = quote! { #variant_name<#(#generic_names,)*> };
 
         let names: &Vec<_> = &user_fields.iter().map(|f| f.name.clone()).collect();
@@ -815,10 +862,11 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
 
         let inherent_impl = if source_field.is_none() {
             let names2 = names;
+
             quote! {
                 impl<#(#generic_names,)*> #selector_name
                 {
-                    #visibility fn fail<#(#original_generics,)* __T>(self) -> std::result::Result<__T, #parameterized_enum_name>
+                    #visibility fn fail<#(#original_generics_without_defaults,)* __T>(self) -> std::result::Result<__T, #parameterized_enum_name>
                     where
                         #(#where_clauses),*
                     {
@@ -945,7 +993,7 @@ impl<'a> DisplayImpl<'a> {
 
 impl<'a> quote::ToTokens for DisplayImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        let original_generics = &self.0.generics;
+        let original_generics = self.0.provided_generics_without_defaults();
         let parameterized_enum_name = &self.0.parameterized_name();
         let where_clauses = &self.0.provided_where_clauses();
 
@@ -953,7 +1001,7 @@ impl<'a> quote::ToTokens for DisplayImpl<'a> {
 
         stream.extend({
             quote! {
-                impl#original_generics std::fmt::Display for #parameterized_enum_name
+                impl<#(#original_generics),*> std::fmt::Display for #parameterized_enum_name
                 where
                     #(#where_clauses),*
                 {
@@ -1026,7 +1074,7 @@ impl<'a> ErrorImpl<'a> {
 
 impl<'a> quote::ToTokens for ErrorImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        let original_generics = &self.0.generics;
+        let original_generics = self.0.provided_generics_without_defaults();
         let parameterized_enum_name = &self.0.parameterized_name();
         let where_clauses: &Vec<_> = &self.0.provided_where_clauses();
 
@@ -1066,7 +1114,7 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
 
         stream.extend({
             quote! {
-                impl#original_generics std::error::Error for #parameterized_enum_name
+                impl<#(#original_generics),*> std::error::Error for #parameterized_enum_name
                 where
                     Self: std::fmt::Debug + std::fmt::Display,
                     #(#where_clauses),*
@@ -1122,7 +1170,7 @@ impl<'a> ErrorCompatImpl<'a> {
 
 impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        let original_generics = &self.0.generics;
+        let original_generics = self.0.provided_generics_without_defaults();
         let parameterized_enum_name = &self.0.parameterized_name();
         let where_clauses = &self.0.provided_where_clauses();
 
@@ -1142,7 +1190,7 @@ impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
 
         stream.extend({
             quote! {
-                impl#original_generics snafu::ErrorCompat for #parameterized_enum_name
+                impl<#(#original_generics),*> snafu::ErrorCompat for #parameterized_enum_name
                 where
                     #(#where_clauses),*
                 {
