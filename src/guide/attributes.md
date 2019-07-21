@@ -18,6 +18,34 @@ Each choice has the same capabilities. All of the fields of the
 variant will be available and you can call methods on them, such
 as `filename.display()`.
 
+### The default `Display` implementation
+
+It is recommended that you provide a value for `snafu(display)`, but
+if it is omitted, the summary of the documentation comment will be
+used. If that is not present, the name of the variant will be used.
+
+```rust
+# use snafu::Snafu;
+#[derive(Debug, Snafu)]
+enum Error {
+    /// No user available.
+    /// You may need to specify one.
+    MissingUser,
+    MissingPassword,
+}
+
+fn main() {
+    assert_eq!(
+        Error::MissingUser.to_string(),
+        "No user available. You may need to specify one.",
+    );
+    assert_eq!(
+        Error::MissingPassword.to_string(),
+        "MissingPassword",
+    );
+}
+```
+
 ## Controlling visibility
 
 By default, each of the context selectors and their inherent
