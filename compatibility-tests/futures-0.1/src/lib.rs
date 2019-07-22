@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 mod api {
     use futures::{future, stream, Future, Stream};
     use snafu::Snafu;
