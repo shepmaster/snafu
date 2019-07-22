@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use snafu::{Snafu, ResultExt};
 use std::{fs, io, path::{Path, PathBuf}};
 

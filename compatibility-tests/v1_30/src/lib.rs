@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 extern crate snafu;
 
 use snafu::{Snafu, ResultExt, Backtrace, ErrorCompat};

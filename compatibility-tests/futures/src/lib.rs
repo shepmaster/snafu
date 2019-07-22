@@ -1,3 +1,4 @@
+#![cfg(test)]
 #![feature(async_await)]
 
 mod api {

@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 extern crate snafu;
 #[macro_use]
 extern crate snafu_derive;

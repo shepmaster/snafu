@@ -1,3 +1,6 @@
+env:
+  RUSTFLAGS: -D warnings
+
 stable_test_task:
   name: "Rust Stable"
   container:

@@ -871,6 +871,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
                 {
                     type Source = #source_ty;
 
+                    #[allow(unused_variables)] // Workaround Rust 1.18 bug
                     fn into_error(self, error: Self::Source) -> #parameterized_enum_name {
                         #enum_name::#variant_name {
                             #source_xfer_field
