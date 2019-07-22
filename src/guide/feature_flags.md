@@ -11,9 +11,24 @@ cases.
 
 **default**: enabled
 
-When enabled, you can use the [`Backtrace`](crate::Backtrace) type in
+When enabled, you can use the [`Backtrace`] type in
 your enum variant. If you never use backtraces, you can omit this
 feature to speed up compilation a small amount.
+
+[`Backtrace`]: crate::Backtrace
+
+### `backtrace-crate`
+
+**default**: disabled
+
+When enabled, you can convert the SNAFU [`Backtrace`] type to the
+underlying [`backtrace::Backtrace`] type. This allows interoperability
+with other crates that require this type.
+
+It is recommended that only applications make use of this feature. At
+some point in the future, the standard library will have its own
+backtrace type that SNAFU will use and this feature may conflict with
+its use.
 
 ### `unstable-futures`
 
