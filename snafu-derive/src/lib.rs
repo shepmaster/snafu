@@ -508,6 +508,7 @@ fn parse_snafu_enum(
                                         }
                                         source_attrs.add((), name.span());
                                         transformations.add((t, e), name.span());
+                                        is_source = Some(true);
                                     }
                                 }
                             }
