@@ -1,0 +1,77 @@
+error: 'display' attribute is only valid on variants of an error enum; attempted to place on this enum:
+ --> $DIR/attribute-misuse.rs:9:10
+  |
+9 |     enum EnumError {
+  |          ^^^^^^^^^
+
+error: 'source(from)' attribute is only valid on fields of an error variant; attempted to place on this enum:
+ --> $DIR/attribute-misuse.rs:9:10
+  |
+9 |     enum EnumError {
+  |          ^^^^^^^^^
+
+error: 'source(bool)' attribute is only valid on fields of an error variant; attempted to place on this enum:
+ --> $DIR/attribute-misuse.rs:9:10
+  |
+9 |     enum EnumError {
+  |          ^^^^^^^^^
+
+error: 'backtrace' attribute is only valid on fields of an error variant; attempted to place on this enum:
+ --> $DIR/attribute-misuse.rs:9:10
+  |
+9 |     enum EnumError {
+  |          ^^^^^^^^^
+
+error: 'source' attribute is only valid on fields of an error variant; attempted to place on this variant:
+  --> $DIR/attribute-misuse.rs:13:9
+   |
+13 |         AVariant {
+   |         ^^^^^^^^
+
+error: 'backtrace' attribute is only valid on fields of an error variant; attempted to place on this variant:
+  --> $DIR/attribute-misuse.rs:13:9
+   |
+13 |         AVariant {
+   |         ^^^^^^^^
+
+error: 'display' attribute is only valid on variants of an error enum; attempted to place on this field:
+  --> $DIR/attribute-misuse.rs:18:13
+   |
+18 |             a: String,
+   |             ^
+
+error: 'visibility' attribute is only valid on an error enum and its variants; attempted to place on this field:
+  --> $DIR/attribute-misuse.rs:18:13
+   |
+18 |             a: String,
+   |             ^
+
+error: Incompatible attributes ["source(false)", "source(from)"] specified on one field here:
+  --> $DIR/attribute-misuse.rs:18:13
+   |
+18 |             a: String,
+   |             ^
+
+error: 'display' attribute is only valid on variants of an error enum; attempted to place on this struct:
+  --> $DIR/attribute-misuse.rs:35:12
+   |
+35 |     struct StructError(Box<UsableError>);
+   |            ^^^^^^^^^^^
+
+error: 'visibility' attribute is only valid on an error enum and its variants; attempted to place on this struct:
+  --> $DIR/attribute-misuse.rs:35:12
+   |
+35 |     struct StructError(Box<UsableError>);
+   |            ^^^^^^^^^^^
+
+error: 'source(bool)' attribute is only valid on fields of an error variant; attempted to place on this struct:
+  --> $DIR/attribute-misuse.rs:35:12
+   |
+35 |     struct StructError(Box<UsableError>);
+   |            ^^^^^^^^^^^
+
+error: 'backtrace' attribute is only valid on fields of an error variant; attempted to place on this struct:
+  --> $DIR/attribute-misuse.rs:35:12
+   |
+35 |     struct StructError(Box<UsableError>);
+   |            ^^^^^^^^^^^
