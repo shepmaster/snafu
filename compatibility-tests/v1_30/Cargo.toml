@@ -5,3 +5,8 @@ authors = ["Jake Goulding <jake.goulding@gmail.com>"]
 
 [dependencies]
 snafu = { path = "../..", default-features = false, features = ["rust_1_30", "backtraces"] }
+
+# These versions are the last versions to support Rust 1.30
+backtrace = "= 0.3.30"
+backtrace-sys = "= 0.1.28"
+rustc-demangle = "= 0.1.13"
