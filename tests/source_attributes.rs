@@ -27,6 +27,11 @@ mod enabling {
             cause: InnerError,
         },
 
+        FromImpliesTrue {
+            #[snafu(source(from(InnerError, Box::new)))]
+            cause: Box<InnerError>,
+        },
+
         ExplicitFalse {
             #[snafu(source(false))]
             source: i32,
@@ -36,6 +41,7 @@ mod enabling {
     fn example() -> Result<(), Error> {
         inner().context(NoArgument)?;
         inner().context(ExplicitTrue)?;
+        inner().context(FromImpliesTrue)?;
         ExplicitFalse { source: 42 }.fail()?;
         Ok(())
     }

@@ -141,6 +141,11 @@ enum Error {
 struct ApiError(Box<Error>);
 ```
 
+Note: If you specify `#[snafu(source(from(...)))]` then the field
+will be treated as a source, even if it's not named "source" - in
+other words, `#[snafu(source(from(...)))]` implies
+`#[snafu(source)]`.
+
 ## Controlling backtraces
 
 If your error enum variant contains a backtrace but the field

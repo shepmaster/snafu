@@ -17,6 +17,12 @@ error: Multiple 'backtrace' attributes are not supported on one field; found a d
    |             ^^^^^^^^^^
 
 error: Multiple 'source' attributes are not supported within an error variant; found a duplicate here:
+  --> $DIR/attribute-duplication.rs:18:13
+   |
+18 |             source2: Box<EnumError>,
+   |             ^^^^^^^
+
+error: Multiple 'source' attributes are not supported within an error variant; found a duplicate here:
   --> $DIR/attribute-duplication.rs:21:13
    |
 21 |             source3: String,
@@ -39,6 +45,12 @@ error: Multiple 'backtrace' attributes are not supported within an error variant
    |
 34 |             backtrace3: String,
    |             ^^^^^^^^^^
+
+error: Multiple 'backtrace(delegate)' attributes are not supported within an error variant; found a duplicate here:
+  --> $DIR/attribute-duplication.rs:18:13
+   |
+18 |             source2: Box<EnumError>,
+   |             ^^^^^^^
 
 error: Multiple 'backtrace(delegate)' attributes are not supported within an error variant; found a duplicate here:
   --> $DIR/attribute-duplication.rs:21:13
