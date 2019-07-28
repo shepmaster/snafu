@@ -1,0 +1,5 @@
+error: Multiple `display` attributes are not supported on an error variant
+ --> $DIR/duplication-variant.rs:6:13
+  |
+6 |     #[snafu(display("should not allow duplicate display"))]
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

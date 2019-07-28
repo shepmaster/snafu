@@ -1,0 +1,5 @@
+error: Multiple `visibility` attributes are not supported on an error variant
+ --> $DIR/duplication-multiple-attributes.rs:6:30
+  |
+6 |     #[snafu(visibility(pub), visibility(pub))]
+  |                              ^^^^^^^^^^^^^^^

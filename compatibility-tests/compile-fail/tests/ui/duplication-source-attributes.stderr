@@ -1,0 +1,5 @@
+error: Multiple `source` attributes are not supported within an error variant
+  --> $DIR/duplication-source-attributes.rs:10:18
+   |
+10 |          #[snafu(source)]
+   |                  ^^^^^^

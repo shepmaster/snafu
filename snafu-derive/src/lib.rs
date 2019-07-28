@@ -9,6 +9,7 @@ extern crate quote;
 extern crate syn;
 
 use proc_macro::TokenStream;
+use std::collections::VecDeque;
 use std::fmt;
 use std::iter;
 use syn::parse::Result as SynResult;
@@ -112,11 +113,12 @@ impl SyntaxErrors {
     /// Adds a new syntax error.  The given description will be used in the compile error pointing
     /// to the given span.  Helper structs are available to format common descriptions, e.g.
     /// OnlyValidOn and DuplicateAttribute.
-    fn add<D>(&mut self, span: proc_macro2::Span, description: D)
+    fn add<D, T>(&mut self, tts: T, description: D)
     where
         D: fmt::Display,
+        T: quote::ToTokens,
     {
-        self.inner.push(syn::Error::new(span, description));
+        self.inner.push(syn::Error::new_spanned(tts, description));
     }
 
     /// Adds the given list of errors.
@@ -157,7 +159,7 @@ impl fmt::Display for OnlyValidOn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "'{}' attribute is only valid on {}; attempted to place on this {}:",
+            "`{}` attribute is only valid on {}, not on {}",
             self.attribute, self.valid_on, self.not_on
         )
     }
@@ -173,10 +175,16 @@ struct IncompatibleAttributes {
 
 impl fmt::Display for IncompatibleAttributes {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let attrs_string = self
+            .attributes
+            .iter()
+            .map(|attr| format!("`{}`", attr))
+            .collect::<Vec<_>>()
+            .join(", ");
         write!(
             f,
-            "Incompatible attributes {:?} specified on {} here:",
-            self.attributes, self.location,
+            "Incompatible attributes [{}] specified on {}",
+            attrs_string, self.location,
         )
     }
 }
@@ -193,7 +201,7 @@ impl fmt::Display for DuplicateAttribute {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Multiple '{}' attributes are not supported {}; found a duplicate here:",
+            "Multiple `{}` attributes are not supported {}",
             self.attribute, self.location,
         )
     }
@@ -203,17 +211,26 @@ impl fmt::Display for DuplicateAttribute {
 /// it's added to a list of DuplicateAttribute errors, using the given `name` and `location` as
 /// descriptors.
 ///
-/// When done parsing a structure, call `finish`; it gives you the first attribute found, if any,
-/// and the list of errors.
+/// When done parsing a structure, call `finish` to get first attribute found, if any, and the list
+/// of errors, or call `finish_with_location` to get the attribute and the token tree where it was
+/// found, which can be useful for error reporting.
 #[derive(Debug)]
-struct AtMostOne<T> {
+struct AtMostOne<T, U>
+where
+    U: quote::ToTokens,
+{
     name: &'static str,
     location: &'static str,
-    value: Option<T>,
+    // We store all the values we've seen to allow for `iter`, which helps the `AtMostOne` be
+    // useful for additional manual error checking.
+    values: VecDeque<(T, U)>,
     errors: SyntaxErrors,
 }
 
-impl<T> AtMostOne<T> {
+impl<T, U> AtMostOne<T, U>
+where
+    U: quote::ToTokens + Clone,
+{
     /// Creates an AtMostOne to track an attribute with the given `name` on the given `location`.
     /// `location` is a string describing where the attribute can be specified, often referencing a
     /// parent element, for example "on a field".
@@ -221,49 +238,61 @@ impl<T> AtMostOne<T> {
         Self {
             name,
             location,
-            value: None,
+            values: VecDeque::new(),
             errors: SyntaxErrors::default(),
         }
     }
 
-    /// Add an occurence of the attribute found at the given `span`.
-    fn add(&mut self, item: T, span: proc_macro2::Span) {
-        if self.value.is_some() {
+    /// Add an occurence of the attribute found at the given token tree `tts`.
+    fn add(&mut self, item: T, tts: U) {
+        if !self.values.is_empty() {
             self.errors.add(
-                span,
+                tts.clone(),
                 DuplicateAttribute {
                     attribute: self.name,
                     location: self.location,
                 },
             );
-        } else {
-            self.value = Some(item);
         }
+        self.values.push_back((item, tts));
     }
 
     #[allow(dead_code)]
     /// Returns the number of elements that have been added.
     fn len(&self) -> usize {
-        if self.value.is_some() {
-            1 + self.errors.len()
-        } else {
-            0
-        }
+        self.values.len()
     }
 
     /// Returns true if no elements have been added, otherwise false.
+    #[allow(dead_code)]
     fn is_empty(&self) -> bool {
-        self.value.is_none()
+        self.values.is_empty()
+    }
+
+    /// Returns an iterator over all values that have been added.
+    ///
+    /// This can help with additional manual error checks beyond the duplication checks that
+    /// `AtMostOne` handles for you.
+    fn iter(&self) -> std::collections::vec_deque::Iter<(T, U)> {
+        self.values.iter()
     }
 
     /// Consumes the AtMostOne, returning the first item added, if any, and the list of errors
     /// representing any items added beyond the first.
     fn finish(self) -> (Option<T>, Vec<syn::Error>) {
+        let (value, errors) = self.finish_with_location();
+        (value.map(|(val, _location)| val), errors)
+    }
+
+    /// Like `finish` but also returns the location of the first item added.  Useful when you have
+    /// to do additional, manual error checking on the first item added, and you'd like to report
+    /// an accurate location for it in case of errors.
+    fn finish_with_location(mut self) -> (Option<(T, U)>, Vec<syn::Error>) {
         let errors = match self.errors.finish() {
             Ok(()) => Vec::new(),
             Err(vec) => vec,
         };
-        (self.value, errors)
+        (self.values.pop_front(), errors)
     }
 }
 
@@ -310,6 +339,7 @@ fn parse_snafu_enum(
     generics: syn::Generics,
     attrs: Vec<syn::Attribute>,
 ) -> MultiSynResult<EnumInfo> {
+    use quote::ToTokens;
     use syn::spanned::Spanned;
     use syn::Fields;
 
@@ -319,56 +349,56 @@ fn parse_snafu_enum(
 
     for attr in attributes_from_syn(attrs)? {
         match attr {
-            SnafuAttribute::Visibility(v) => {
-                default_visibilities.add(v, name.span());
+            SnafuAttribute::Visibility(tts, v) => {
+                default_visibilities.add(v, tts);
             }
-            SnafuAttribute::Display(..) => {
+            SnafuAttribute::Display(tts, ..) => {
                 errors.add(
-                    name.span(),
+                    tts,
                     OnlyValidOn {
                         attribute: "display",
                         valid_on: "variants of an error enum",
-                        not_on: "enum",
+                        not_on: "an enum",
                     },
                 );
             }
-            SnafuAttribute::Source(ss) => {
+            SnafuAttribute::Source(tts, ss) => {
                 for s in ss {
                     match s {
                         Source::Flag(..) => {
                             errors.add(
-                                name.span(),
+                                tts.clone(),
                                 OnlyValidOn {
                                     attribute: "source(bool)",
                                     valid_on: "fields of an error variant",
-                                    not_on: "enum",
+                                    not_on: "an enum",
                                 },
                             );
                         }
                         Source::From(_t, _e) => {
                             errors.add(
-                                name.span(),
+                                tts.clone(),
                                 OnlyValidOn {
                                     attribute: "source(from)",
                                     valid_on: "fields of an error variant",
-                                    not_on: "enum",
+                                    not_on: "an enum",
                                 },
                             );
                         }
                     }
                 }
             }
-            SnafuAttribute::Backtrace(..) => {
+            SnafuAttribute::Backtrace(tts, ..) => {
                 errors.add(
-                    name.span(),
+                    tts,
                     OnlyValidOn {
                         attribute: "backtrace",
                         valid_on: "fields of an error variant",
-                        not_on: "enum",
+                        not_on: "an enum",
                     },
                 );
             }
-            SnafuAttribute::DocComment(_) => { /* Just a regular doc comment. */ }
+            SnafuAttribute::DocComment(..) => { /* Just a regular doc comment. */ }
         }
     }
 
@@ -389,29 +419,29 @@ fn parse_snafu_enum(
 
             for attr in attributes_from_syn(variant.attrs)? {
                 match attr {
-                    SnafuAttribute::Display(d) => display_formats.add(d, name.span()),
-                    SnafuAttribute::Visibility(v) => visibilities.add(v, name.span()),
-                    SnafuAttribute::Source(..) => {
+                    SnafuAttribute::Display(tts, d) => display_formats.add(d, tts),
+                    SnafuAttribute::Visibility(tts, v) => visibilities.add(v, tts),
+                    SnafuAttribute::Source(tts, ..) => {
                         errors.add(
-                            name.span(),
+                            tts,
                             OnlyValidOn {
                                 attribute: "source",
                                 valid_on: "fields of an error variant",
-                                not_on: "variant",
+                                not_on: "a variant",
                             },
                         );
                     }
-                    SnafuAttribute::Backtrace(..) => {
+                    SnafuAttribute::Backtrace(tts, ..) => {
                         errors.add(
-                            name.span(),
+                            tts,
                             OnlyValidOn {
                                 attribute: "backtrace",
                                 valid_on: "fields of an error variant",
-                                not_on: "variant",
+                                not_on: "a variant",
                             },
                         );
                     }
-                    SnafuAttribute::DocComment(doc_comment_line) => {
+                    SnafuAttribute::DocComment(_tts, doc_comment_line) => {
                         // We join all the doc comment attributes with a space,
                         // but end once the summary of the doc comment is
                         // complete, which is indicated by an empty line.
@@ -451,134 +481,155 @@ fn parse_snafu_enum(
                 let span = syn_field.span();
                 let name = syn_field
                     .ident
+                    .as_ref()
                     .ok_or_else(|| vec![syn::Error::new(span, "Must have a named field")])?;
                 let field = Field {
                     name: name.clone(),
-                    ty: syn_field.ty,
+                    ty: syn_field.ty.clone(),
                 };
-
-                let mut has_backtrace_delegate = false;
-                let mut is_backtrace = None;
-                let mut is_source = None;
-                let mut transformations =
-                    AtMostOne::new("source(from)", "within an error variant");
 
                 // Check whether we have multiple source/backtrace attributes on this field.
                 // We can't just add to source_fields/backtrace_fields from inside the attribute
                 // loop because source and backtrace are connected and require a bit of special
                 // logic after the attribute loop.  For example, we need to know whether there's a
                 // source transformation before we record a source field, but it might be on a
-                // later attribute.  We don't actually need any data out of this, it's just a
-                // convenient way to check for dupes and get nice errors.
-                // Note: if there are more than two, the errors generated are identical and dedupe
-                // down to one error; it should be enough to find the problem.
-                let mut source_attrs = AtMostOne::new("source", "on one field");
-                let mut backtrace_attrs = AtMostOne::new("backtrace", "on one field");
+                // later attribute.  We use the data field of `source_attrs` to track any
+                // transformations in case it was a `source(from(...))`, but for backtraces we
+                // don't need any more data.
+                let mut source_attrs = AtMostOne::new("source", "on a field");
+                let mut backtrace_attrs = AtMostOne::new("backtrace", "on a field");
 
-                for attr in attributes_from_syn(syn_field.attrs)? {
+                // Keep track of the negative markers so we can check for inconsistencies and
+                // exclude fields even if they have the "source" or "backtrace" name.
+                let mut source_opt_out = false;
+                let mut backtrace_opt_out = false;
+
+                // Keep track of the location of the backtrace delegate field, if any; duplication
+                // is already checked because backtrace delegates are counted in backtrace_attrs.
+                let mut backtrace_delegate_location = None;
+
+                for attr in attributes_from_syn(syn_field.attrs.clone())? {
                     match attr {
-                        SnafuAttribute::Source(ss) => {
+                        SnafuAttribute::Source(tts, ss) => {
                             static INCOMPATIBLE: &[&str] = &["source(false)", "source(from)"];
                             for s in ss {
                                 match s {
                                     Source::Flag(v) => {
-                                        if !v && !transformations.is_empty() {
+                                        // If we've seen a `source(from)` then there will be a
+                                        // `Some` value in `source_attrs`.
+                                        let seen_source_from = source_attrs.iter()
+                                            .map(|&(ref val, ref _location)| val)
+                                            .any(Option::is_some);
+                                        if !v && seen_source_from {
                                             errors.add(
-                                                name.span(),
+                                                tts.clone(),
                                                 IncompatibleAttributes {
                                                     attributes: INCOMPATIBLE,
-                                                    location: "one field",
+                                                    location: "a field",
                                                 },
                                             );
                                         }
                                         if v {
-                                            source_attrs.add((), name.span());
+                                            source_attrs.add(None, tts.clone());
+                                        } else {
+                                            source_opt_out = true;
                                         }
-                                        is_source = Some(v);
                                     }
                                     Source::From(t, e) => {
-                                        if is_source == Some(false) {
+                                        if source_opt_out {
                                             errors.add(
-                                                name.span(),
+                                                tts.clone(),
                                                 IncompatibleAttributes {
                                                     attributes: INCOMPATIBLE,
-                                                    location: "one field",
+                                                    location: "a field",
                                                 },
                                             );
                                         }
-                                        source_attrs.add((), name.span());
-                                        transformations.add((t, e), name.span());
-                                        is_source = Some(true);
+                                        source_attrs.add(Some((t, e)), tts.clone());
                                     }
                                 }
                             }
                         }
-                        SnafuAttribute::Backtrace(b) => match b {
+                        SnafuAttribute::Backtrace(tts, b) => match b {
                             Backtrace::Flag(v) => {
-                                backtrace_attrs.add((), name.span());
-                                is_backtrace = Some(v);
+                                if v {
+                                    backtrace_attrs.add((), tts);
+                                } else {
+                                    backtrace_opt_out = true;
+                                }
                             },
                             Backtrace::Delegate => {
-                                backtrace_attrs.add((), name.span());
-                                has_backtrace_delegate = true;
+                                backtrace_attrs.add((), tts.clone());
+                                backtrace_delegate_location = Some(tts);
                             }
                         },
-                        SnafuAttribute::Visibility(_) => {
+                        SnafuAttribute::Visibility(tts, ..) => {
                             errors.add(
-                                name.span(),
+                                tts,
                                 OnlyValidOn {
                                     attribute: "visibility",
                                     valid_on: "an error enum and its variants",
-                                    not_on: "field",
+                                    not_on: "a field",
                                 },
                             );
                         }
-                        SnafuAttribute::Display(_) => {
+                        SnafuAttribute::Display(tts, ..) => {
                             errors.add(
-                                name.span(),
+                                tts,
                                 OnlyValidOn {
                                     attribute: "display",
                                     valid_on: "variants of an error enum",
-                                    not_on: "field",
+                                    not_on: "a field",
                                 },
                             );
                         }
-                        SnafuAttribute::DocComment(_) => { /* Just a regular doc comment. */ }
+                        SnafuAttribute::DocComment(..) => { /* Just a regular doc comment. */ }
                     }
                 }
 
-                // Add errors for any duplicated source/backtrace attributes on this field.
-                let (_, errs) = source_attrs.finish();
+                // Add errors for any duplicated attributes on this field.
+                let (source_attr, errs) = source_attrs.finish_with_location();
                 errors.extend(errs);
-                let (_, errs) = backtrace_attrs.finish();
+                let (backtrace_attr, errs) = backtrace_attrs.finish_with_location();
                 errors.extend(errs);
 
-                let is_source = is_source.unwrap_or(field.name == "source");
-                let is_backtrace = is_backtrace.unwrap_or(field.name == "backtrace");
+                let source_attr = source_attr
+                    .or_else(|| {
+                        if field.name == "source" && !source_opt_out {
+                            Some((None, syn_field.clone().into_token_stream()))
+                        } else {
+                            None
+                        }
+                    });
 
-                if is_source {
-                    if has_backtrace_delegate {
-                        backtrace_delegates.add(field.clone(), field.name.span());
+                let backtrace_attr = backtrace_attr
+                    .or_else(|| {
+                        if field.name == "backtrace" && !backtrace_opt_out {
+                            Some(((), syn_field.clone().into_token_stream()))
+                        } else {
+                            None
+                        }
+                    });
+
+                if let Some((maybe_transformation, location)) = source_attr {
+                    if let Some(location) = backtrace_delegate_location {
+                        backtrace_delegates.add(field.clone(), location);
                     }
 
                     let Field { name, ty } = field;
-                    let (maybe_transformation, errs) = transformations.finish();
                     let transformation = maybe_transformation
                         .map(|(ty, expr)| Transformation::Transform { ty, expr })
                         .unwrap_or_else(|| Transformation::None { ty });
-                    errors.extend(errs);
 
-                    let span = name.span();
                     source_fields.add(
                         SourceField {
                             name,
                             transformation,
                         },
-                        span,
+                        location,
                     );
-                } else if is_backtrace {
-                    let span = field.name.span();
-                    backtrace_fields.add(field, span);
+                } else if let Some((_, location)) = backtrace_attr {
+                    backtrace_fields.add(field, location);
                 } else {
                     user_fields.push(field);
                 }
@@ -587,22 +638,22 @@ fn parse_snafu_enum(
             let (source_field, errs) = source_fields.finish();
             errors.extend(errs);
 
-            let (backtrace_field, errs) = backtrace_fields.finish();
+            let (backtrace, errs) = backtrace_fields.finish_with_location();
             errors.extend(errs);
 
-            let (backtrace_delegate, errs) = backtrace_delegates.finish();
+            let (backtrace_delegate, errs) = backtrace_delegates.finish_with_location();
             errors.extend(errs);
 
-            if let (Some(backtrace_field), Some(backtrace_delegate)) =
-                (backtrace_field.as_ref(), backtrace_delegate.as_ref())
-            {
+            if let (Some(backtrace), Some(backtrace_delegate)) = (backtrace.as_ref(), backtrace_delegate.as_ref()) {
+                let backtrace_location = backtrace.1.clone();
+                let backtrace_delegate_location = backtrace_delegate.1.clone();
                 errors.add(
-                    backtrace_field.name.span(),
-                    "Cannot have 'backtrace' and 'backtrace(delegate)' fields in the same error variant",
+                    backtrace_location,
+                    "Cannot have `backtrace` and `backtrace(delegate)` fields in the same error variant",
                 );
                 errors.add(
-                    backtrace_delegate.name.span(),
-                    "Cannot have 'backtrace' and 'backtrace(delegate)' fields in the same error variant",
+                    backtrace_delegate_location,
+                    "Cannot have `backtrace` and `backtrace(delegate)` fields in the same error variant",
                 );
             }
 
@@ -615,8 +666,8 @@ fn parse_snafu_enum(
             Ok(VariantInfo {
                 name,
                 source_field,
-                backtrace_field,
-                backtrace_delegate,
+                backtrace_field: backtrace.map(|(val, _tts)| val),
+                backtrace_delegate: backtrace_delegate.map(|(val, _tts)| val),
                 user_fields,
                 display_format,
                 doc_comment,
@@ -644,7 +695,6 @@ fn parse_snafu_struct(
     attrs: Vec<syn::Attribute>,
     span: proc_macro2::Span,
 ) -> MultiSynResult<StructInfo> {
-    use syn::spanned::Spanned;
     use syn::Fields;
 
     let mut transformations = AtMostOne::new("source(from)", "on an error struct");
@@ -653,57 +703,54 @@ fn parse_snafu_struct(
 
     for attr in attributes_from_syn(attrs)? {
         match attr {
-            SnafuAttribute::Display(..) => {
+            SnafuAttribute::Display(tts, ..) => {
                 errors.add(
-                    name.span(),
+                    tts,
                     OnlyValidOn {
                         attribute: "display",
                         valid_on: "variants of an error enum",
-                        not_on: "struct",
+                        not_on: "a struct",
                     },
                 );
             }
-            SnafuAttribute::Visibility(..) => {
+            SnafuAttribute::Visibility(tts, ..) => {
                 errors.add(
-                    name.span(),
+                    tts,
                     OnlyValidOn {
                         attribute: "visibility",
                         valid_on: "an error enum and its variants",
-                        not_on: "struct",
+                        not_on: "a struct",
                     },
                 );
             }
-            SnafuAttribute::Source(ss) => {
+            SnafuAttribute::Source(tts, ss) => {
                 for s in ss {
                     match s {
                         Source::Flag(..) => {
                             errors.add(
-                                name.span(),
+                                tts.clone(),
                                 OnlyValidOn {
                                     attribute: "source(bool)",
                                     valid_on: "fields of an error variant",
-                                    not_on: "struct",
+                                    not_on: "a struct",
                                 },
                             );
                         }
-                        Source::From(t, e) => {
-                            let span = t.span();
-                            transformations.add((t, e), span)
-                        }
+                        Source::From(t, e) => transformations.add((t, e), tts.clone()),
                     }
                 }
             }
-            SnafuAttribute::Backtrace(..) => {
+            SnafuAttribute::Backtrace(tts, ..) => {
                 errors.add(
-                    name.span(),
+                    tts,
                     OnlyValidOn {
                         attribute: "backtrace",
                         valid_on: "fields of an error variant",
-                        not_on: "struct",
+                        not_on: "a struct",
                     },
                 );
             }
-            SnafuAttribute::DocComment(_) => { /* Just a regular doc comment. */ }
+            SnafuAttribute::DocComment(..) => { /* Just a regular doc comment. */ }
         }
     }
 
@@ -903,18 +950,26 @@ impl syn::parse::Parse for Backtrace {
     }
 }
 
+/// A SnafuAttribute represents one SNAFU-specific attribute inside of `#[snafu(...)]`.  For
+/// example, in `#[snafu(visibility(pub), display("hi"))]`, `visibility(pub)` and `display("hi")`
+/// are each a SnafuAttribute.
+///
+/// We store the location in the source where we found the attribute (as a `TokenStream`) along
+/// with the data.  The location can be used to give accurate error messages in case there was a
+/// problem with the use of the attribute.
 enum SnafuAttribute {
-    Display(UserInput),
-    Visibility(UserInput),
-    Source(Vec<Source>),
-    Backtrace(Backtrace),
-    DocComment(String),
+    Display(proc_macro2::TokenStream, UserInput),
+    Visibility(proc_macro2::TokenStream, UserInput),
+    Source(proc_macro2::TokenStream, Vec<Source>),
+    Backtrace(proc_macro2::TokenStream, Backtrace),
+    DocComment(proc_macro2::TokenStream, String),
 }
 
 impl syn::parse::Parse for SnafuAttribute {
     fn parse(input: syn::parse::ParseStream) -> SynResult<Self> {
         use syn::{Expr, Ident, Visibility};
 
+        let input_tts = input.cursor().token_stream();
         let name: Ident = input.parse()?;
         if name == "display" {
             let m: MyMeta<List<Expr>> = input.parse()?;
@@ -922,26 +977,26 @@ impl syn::parse::Parse for SnafuAttribute {
                 syn::Error::new(name.span(), "`snafu(display)` requires an argument")
             })?;
             let v = Box::new(v.0);
-            Ok(SnafuAttribute::Display(v))
+            Ok(SnafuAttribute::Display(input_tts, v))
         } else if name == "visibility" {
             let m: MyMeta<Visibility> = input.parse()?;
             let v = m
                 .into_option()
                 .map_or_else(private_visibility, |v| Box::new(v) as UserInput);
-            Ok(SnafuAttribute::Visibility(v))
+            Ok(SnafuAttribute::Visibility(input_tts, v))
         } else if name == "source" {
             if input.is_empty() {
-                Ok(SnafuAttribute::Source(vec![Source::Flag(true)]))
+                Ok(SnafuAttribute::Source(input_tts, vec![Source::Flag(true)]))
             } else {
                 let v: MyParens<List<Source>> = input.parse()?;
-                Ok(SnafuAttribute::Source(v.0.into_vec()))
+                Ok(SnafuAttribute::Source(input_tts, v.0.into_vec()))
             }
         } else if name == "backtrace" {
             if input.is_empty() {
-                Ok(SnafuAttribute::Backtrace(Backtrace::Flag(true)))
+                Ok(SnafuAttribute::Backtrace(input_tts, Backtrace::Flag(true)))
             } else {
                 let v: MyParens<Backtrace> = input.parse()?;
-                Ok(SnafuAttribute::Backtrace(v.0))
+                Ok(SnafuAttribute::Backtrace(input_tts, v.0))
             }
         } else {
             Err(syn::Error::new(
@@ -981,9 +1036,10 @@ impl syn::parse::Parse for DocComment {
         use syn::LitStr;
 
         let _: Eq = input.parse()?;
+        let tts = input.cursor().token_stream();
         let doc: LitStr = input.parse()?;
 
-        Ok(DocComment(SnafuAttribute::DocComment(doc.value())))
+        Ok(DocComment(SnafuAttribute::DocComment(tts, doc.value())))
     }
 }
 

@@ -1,0 +1,11 @@
+error: Cannot have `backtrace` and `backtrace(delegate)` fields in the same error variant
+ --> $DIR/duplication-backtrace-delegate.rs:7:9
+  |
+7 |         backtrace: Backtrace,
+  |         ^^^^^^^^^^^^^^^^^^^^
+
+error: Cannot have `backtrace` and `backtrace(delegate)` fields in the same error variant
+  --> $DIR/duplication-backtrace-delegate.rs:10:17
+   |
+10 |         #[snafu(backtrace(delegate))]
+   |                 ^^^^^^^^^^^^^^^^^^^
