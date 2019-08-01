@@ -2,10 +2,9 @@
 //!
 //! [`Stream`]: futures01_crate::Stream
 
-use crate::{ErrorCompat, IntoError};
+use crate::{Error, ErrorCompat, IntoError};
+use core::marker::PhantomData;
 use futures01::{Async, Stream};
-use std::error;
-use std::marker::PhantomData;
 
 /// Additions to [`Stream`].
 pub trait StreamExt: Stream + Sized {
@@ -47,7 +46,7 @@ pub trait StreamExt: Stream + Sized {
     fn context<C, E>(self, context: C) -> Context<Self, C, E>
     where
         C: IntoError<E, Source = Self::Error> + Clone,
-        E: error::Error + ErrorCompat;
+        E: Error + ErrorCompat;
 
     /// Extend a [`Stream`]'s error with lazily-generated context-sensitive
     /// information.
@@ -88,7 +87,7 @@ pub trait StreamExt: Stream + Sized {
     where
         F: FnMut() -> C,
         C: IntoError<E, Source = Self::Error>,
-        E: error::Error + ErrorCompat;
+        E: Error + ErrorCompat;
 }
 
 impl<St> StreamExt for St
@@ -98,7 +97,7 @@ where
     fn context<C, E>(self, context: C) -> Context<Self, C, E>
     where
         C: IntoError<E, Source = Self::Error> + Clone,
-        E: error::Error + ErrorCompat,
+        E: Error + ErrorCompat,
     {
         Context {
             stream: self,
@@ -111,7 +110,7 @@ where
     where
         F: FnMut() -> C,
         C: IntoError<E, Source = Self::Error>,
-        E: error::Error + ErrorCompat,
+        E: Error + ErrorCompat,
     {
         WithContext {
             stream: self,
@@ -134,7 +133,7 @@ impl<St, C, E> Stream for Context<St, C, E>
 where
     St: Stream,
     C: IntoError<E, Source = St::Error> + Clone,
-    E: error::Error + ErrorCompat,
+    E: Error + ErrorCompat,
 {
     type Item = St::Item;
     type Error = E;
@@ -160,7 +159,7 @@ where
     St: Stream,
     F: FnMut() -> C,
     C: IntoError<E, Source = St::Error>,
-    E: error::Error + ErrorCompat,
+    E: Error + ErrorCompat,
 {
     type Item = St::Item;
     type Error = E;

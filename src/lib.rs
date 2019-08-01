@@ -1,4 +1,5 @@
 #![deny(missing_docs)]
+#![cfg_attr(not(any(feature = "std", test)), no_std)]
 
 //! # SNAFU
 //!
@@ -127,7 +128,15 @@ generate_guide! {
 
 doc_comment::doctest!("../README.md", readme_tests);
 
-use std::error;
+#[cfg(any(feature = "std", test))]
+#[doc(hidden)]
+pub use std::error::Error;
+
+#[cfg(not(any(feature = "std", test)))]
+mod no_std_error;
+#[cfg(not(any(feature = "std", test)))]
+#[doc(hidden)]
+pub use no_std_error::Error;
 
 /// Ensure a condition is true. If it is not, return from the function
 /// with an error.
@@ -195,7 +204,7 @@ pub trait ResultExt<T, E>: Sized {
     fn context<C, E2>(self, context: C) -> Result<T, E2>
     where
         C: IntoError<E2, Source = E>,
-        E2: std::error::Error + ErrorCompat;
+        E2: Error + ErrorCompat;
 
     /// Extend a [`Result`][]'s error with lazily-generated context-sensitive information.
     ///
@@ -235,14 +244,14 @@ pub trait ResultExt<T, E>: Sized {
     where
         F: FnOnce() -> C,
         C: IntoError<E2, Source = E>,
-        E2: std::error::Error + ErrorCompat;
+        E2: Error + ErrorCompat;
 
     #[doc(hidden)]
     #[deprecated(since = "0.4.0", note = "use ResultExt::context instead")]
     fn eager_context<C, E2>(self, context: C) -> Result<T, E2>
     where
         C: IntoError<E2, Source = E>,
-        E2: std::error::Error + ErrorCompat,
+        E2: Error + ErrorCompat,
     {
         self.context(context)
     }
@@ -253,17 +262,17 @@ pub trait ResultExt<T, E>: Sized {
     where
         F: FnOnce() -> C,
         C: IntoError<E2, Source = E>,
-        E2: std::error::Error + ErrorCompat,
+        E2: Error + ErrorCompat,
     {
         self.with_context(context)
     }
 }
 
-impl<T, E> ResultExt<T, E> for std::result::Result<T, E> {
+impl<T, E> ResultExt<T, E> for Result<T, E> {
     fn context<C, E2>(self, context: C) -> Result<T, E2>
     where
         C: IntoError<E2, Source = E>,
-        E2: std::error::Error + ErrorCompat,
+        E2: Error + ErrorCompat,
     {
         self.map_err(|error| context.into_error(error))
     }
@@ -272,7 +281,7 @@ impl<T, E> ResultExt<T, E> for std::result::Result<T, E> {
     where
         F: FnOnce() -> C,
         C: IntoError<E2, Source = E>,
-        E2: std::error::Error + ErrorCompat,
+        E2: Error + ErrorCompat,
     {
         self.map_err(|error| {
             let context = context();
@@ -322,7 +331,7 @@ pub trait OptionExt<T>: Sized {
     fn context<C, E>(self, context: C) -> Result<T, E>
     where
         C: IntoError<E, Source = NoneError>,
-        E: std::error::Error + ErrorCompat;
+        E: Error + ErrorCompat;
 
     /// Convert an [`Option`][] into a [`Result`][] with
     /// lazily-generated context-sensitive information.
@@ -363,14 +372,14 @@ pub trait OptionExt<T>: Sized {
     where
         F: FnOnce() -> C,
         C: IntoError<E, Source = NoneError>,
-        E: std::error::Error + ErrorCompat;
+        E: Error + ErrorCompat;
 
     #[doc(hidden)]
     #[deprecated(since = "0.4.0", note = "use OptionExt::context instead")]
     fn eager_context<C, E>(self, context: C) -> Result<T, E>
     where
         C: IntoError<E, Source = NoneError>,
-        E: std::error::Error + ErrorCompat,
+        E: Error + ErrorCompat,
     {
         self.context(context).map_err(Into::into)
     }
@@ -381,7 +390,7 @@ pub trait OptionExt<T>: Sized {
     where
         F: FnOnce() -> C,
         C: IntoError<E, Source = NoneError>,
-        E: std::error::Error + ErrorCompat,
+        E: Error + ErrorCompat,
     {
         self.with_context(context).map_err(Into::into)
     }
@@ -391,7 +400,7 @@ impl<T> OptionExt<T> for Option<T> {
     fn context<C, E>(self, context: C) -> Result<T, E>
     where
         C: IntoError<E, Source = NoneError>,
-        E: std::error::Error + ErrorCompat,
+        E: Error + ErrorCompat,
     {
         self.ok_or_else(|| context.into_error(NoneError))
     }
@@ -400,7 +409,7 @@ impl<T> OptionExt<T> for Option<T> {
     where
         F: FnOnce() -> C,
         C: IntoError<E, Source = NoneError>,
-        E: std::error::Error + ErrorCompat,
+        E: Error + ErrorCompat,
     {
         self.ok_or_else(|| context().into_error(NoneError))
     }
@@ -439,6 +448,7 @@ where
     }
 }
 
+#[cfg(any(feature = "std", test))]
 impl<E> ErrorCompat for Box<E>
 where
     E: ErrorCompat,
@@ -495,35 +505,35 @@ pub trait AsErrorSource {
     /// For maximum effectiveness, this needs to be called as a method
     /// to benefit from Rust's automatic dereferencing of method
     /// receivers.
-    fn as_error_source(&self) -> &(dyn error::Error + 'static);
+    fn as_error_source(&self) -> &(dyn Error + 'static);
 }
 
-impl AsErrorSource for dyn error::Error + 'static {
-    fn as_error_source(&self) -> &(dyn error::Error + 'static) {
+impl AsErrorSource for dyn Error + 'static {
+    fn as_error_source(&self) -> &(dyn Error + 'static) {
         self
     }
 }
 
-impl AsErrorSource for dyn error::Error + Send + 'static {
-    fn as_error_source(&self) -> &(dyn error::Error + 'static) {
+impl AsErrorSource for dyn Error + Send + 'static {
+    fn as_error_source(&self) -> &(dyn Error + 'static) {
         self
     }
 }
 
-impl AsErrorSource for dyn error::Error + Sync + 'static {
-    fn as_error_source(&self) -> &(dyn error::Error + 'static) {
+impl AsErrorSource for dyn Error + Sync + 'static {
+    fn as_error_source(&self) -> &(dyn Error + 'static) {
         self
     }
 }
 
-impl AsErrorSource for dyn error::Error + Send + Sync + 'static {
-    fn as_error_source(&self) -> &(dyn error::Error + 'static) {
+impl AsErrorSource for dyn Error + Send + Sync + 'static {
+    fn as_error_source(&self) -> &(dyn Error + 'static) {
         self
     }
 }
 
-impl<T: error::Error + 'static> AsErrorSource for T {
-    fn as_error_source(&self) -> &(dyn error::Error + 'static) {
+impl<T: Error + 'static> AsErrorSource for T {
+    fn as_error_source(&self) -> &(dyn Error + 'static) {
         self
     }
 }
@@ -533,13 +543,13 @@ impl<T: error::Error + 'static> AsErrorSource for T {
 ///
 /// It is expected that most users of SNAFU will not directly interact
 /// with this trait.
-pub trait IntoError<Error>
+pub trait IntoError<E>
 where
-    Error: std::error::Error + ErrorCompat,
+    E: Error + ErrorCompat,
 {
     /// The underlying error
     type Source;
 
     /// Combine the information to produce the error
-    fn into_error(self, source: Self::Source) -> Error;
+    fn into_error(self, source: Self::Source) -> E;
 }
