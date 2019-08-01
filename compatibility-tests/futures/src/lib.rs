@@ -61,6 +61,21 @@ async fn load_stock_data_concurrent() -> Result<String, Error> {
     Ok(format!("{}+{}", apple, google))
 }
 
+// Return values of the combinators implement `Future`
+async fn load_stock_data_sequential_again() -> Result<String, Error> {
+    let apple = api::fetch_page("apple")
+        .context(UnableToLoadAppleStock)
+        .await?;
+
+    let google = api::fetch_page("google")
+        .with_context(|| UnableToLoadGoogleStock {
+            name: String::from("sequential"),
+        })
+        .await?;
+
+    Ok(format!("{}+{}", apple, google))
+}
+
 // Can be used as a `Stream` combinator
 async fn load_stock_data_series() -> Result<String, Error> {
     let apple = api::keep_fetching_page("apple").context(UnableToLoadAppleStock);
@@ -68,7 +83,7 @@ async fn load_stock_data_series() -> Result<String, Error> {
         name: String::from("stream"),
     });
 
-    let together = apple.into_stream().zip(google.into_stream());
+    let together = apple.zip(google);
 
     // No try_zip?
     let together = together.map(|(a, g)| Ok((a?, g?)));
@@ -96,6 +111,9 @@ fn implements_error() {
     let b = block_on(load_stock_data_concurrent());
     b.unwrap_err();
 
-    let c = block_on(load_stock_data_series());
+    let c = block_on(load_stock_data_sequential_again());
     c.unwrap_err();
+
+    let d = block_on(load_stock_data_series());
+    d.unwrap_err();
 }

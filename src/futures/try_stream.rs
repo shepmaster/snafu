@@ -2,7 +2,7 @@
 //!
 //! [`TryStream`]: futures_core::TryStream
 
-use futures_core::stream::TryStream;
+use futures_core::stream::{Stream, TryStream};
 use pin_project::unsafe_project;
 use std::{
     marker::PhantomData,
@@ -136,19 +136,15 @@ pub struct Context<St, C, E> {
     _e: PhantomData<E>,
 }
 
-impl<St, C, E> TryStream for Context<St, C, E>
+impl<St, C, E> Stream for Context<St, C, E>
 where
     St: TryStream,
     C: IntoError<E, Source = St::Error> + Clone,
     E: std::error::Error + ErrorCompat,
 {
-    type Ok = St::Ok;
-    type Error = E;
+    type Item = Result<St::Ok, E>;
 
-    fn try_poll_next(
-        self: Pin<&mut Self>,
-        ctx: &mut TaskContext,
-    ) -> Poll<Option<Result<Self::Ok, Self::Error>>> {
+    fn poll_next(self: Pin<&mut Self>, ctx: &mut TaskContext) -> Poll<Option<Self::Item>> {
         let this = self.project();
         let inner = this.inner;
         let context = this.context;
@@ -178,20 +174,16 @@ pub struct WithContext<St, F, E> {
     _e: PhantomData<E>,
 }
 
-impl<St, F, C, E> TryStream for WithContext<St, F, E>
+impl<St, F, C, E> Stream for WithContext<St, F, E>
 where
     St: TryStream,
     F: FnMut() -> C,
     C: IntoError<E, Source = St::Error>,
     E: std::error::Error + ErrorCompat,
 {
-    type Ok = St::Ok;
-    type Error = E;
+    type Item = Result<St::Ok, E>;
 
-    fn try_poll_next(
-        self: Pin<&mut Self>,
-        ctx: &mut TaskContext,
-    ) -> Poll<Option<Result<Self::Ok, Self::Error>>> {
+    fn poll_next(self: Pin<&mut Self>, ctx: &mut TaskContext) -> Poll<Option<Self::Item>> {
         let this = self.project();
         let inner = this.inner;
         let context = this.context;
