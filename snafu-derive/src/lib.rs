@@ -915,35 +915,32 @@ impl syn::parse::Parse for SnafuAttribute {
     fn parse(input: syn::parse::ParseStream) -> SynResult<Self> {
         use syn::{Expr, Ident, Visibility};
 
-        let inside;
-        parenthesized!(inside in input);
-        let name: Ident = inside.parse()?;
-
+        let name: Ident = input.parse()?;
         if name == "display" {
-            let m: MyMeta<List<Expr>> = inside.parse()?;
+            let m: MyMeta<List<Expr>> = input.parse()?;
             let v = m.into_option().ok_or_else(|| {
                 syn::Error::new(name.span(), "`snafu(display)` requires an argument")
             })?;
             let v = Box::new(v.0);
             Ok(SnafuAttribute::Display(v))
         } else if name == "visibility" {
-            let m: MyMeta<Visibility> = inside.parse()?;
+            let m: MyMeta<Visibility> = input.parse()?;
             let v = m
                 .into_option()
                 .map_or_else(private_visibility, |v| Box::new(v) as UserInput);
             Ok(SnafuAttribute::Visibility(v))
         } else if name == "source" {
-            if inside.is_empty() {
+            if input.is_empty() {
                 Ok(SnafuAttribute::Source(vec![Source::Flag(true)]))
             } else {
-                let v: MyParens<List<Source>> = inside.parse()?;
+                let v: MyParens<List<Source>> = input.parse()?;
                 Ok(SnafuAttribute::Source(v.0.into_vec()))
             }
         } else if name == "backtrace" {
-            if inside.is_empty() {
+            if input.is_empty() {
                 Ok(SnafuAttribute::Backtrace(Backtrace::Flag(true)))
             } else {
-                let v: MyParens<Backtrace> = inside.parse()?;
+                let v: MyParens<Backtrace> = input.parse()?;
                 Ok(SnafuAttribute::Backtrace(v.0))
             }
         } else {
@@ -962,8 +959,13 @@ impl syn::parse::Parse for SnafuAttributeBody {
         use syn::punctuated::Punctuated;
         use syn::token::Comma;
 
+        // Remove the parentheses from `#[snafu(...)]` so SnafuAttribute only has to deal with the
+        // tokens inside.
+        let inside;
+        parenthesized!(inside in input);
+
         let parse_comma_list = Punctuated::<SnafuAttribute, Comma>::parse_terminated;
-        let list = parse_comma_list(input)?;
+        let list = parse_comma_list(&inside)?;
 
         Ok(SnafuAttributeBody(
             list.into_pairs().map(|p| p.into_value()).collect(),
