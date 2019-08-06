@@ -17,7 +17,7 @@ mod error {
         #[snafu(visibility(pub(super)), display("Moo"))]
         Alpha {
             // Ensure we can have multiple field attributes as well
-            #[snafu(source, backtrace(delegate))]
+            #[snafu(source, backtrace)]
             cause: InnerError,
         },
     }

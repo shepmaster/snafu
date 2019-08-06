@@ -172,7 +172,8 @@ enum Error {
 
 If your error contains other SNAFU errors which can report
 backtraces, you may wish to delegate returning a backtrace to
-those errors. Use `#[snafu(backtrace(delegate))]` to specify this:
+those errors. To specify this, use `#[snafu(backtrace)]` on the
+source field representing the other error:
 
 ```rust
 # mod another {
@@ -184,7 +185,7 @@ those errors. Use `#[snafu(backtrace(delegate))]` to specify this:
 #[derive(Debug, Snafu)]
 enum Error {
     MyError {
-        #[snafu(backtrace(delegate))]
+        #[snafu(backtrace)]
         source: another::Error,
     },
 }

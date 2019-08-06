@@ -44,7 +44,6 @@ struct VariantInfo {
     name: syn::Ident,
     source_field: Option<SourceField>,
     backtrace_field: Option<Field>,
-    backtrace_delegate: Option<Field>,
     user_fields: Vec<Field>,
     display_format: Option<UserInput>,
     doc_comment: String,
@@ -72,6 +71,7 @@ impl Field {
 struct SourceField {
     name: syn::Ident,
     transformation: Transformation,
+    backtrace_delegate: bool,
 }
 
 impl SourceField {
@@ -474,8 +474,6 @@ fn parse_snafu_enum(
             let mut user_fields = Vec::new();
             let mut source_fields = AtMostOne::new("source", "within an error variant");
             let mut backtrace_fields = AtMostOne::new("backtrace", "within an error variant");
-            let mut backtrace_delegates =
-                AtMostOne::new("backtrace(delegate)", "within an error variant");
 
             for syn_field in fields {
                 let span = syn_field.span();
@@ -504,10 +502,6 @@ fn parse_snafu_enum(
                 let mut source_opt_out = false;
                 let mut backtrace_opt_out = false;
 
-                // Keep track of the location of the backtrace delegate field, if any; duplication
-                // is already checked because backtrace delegates are counted in backtrace_attrs.
-                let mut backtrace_delegate_location = None;
-
                 for attr in attributes_from_syn(syn_field.attrs.clone())? {
                     match attr {
                         SnafuAttribute::Source(tts, ss) => {
@@ -517,7 +511,8 @@ fn parse_snafu_enum(
                                     Source::Flag(v) => {
                                         // If we've seen a `source(from)` then there will be a
                                         // `Some` value in `source_attrs`.
-                                        let seen_source_from = source_attrs.iter()
+                                        let seen_source_from = source_attrs
+                                            .iter()
                                             .map(|&(ref val, ref _location)| val)
                                             .any(Option::is_some);
                                         if !v && seen_source_from {
@@ -550,19 +545,13 @@ fn parse_snafu_enum(
                                 }
                             }
                         }
-                        SnafuAttribute::Backtrace(tts, b) => match b {
-                            Backtrace::Flag(v) => {
-                                if v {
-                                    backtrace_attrs.add((), tts);
-                                } else {
-                                    backtrace_opt_out = true;
-                                }
-                            },
-                            Backtrace::Delegate => {
-                                backtrace_attrs.add((), tts.clone());
-                                backtrace_delegate_location = Some(tts);
+                        SnafuAttribute::Backtrace(tts, v) => {
+                            if v {
+                                backtrace_attrs.add((), tts);
+                            } else {
+                                backtrace_opt_out = true;
                             }
-                        },
+                        }
                         SnafuAttribute::Visibility(tts, ..) => {
                             errors.add(
                                 tts,
@@ -593,29 +582,23 @@ fn parse_snafu_enum(
                 let (backtrace_attr, errs) = backtrace_attrs.finish_with_location();
                 errors.extend(errs);
 
-                let source_attr = source_attr
-                    .or_else(|| {
-                        if field.name == "source" && !source_opt_out {
-                            Some((None, syn_field.clone().into_token_stream()))
-                        } else {
-                            None
-                        }
-                    });
+                let source_attr = source_attr.or_else(|| {
+                    if field.name == "source" && !source_opt_out {
+                        Some((None, syn_field.clone().into_token_stream()))
+                    } else {
+                        None
+                    }
+                });
 
-                let backtrace_attr = backtrace_attr
-                    .or_else(|| {
-                        if field.name == "backtrace" && !backtrace_opt_out {
-                            Some(((), syn_field.clone().into_token_stream()))
-                        } else {
-                            None
-                        }
-                    });
+                let backtrace_attr = backtrace_attr.or_else(|| {
+                    if field.name == "backtrace" && !backtrace_opt_out {
+                        Some(((), syn_field.clone().into_token_stream()))
+                    } else {
+                        None
+                    }
+                });
 
                 if let Some((maybe_transformation, location)) = source_attr {
-                    if let Some(location) = backtrace_delegate_location {
-                        backtrace_delegates.add(field.clone(), location);
-                    }
-
                     let Field { name, ty } = field;
                     let transformation = maybe_transformation
                         .map(|(ty, expr)| Transformation::Transform { ty, expr })
@@ -625,6 +608,9 @@ fn parse_snafu_enum(
                         SourceField {
                             name,
                             transformation,
+                            // Specifying `backtrace` on a source field is how you request
+                            // delegation of the backtrace to the source error type.
+                            backtrace_delegate: backtrace_attr.is_some(),
                         },
                         location,
                     );
@@ -635,26 +621,26 @@ fn parse_snafu_enum(
                 }
             }
 
-            let (source_field, errs) = source_fields.finish();
+            let (source, errs) = source_fields.finish_with_location();
             errors.extend(errs);
 
             let (backtrace, errs) = backtrace_fields.finish_with_location();
             errors.extend(errs);
 
-            let (backtrace_delegate, errs) = backtrace_delegates.finish_with_location();
-            errors.extend(errs);
-
-            if let (Some(backtrace), Some(backtrace_delegate)) = (backtrace.as_ref(), backtrace_delegate.as_ref()) {
-                let backtrace_location = backtrace.1.clone();
-                let backtrace_delegate_location = backtrace_delegate.1.clone();
-                errors.add(
-                    backtrace_location,
-                    "Cannot have `backtrace` and `backtrace(delegate)` fields in the same error variant",
-                );
-                errors.add(
-                    backtrace_delegate_location,
-                    "Cannot have `backtrace` and `backtrace(delegate)` fields in the same error variant",
-                );
+            match (&source, &backtrace) {
+                (&Some(ref source), &Some(ref backtrace)) if source.0.backtrace_delegate => {
+                    let source_location = source.1.clone();
+                    let backtrace_location = backtrace.1.clone();
+                    errors.add(
+                        source_location,
+                        "Cannot have `backtrace` field and `backtrace` attribute on a source field in the same error variant",
+                    );
+                    errors.add(
+                        backtrace_location,
+                        "Cannot have `backtrace` field and `backtrace` attribute on a source field in the same error variant",
+                    );
+                }
+                _ => {} // no conflict
             }
 
             let (display_format, errs) = display_formats.finish();
@@ -665,9 +651,8 @@ fn parse_snafu_enum(
 
             Ok(VariantInfo {
                 name,
-                source_field,
+                source_field: source.map(|(val, _tts)| val),
                 backtrace_field: backtrace.map(|(val, _tts)| val),
-                backtrace_delegate: backtrace_delegate.map(|(val, _tts)| val),
                 user_fields,
                 display_format,
                 doc_comment,
@@ -919,10 +904,9 @@ impl syn::parse::Parse for Source {
     }
 }
 
-enum Backtrace {
-    Flag(bool),
-    Delegate,
-}
+// Having a Backtrace newtype and implementing Parse gives us a way to handle careful parsing
+// errors outside of `impl Parse for SnafuAttribute`
+struct Backtrace(bool);
 
 impl syn::parse::Parse for Backtrace {
     fn parse(input: syn::parse::ParseStream) -> SynResult<Self> {
@@ -932,17 +916,17 @@ impl syn::parse::Parse for Backtrace {
 
         if lookahead.peek(LitBool) {
             let val: LitBool = input.parse()?;
-            Ok(Backtrace::Flag(val.value))
+            Ok(Backtrace(val.value))
         } else if lookahead.peek(Ident) {
             let name: Ident = input.parse()?;
 
             if name == "delegate" {
-                Ok(Backtrace::Delegate)
-            } else {
                 Err(syn::Error::new(
                     name.span(),
-                    "expected `true`, `false`, or `delegate`",
+                    "`backtrace(delegate)` has been removed; use `backtrace` on a source field",
                 ))
+            } else {
+                Err(syn::Error::new(name.span(), "expected `true` or `false`"))
             }
         } else {
             Err(lookahead.error())
@@ -961,7 +945,7 @@ enum SnafuAttribute {
     Display(proc_macro2::TokenStream, UserInput),
     Visibility(proc_macro2::TokenStream, UserInput),
     Source(proc_macro2::TokenStream, Vec<Source>),
-    Backtrace(proc_macro2::TokenStream, Backtrace),
+    Backtrace(proc_macro2::TokenStream, bool),
     DocComment(proc_macro2::TokenStream, String),
 }
 
@@ -998,10 +982,11 @@ impl syn::parse::Parse for SnafuAttribute {
         } else if name == "backtrace" {
             let lookahead = input.lookahead1();
             if input.is_empty() || lookahead.peek(Comma) {
-                Ok(SnafuAttribute::Backtrace(input_tts, Backtrace::Flag(true)))
+                Ok(SnafuAttribute::Backtrace(input_tts, true))
             } else if lookahead.peek(Paren) {
                 let v: MyParens<Backtrace> = input.parse()?;
-                Ok(SnafuAttribute::Backtrace(input_tts, v.0))
+                let backtrace = v.0;
+                Ok(SnafuAttribute::Backtrace(input_tts, backtrace.0))
             } else {
                 Err(lookahead.error())
             }
@@ -1345,6 +1330,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
                     let SourceField {
                         name: ref source_name,
                         transformation: ref source_transformation,
+                        ..
                     } = *source_field;
 
                     let source_ty2 = source_transformation.ty();
@@ -1584,32 +1570,35 @@ impl<'a> ErrorCompatImpl<'a> {
         self.0.variants.iter().map(|variant| {
             let VariantInfo {
                 name: ref variant_name,
+                ref source_field,
                 ref backtrace_field,
-                ref backtrace_delegate,
                 ..
             } = *variant;
 
 
-            if let Some(ref backtrace_delegate) = *backtrace_delegate {
-                let Field {
-                    name: ref field_name,
-                    ..
-                } = *backtrace_delegate;
-                quote! {
-                    #enum_name::#variant_name { ref #field_name, .. } => { snafu::ErrorCompat::backtrace(#field_name) }
+            match (source_field, backtrace_field) {
+                (&Some(ref source_field), _) if source_field.backtrace_delegate => {
+                    let SourceField {
+                        name: ref field_name,
+                        ..
+                    } = *source_field;
+                    quote! {
+                        #enum_name::#variant_name { ref #field_name, .. } => { snafu::ErrorCompat::backtrace(#field_name) }
+                    }
+                },
+                (_, &Some(ref backtrace_field)) => {
+                    let Field {
+                        name: ref field_name,
+                        ..
+                    } = *backtrace_field;
+                    quote! {
+                        #enum_name::#variant_name { ref #field_name, .. } => { std::option::Option::Some(#field_name) }
+                    }
                 }
-
-            } else if let Some(ref backtrace_field) = *backtrace_field  {
-                let Field {
-                    name: ref field_name,
-                    ..
-                } = *backtrace_field;
-                quote! {
-                    #enum_name::#variant_name { ref #field_name, .. } => { std::option::Option::Some(#field_name) }
-                }
-            } else {
-                quote! {
-                    #enum_name::#variant_name { .. } => { std::option::Option::None }
+                _ => {
+                    quote! {
+                        #enum_name::#variant_name { .. } => { std::option::Option::None }
+                    }
                 }
             }
         }).collect()
