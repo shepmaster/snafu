@@ -9,9 +9,13 @@ enum Error {
     ///
     /// Here is a more detailed description.
     MissingUser,
+
     /// This is just a doc comment.
     #[snafu(display("This is {}", stronger))]
     Stronger { stronger: &'static str },
+
+    #[doc(hidden)]
+    Hidden,
 }
 
 #[test]
