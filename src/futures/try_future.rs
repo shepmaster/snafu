@@ -5,6 +5,7 @@
 use futures_core::future::TryFuture;
 use pin_project::unsafe_project;
 use std::{
+    future::Future,
     marker::PhantomData,
     pin::Pin,
     task::{Context as TaskContext, Poll},
@@ -134,19 +135,15 @@ pub struct Context<Fut, C, E> {
     _e: PhantomData<E>,
 }
 
-impl<Fut, C, E> TryFuture for Context<Fut, C, E>
+impl<Fut, C, E> Future for Context<Fut, C, E>
 where
     Fut: TryFuture,
     C: IntoError<E, Source = Fut::Error>,
     E: std::error::Error + ErrorCompat,
 {
-    type Ok = Fut::Ok;
-    type Error = E;
+    type Output = Result<Fut::Ok, E>;
 
-    fn try_poll(
-        self: Pin<&mut Self>,
-        ctx: &mut TaskContext,
-    ) -> Poll<Result<Self::Ok, Self::Error>> {
+    fn poll(self: Pin<&mut Self>, ctx: &mut TaskContext) -> Poll<Self::Output> {
         let this = self.project();
         let inner = this.inner;
         let context = this.context;
@@ -173,20 +170,16 @@ pub struct WithContext<Fut, F, E> {
     _e: PhantomData<E>,
 }
 
-impl<Fut, F, C, E> TryFuture for WithContext<Fut, F, E>
+impl<Fut, F, C, E> Future for WithContext<Fut, F, E>
 where
     Fut: TryFuture,
     F: FnOnce() -> C,
     C: IntoError<E, Source = Fut::Error>,
     E: std::error::Error + ErrorCompat,
 {
-    type Ok = Fut::Ok;
-    type Error = E;
+    type Output = Result<Fut::Ok, E>;
 
-    fn try_poll(
-        self: Pin<&mut Self>,
-        ctx: &mut TaskContext,
-    ) -> Poll<Result<Self::Ok, Self::Error>> {
+    fn poll(self: Pin<&mut Self>, ctx: &mut TaskContext) -> Poll<Self::Output> {
         let this = self.project();
         let inner = this.inner;
         let context = this.context;

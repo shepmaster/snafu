@@ -4,15 +4,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.4] - 2019-08-07
+
+### Fixed
+
+- Ignore `#[doc]` attributes that do not correspond to documentation
+  comments. This allows `#[doc(hidden)]` to be used again.
+
+### Changed
+
+- Implement `Future` and `Stream` instead of `TryFuture` and
+  `TryStream` for the combinators for the standard library's
+  futures. This allows the `Context` future combinator to be directly
+  used with `.await` and for the `Context` stream combinator to be
+  used without calling `.into_stream`.
+
 ## [0.4.3] - 2019-07-23
 
 ### Added
 
-- Add optional conversion of `&snafu::Backtrace` into `&backtrace::Backtrace`
+- Add optional conversion of `&snafu::Backtrace` into `&backtrace::Backtrace`.
 
 ### Fixed
 
-- Support default generic parameters on error types
+- Support default generic parameters on error types.
 
 ## [0.4.2] - 2019-07-21
 
