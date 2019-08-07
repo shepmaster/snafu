@@ -617,7 +617,12 @@ fn attributes_from_syn(attrs: Vec<syn::Attribute>) -> MultiSynResult<Vec<SnafuAt
         if attr.path.is_ident("snafu") {
             Some(parse2::<SnafuAttributeBody>(attr.tts).map(|body| body.0))
         } else if attr.path.is_ident("doc") {
-            Some(parse2::<DocComment>(attr.tts).map(|comment| vec![comment.0]))
+            // Ignore any errors that occur while parsing the doc
+            // comment. This isn't our attribute so we shouldn't
+            // assume that we know what values are acceptable.
+            parse2::<DocComment>(attr.tts)
+                .ok()
+                .map(|comment| Ok(vec![comment.0]))
         } else {
             None
         }
