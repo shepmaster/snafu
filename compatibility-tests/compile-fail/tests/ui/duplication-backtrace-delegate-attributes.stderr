@@ -1,0 +1,5 @@
+error: Multiple `backtrace` attributes are not supported on a field
+ --> $DIR/duplication-backtrace-delegate-attributes.rs:8:17
+  |
+8 |         #[snafu(backtrace(delegate))]
+  |                 ^^^^^^^^^^^^^^^^^^^

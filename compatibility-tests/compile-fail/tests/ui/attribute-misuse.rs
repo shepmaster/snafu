@@ -7,9 +7,28 @@ mod enum_misuse {
     #[snafu(source(true))]
     #[snafu(backtrace)]
     enum EnumError {
-        #[snafu(display("an error variant"))]
-        #[snafu(source(from(XXXX, Box::new)))]
+        AVariant,
+    }
+}
+
+mod variant_misuse {
+    use snafu::Snafu;
+
+    #[derive(Debug, Snafu)]
+    enum EnumError {
+        // Make sure we catch the error in the second attribute
+        #[snafu(display("an error variant"), source(from(XXXX, Box::new)))]
+        #[snafu(source)]
         #[snafu(backtrace)]
+        AVariant,
+    }
+}
+
+mod field_misuse {
+    use snafu::Snafu;
+
+    #[derive(Debug, Snafu)]
+    enum EnumError {
         AVariant {
             #[snafu(display("display should not work here"))]
             #[snafu(visibility(pub))]

@@ -1,0 +1,5 @@
+error: Multiple `source` attributes are not supported within an error variant
+  --> $DIR/duplication-source-from.rs:10:18
+   |
+10 |          #[snafu(source(from(EnumError, Box::new)))]
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

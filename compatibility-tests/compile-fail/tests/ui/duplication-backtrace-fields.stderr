@@ -1,0 +1,5 @@
+error: Multiple `backtrace` attributes are not supported within an error variant
+  --> $DIR/duplication-backtrace-fields.rs:10:17
+   |
+10 |         #[snafu(backtrace)]
+   |                 ^^^^^^^^^
