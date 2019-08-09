@@ -526,8 +526,17 @@ fn parse_snafu_enum(
                                         }
                                         if v {
                                             source_attrs.add(None, tts.clone());
-                                        } else {
+                                        } else if name == "source" {
                                             source_opt_out = true;
+                                        } else {
+                                            errors.add(
+                                                tts.clone(),
+                                                OnlyValidOn {
+                                                    attribute: "source(false)",
+                                                    valid_on: "a field named \"source\"",
+                                                    not_on: "other fields",
+                                                },
+                                            );
                                         }
                                     }
                                     Source::From(t, e) => {
@@ -548,8 +557,17 @@ fn parse_snafu_enum(
                         SnafuAttribute::Backtrace(tts, v) => {
                             if v {
                                 backtrace_attrs.add((), tts);
-                            } else {
+                            } else if name == "backtrace" {
                                 backtrace_opt_out = true;
+                            } else {
+                                errors.add(
+                                    tts,
+                                    OnlyValidOn {
+                                        attribute: "backtrace(false)",
+                                        valid_on: "a field named \"backtrace\"",
+                                        not_on: "other fields",
+                                    },
+                                );
                             }
                         }
                         SnafuAttribute::Visibility(tts, ..) => {

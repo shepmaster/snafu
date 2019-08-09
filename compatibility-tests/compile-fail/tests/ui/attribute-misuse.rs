@@ -34,7 +34,7 @@ mod field_misuse {
             #[snafu(visibility(pub))]
             #[snafu(source(false))]
             #[snafu(source(from(XXXX, Box::new)))]
-            a: String,
+            source: String,
         },
     }
 }
