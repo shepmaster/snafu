@@ -967,6 +967,7 @@ enum SnafuAttribute {
 
 impl syn::parse::Parse for SnafuAttribute {
     fn parse(input: syn::parse::ParseStream) -> SynResult<Self> {
+        use syn::token::{Comma, Paren};
         use syn::{Expr, Ident, Visibility};
 
         let input_tts = input.cursor().token_stream();
@@ -985,18 +986,24 @@ impl syn::parse::Parse for SnafuAttribute {
                 .map_or_else(private_visibility, |v| Box::new(v) as UserInput);
             Ok(SnafuAttribute::Visibility(input_tts, v))
         } else if name == "source" {
-            if input.is_empty() {
+            let lookahead = input.lookahead1();
+            if input.is_empty() || lookahead.peek(Comma) {
                 Ok(SnafuAttribute::Source(input_tts, vec![Source::Flag(true)]))
-            } else {
+            } else if lookahead.peek(Paren) {
                 let v: MyParens<List<Source>> = input.parse()?;
                 Ok(SnafuAttribute::Source(input_tts, v.0.into_vec()))
+            } else {
+                Err(lookahead.error())
             }
         } else if name == "backtrace" {
-            if input.is_empty() {
+            let lookahead = input.lookahead1();
+            if input.is_empty() || lookahead.peek(Comma) {
                 Ok(SnafuAttribute::Backtrace(input_tts, Backtrace::Flag(true)))
-            } else {
+            } else if lookahead.peek(Paren) {
                 let v: MyParens<Backtrace> = input.parse()?;
                 Ok(SnafuAttribute::Backtrace(input_tts, v.0))
+            } else {
+                Err(lookahead.error())
             }
         } else {
             Err(syn::Error::new(
