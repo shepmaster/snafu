@@ -11,4 +11,5 @@ snafu-derive = { path = "../../snafu-derive" }
 backtrace = "= 0.3.0"
 backtrace-sys = "= 0.1.3"
 libc = "= 0.2.7"
+rustc-demangle = "= 0.1.15"
 syn = "= 0.15.37"
