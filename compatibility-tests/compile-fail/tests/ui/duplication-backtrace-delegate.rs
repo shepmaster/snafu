@@ -7,7 +7,7 @@ enum EnumError {
         backtrace: Backtrace,
 
         // Second backtrace, this time a delegate, can't have both
-        #[snafu(backtrace(delegate))]
+        #[snafu(backtrace)]
         source: String,
     },
 }
