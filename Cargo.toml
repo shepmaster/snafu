@@ -51,7 +51,6 @@ exclude = [
   "compatibility-tests/compile-fail",
   "compatibility-tests/v1_34",
   "compatibility-tests/v1_30",
-  "compatibility-tests/v1_18",
   "compatibility-tests/futures-0.1",
   "compatibility-tests/futures",
   "compatibility-tests/without-backtrace",
