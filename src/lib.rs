@@ -80,7 +80,7 @@ extern crate backtrace;
 #[cfg(feature = "backtraces")]
 mod backtrace_shim;
 #[cfg(feature = "backtraces")]
-pub use backtrace_shim::*;
+pub use crate::backtrace_shim::*;
 
 #[cfg(feature = "futures-01")]
 extern crate futures01 as futures01_crate;

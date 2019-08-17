@@ -2,6 +2,7 @@
 //!
 //! [`TryFuture`]: futures_core::future::TryFuture
 
+use crate::{ErrorCompat, IntoError};
 use futures_core::future::TryFuture;
 use pin_project::unsafe_project;
 use std::{
@@ -10,7 +11,6 @@ use std::{
     pin::Pin,
     task::{Context as TaskContext, Poll},
 };
-use {ErrorCompat, IntoError};
 
 /// Additions to [`TryFuture`].
 pub trait TryFutureExt: TryFuture + Sized {

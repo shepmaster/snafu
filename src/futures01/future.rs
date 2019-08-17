@@ -2,10 +2,10 @@
 //!
 //! [`Future`]: futures01_crate::Future
 
+use crate::{ErrorCompat, IntoError};
 use futures01_crate::{Async, Future};
 use std::error;
 use std::marker::PhantomData;
-use {ErrorCompat, IntoError};
 
 /// Additions to [`Future`].
 pub trait FutureExt: Future + Sized {

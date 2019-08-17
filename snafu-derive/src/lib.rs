@@ -513,7 +513,7 @@ fn parse_snafu_enum(
                                         // `Some` value in `source_attrs`.
                                         let seen_source_from = source_attrs
                                             .iter()
-                                            .map(|&(ref val, ref _location)| val)
+                                            .map(|(val, _location)| val)
                                             .any(Option::is_some);
                                         if !v && seen_source_from {
                                             errors.add(
@@ -646,7 +646,7 @@ fn parse_snafu_enum(
             errors.extend(errs);
 
             match (&source, &backtrace) {
-                (&Some(ref source), &Some(ref backtrace)) if source.0.backtrace_delegate => {
+                (Some(source), Some(backtrace)) if source.0.backtrace_delegate => {
                     let source_location = source.1.clone();
                     let backtrace_location = backtrace.1.clone();
                     errors.add(
@@ -1413,15 +1413,15 @@ impl<'a> DisplayImpl<'a> {
                 } = *variant;
 
                 let format = match (display_format, source_field) {
-                    (&Some(ref v), _) => quote! { #v },
-                    (&None, _) if !doc_comment.is_empty() => {
+                    (Some(ref v), _) => quote! { #v },
+                    (None, _) if !doc_comment.is_empty() => {
                         quote! { #doc_comment }
                     }
-                    (&None, &Some(ref f)) => {
+                    (None, Some(ref f)) => {
                         let field_name = &f.name;
                         quote! { concat!(stringify!(#variant_name), ": {}"), #field_name }
                     }
-                    (&None, &None) => quote! { stringify!(#variant_name)},
+                    (None, None) => quote! { stringify!(#variant_name)},
                 };
 
                 let field_names = user_fields
@@ -1590,7 +1590,7 @@ impl<'a> ErrorCompatImpl<'a> {
 
 
             match (source_field, backtrace_field) {
-                (&Some(ref source_field), _) if source_field.backtrace_delegate => {
+                (Some(ref source_field), _) if source_field.backtrace_delegate => {
                     let SourceField {
                         name: ref field_name,
                         ..
