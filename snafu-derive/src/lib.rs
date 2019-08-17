@@ -1371,7 +1371,6 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
                 {
                     type Source = #source_ty;
 
-                    #[allow(unused_variables)] // Workaround Rust 1.18 bug
                     fn into_error(self, error: Self::Source) -> #parameterized_enum_name {
                         #enum_name::#variant_name {
                             #source_xfer_field
@@ -1551,17 +1550,13 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
             }
         };
 
-        let source_fn = if cfg!(feature = "rust_1_30") {
-            quote! {
-                fn source(&self) -> Option<&(std::error::Error + 'static)> {
-                    use snafu::AsErrorSource;
-                    match *self {
-                        #(#variants_to_source)*
-                    }
+        let source_fn = quote! {
+            fn source(&self) -> Option<&(std::error::Error + 'static)> {
+                use snafu::AsErrorSource;
+                match *self {
+                    #(#variants_to_source)*
                 }
             }
-        } else {
-            quote! {}
         };
 
         stream.extend({
@@ -1687,14 +1682,10 @@ impl StructInfo {
             }
         };
 
-        let source_fn = if cfg!(feature = "rust_1_30") {
-            quote! {
-                fn source(&self) -> Option<&(std::error::Error + 'static)> {
-                    std::error::Error::source(&self.0)
-                }
+        let source_fn = quote! {
+            fn source(&self) -> Option<&(std::error::Error + 'static)> {
+                std::error::Error::source(&self.0)
             }
-        } else {
-            quote! {}
         };
 
         let backtrace_fn = if cfg!(feature = "backtraces") {

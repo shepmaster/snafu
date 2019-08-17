@@ -94,15 +94,11 @@ extern crate pin_project;
 #[cfg(feature = "unstable-futures")]
 pub mod futures;
 
-#[cfg(feature = "rust_1_30")]
 extern crate snafu_derive;
-#[cfg(feature = "rust_1_30")]
 pub use snafu_derive::Snafu;
 
-#[cfg(feature = "rust_1_30")]
 extern crate doc_comment;
 
-#[cfg(feature = "rust_1_30")]
 macro_rules! generate_guide {
     (pub mod $name:ident; $($rest:tt)*) => {
         generate_guide!(@gen ".", pub mod $name { } $($rest)*);
@@ -125,7 +121,6 @@ macro_rules! generate_guide {
     };
 }
 
-#[cfg(feature = "rust_1_30")]
 generate_guide! {
     pub mod guide {
         pub mod attributes;
@@ -142,7 +137,6 @@ generate_guide! {
     }
 }
 
-#[cfg(feature = "rust_1_30")]
 doc_comment::doctest!("../README.md", readme_tests);
 
 use std::error;

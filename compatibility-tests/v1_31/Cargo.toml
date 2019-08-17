@@ -1,0 +1,10 @@
+[package]
+name = "v1_31"
+version = "0.1.0"
+authors = ["Jake Goulding <jake.goulding@gmail.com>"]
+
+[dependencies]
+snafu = { path = "../..", default-features = false, features = ["backtraces"] }
+
+# These versions are the last versions to support Rust 1.31
+backtrace = "= 0.3.35"

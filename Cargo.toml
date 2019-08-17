@@ -23,7 +23,7 @@ exclude = [
 all-features = true
 
 [features]
-default = ["rust_1_30", "backtraces"]
+default = ["backtraces"]
 
 # Adds the backtrace type
 backtraces = ["snafu-derive/backtraces", "backtrace"]
@@ -33,9 +33,6 @@ backtrace-crate = ["backtraces"]
 
 # Add extension traits for the futures 0.1 crate
 "futures-01" = ["futures01"]
-
-# New methods on `Error`; re-export of proc-macro
-rust_1_30 = ["snafu-derive/rust_1_30", "doc-comment"]
 
 # The standard library's implementation of futures
 "unstable-futures" = ["futures-core-preview", "pin-project"]
@@ -50,7 +47,7 @@ rust_1_30 = ["snafu-derive/rust_1_30", "doc-comment"]
 exclude = [
   "compatibility-tests/compile-fail",
   "compatibility-tests/v1_34",
-  "compatibility-tests/v1_30",
+  "compatibility-tests/v1_31",
   "compatibility-tests/futures-0.1",
   "compatibility-tests/futures",
   "compatibility-tests/without-backtrace",
@@ -58,9 +55,9 @@ exclude = [
 
 [dependencies]
 snafu-derive = { path = "snafu-derive", version = "0.5.0" }
+doc-comment = { version = "0.3.1", default-features = false }
 backtrace = { version = "0.3.0", optional = true }
 futures01 = { version = "0.1", optional = true, default-features = false }
 futures-preview = { version = "0.3.0-alpha.16", optional = true, default-features = false }
 futures-core-preview = { version = "0.3.0-alpha.16", optional = true, default-features = false }
 pin-project = { version = "0.3.2", optional = true, default-features = false }
-doc-comment = { version = "0.3.1", optional = true, default-features = false }
