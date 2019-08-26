@@ -1,5 +1,10 @@
 # Upgrading from previous releases
 
+- [Version 0.4 → 0.5](#version-04--05)
+- [Version 0.3 → 0.4](#version-03--04)
+- [Version 0.2 → 0.3](#version-02--03)
+- [Version 0.1 → 0.2](#version-01--02)
+
 ## Version 0.4 → 0.5
 
 ### `backtrace(delegate)` replaced with `backtrace`
