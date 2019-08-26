@@ -1,5 +1,101 @@
 # Upgrading from previous releases
 
+## Version 0.4 → 0.5
+
+### `backtrace(delegate)` replaced with `backtrace`
+
+Previously, if you wanted to delegate backtrace creation to
+another error, you would specify `#[snafu(backtrace(delegate))]`
+on the source field that references the other error.
+
+Now, you specify the simpler `#[snafu(backtrace)]`.  Since source
+fields must be error types, and backtrace fields must be
+`Backtrace` types, this is unambiguous and simplifies the API.
+
+#### Before
+
+```rust,ignore
+#[derive(Debug, Snafu)]
+enum Error {
+    MyVariant {
+        #[snafu(backtrace(delegate))]
+        source: OtherError,
+    },
+}
+```
+
+#### After
+
+```rust,ignore
+#[derive(Debug, Snafu)]
+enum Error {
+    MyVariant {
+        #[snafu(backtrace)]
+        source: OtherError,
+    },
+}
+```
+
+### `source(from)` implies `source`
+
+Previously, if you had wanted to treat a field that wasn't named
+"source" as a source field, *and* you wanted to transform the
+field from another type, you had to specify both
+`#[snafu(source)]` and `#[snafu(source(from(...)))]`.
+
+Now, `#[snafu(source(from(...)))]` implies `#[snafu(source)]` --
+it automatically treats the field as a source field regardless of
+its name, so you can remove the `#[snafu(source)]` attribute.
+
+#### Before
+
+```rust,ignore
+#[derive(Debug, Snafu)]
+enum Error {
+    CauseIsAnError {
+        #[snafu(source)]
+        #[snafu(source(from(Error, Box::new)))]
+        cause: Box<Error>,
+    },
+}
+```
+
+#### After
+
+```rust,ignore
+#[derive(Debug, Snafu)]
+enum Error {
+    CauseIsAnError {
+        #[snafu(source(from(Error, Box::new)))]
+        cause: Box<Error>,
+    },
+}
+```
+
+### New errors for attribute misuse and duplication
+
+Previously, SNAFU would ignore `#[snafu(...)]` attributes that
+were used in invalid locations.  If attributes were duplicated,
+either the first or last would apply (depending on the attribute)
+and the rest would be ignored.
+
+One example is specifying `#[snafu(source(from(...)))]` on an
+enum variant instead of the source field in that variant:
+
+```rust,ignore
+#[derive(Debug, Snafu)]
+enum Error {
+    // This used to be ignored, and will now cause an error:
+    #[snafu(source(from(Error, Box::new)))]
+    MyVariant {
+        source: Box<Error>,
+    },
+}
+```
+
+Now, compiler errors will be emitted that point to any misused or
+duplicated attributes.
+
 ## Version 0.3 → 0.4
 
 ### `Context` vs. `IntoError`
