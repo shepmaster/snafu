@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2019-08-26
+
+### Added
+
+- Compiler errors are generated when SNAFU attributes are used in
+  incorrect locations. This is a **breaking change**.
+- Compiler errors are generated when SNAFU attributes are
+  duplicated. This is a **breaking change**.
+
+### Changed
+
+- `#[snafu(source(from))` implies `#[snafu(source)]` (which implies
+  `#[snafu(source(true))]`); `#[snafu(source)]` and
+  `#[snafu(source(true))]` can be removed in these cases.
+
+### Fixed
+
+- Multiple attributes can be specified inside of a single `#[snafu(...)]`.
+
+### Removed
+
+- `#[snafu(backtrace(delegate))]` on source fields is replaced by
+  `#[snafu(backtrace)]`. This is a **breaking change**.
+
+[0.5.0]: https://github.com/shepmaster/snafu/releases/tag/0.5.0
+
 ## [0.4.4] - 2019-08-07
 
 ### Fixed
