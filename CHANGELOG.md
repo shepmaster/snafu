@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   used with `.await` and for the `Context` stream combinator to be
   used without calling `.into_stream`.
 
+[0.4.4]: https://github.com/shepmaster/snafu/releases/tag/0.4.4
+
 ## [0.4.3] - 2019-07-23
 
 ### Added
@@ -28,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Support default generic parameters on error types.
+
+[0.4.3]: https://github.com/shepmaster/snafu/releases/tag/0.4.3
 
 ## [0.4.2] - 2019-07-21
 
@@ -44,12 +48,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - More errors are reported per compilation attempt.
 
+[0.4.2]: https://github.com/shepmaster/snafu/releases/tag/0.4.2
+
 ## [0.4.1] - 2018-05-18
 
 ### Fixed
 
 - A feature flag name was rejected by crates.io and needed to be
   updated; this release has no substantial changes beyond 0.4.0.
+
+[0.4.1]: https://github.com/shepmaster/snafu/releases/tag/0.4.1
 
 ## [0.4.0] - 2018-05-18
 
@@ -76,6 +84,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SNAFU types no longer implement `Borrow<std::error::Error>`. This is
   a **breaking change**.
 
+[0.4.0]: https://github.com/shepmaster/snafu/releases/tag/0.4.0
+
 ## [0.3.1] - 2019-05-10
 
 ### Fixed
@@ -89,6 +99,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   error causes. In the next release containing breaking changes, the
   automatic implementation of `Borrow<dyn std::error::Error>` for
   SNAFU types will be removed.
+
+[0.3.1]: https://github.com/shepmaster/snafu/releases/tag/0.3.1
 
 ## [0.3.0] - 2019-05-08
 
@@ -121,6 +133,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The default `Display` implementation includes the underlying error
   message.
+
+[0.3.0]: https://github.com/shepmaster/snafu/releases/tag/0.3.0
 
 ## [0.2.3] - 2019-04-24
 
