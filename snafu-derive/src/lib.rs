@@ -1241,9 +1241,6 @@ struct ContextSelector<'a>(&'a EnumInfo, &'a VariantInfo);
 
 impl<'a> quote::ToTokens for ContextSelector<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        use proc_macro2::Span;
-        use syn::Ident;
-
         let enum_name = &self.0.name;
         let original_lifetimes = self.0.provided_generic_lifetimes();
         let original_generic_types_without_defaults =
@@ -1261,7 +1258,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
         } = *self.1;
 
         let generic_names: &Vec<_> = &(0..user_fields.len())
-            .map(|i| Ident::new(&format!("__T{}", i), Span::call_site()))
+            .map(|i| format_ident!("__T{}", i))
             .collect();
 
         let visibility = self
