@@ -1274,7 +1274,6 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
         let selector_name = quote! { #variant_name<#(#generic_names,)*> };
 
         let names: &Vec<_> = &user_fields.iter().map(|f| f.name.clone()).collect();
-        let types = generic_names;
 
         let variant_selector_struct = {
             if user_fields.is_empty() {
@@ -1288,7 +1287,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
                 quote! {
                     #[derive(Debug, Copy, Clone)]
                     #visibility struct #selector_name {
-                        #( #visibilities #names: #types ),*
+                        #( #visibilities #names: #generic_names ),*
                     }
                 }
             }
@@ -1313,8 +1312,6 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
             .collect();
 
         let inherent_impl = if source_field.is_none() {
-            let names2 = names;
-
             quote! {
                 impl<#(#generic_names,)*> #selector_name
                 {
@@ -1325,7 +1322,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
                         let Self { #(#names),* } = self;
                         let error = #enum_name::#variant_name {
                             #backtrace_field
-                            #( #names: std::convert::Into::into(#names2) ),*
+                            #( #names: std::convert::Into::into(#names) ),*
                         };
                         std::result::Result::Err(error)
                     }
