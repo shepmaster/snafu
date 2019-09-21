@@ -1,5 +1,6 @@
 #![deny(missing_docs)]
 #![cfg_attr(not(any(feature = "std", test)), no_std)]
+#![cfg_attr(feature = "unstable-backtraces-impl-std", feature(backtrace))]
 
 //! # SNAFU
 //!
@@ -78,27 +79,34 @@
 #[cfg(all(
     not(feature = "backtraces"),
     not(feature = "backtraces-impl-backtrace-crate"),
+    not(feature = "unstable-backtraces-impl-std"),
 ))]
 mod backtrace_inert;
 #[cfg(all(
     not(feature = "backtraces"),
     not(feature = "backtraces-impl-backtrace-crate"),
+    not(feature = "unstable-backtraces-impl-std"),
 ))]
 pub use crate::backtrace_inert::*;
 
 #[cfg(all(
     feature = "backtraces",
     not(feature = "backtraces-impl-backtrace-crate"),
+    not(feature = "unstable-backtraces-impl-std"),
 ))]
 mod backtrace_shim;
 #[cfg(all(
     feature = "backtraces",
     not(feature = "backtraces-impl-backtrace-crate"),
+    not(feature = "unstable-backtraces-impl-std"),
 ))]
 pub use crate::backtrace_shim::*;
 
 #[cfg(feature = "backtraces-impl-backtrace-crate")]
 pub use backtrace::Backtrace;
+
+#[cfg(feature = "unstable-backtraces-impl-std")]
+pub use std::backtrace::Backtrace;
 
 #[cfg(feature = "futures-01")]
 pub mod futures01;
@@ -625,6 +633,17 @@ impl GenerateBacktrace for Option<Backtrace> {
 impl GenerateBacktrace for Backtrace {
     fn generate() -> Self {
         Backtrace::new()
+    }
+
+    fn as_backtrace(&self) -> Option<&Backtrace> {
+        Some(self)
+    }
+}
+
+#[cfg(feature = "unstable-backtraces-impl-std")]
+impl GenerateBacktrace for Backtrace {
+    fn generate() -> Self {
+        Backtrace::force_capture()
     }
 
     fn as_backtrace(&self) -> Option<&Backtrace> {

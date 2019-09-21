@@ -1560,6 +1560,16 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
             }
         };
 
+        let std_backtrace_fn = if cfg!(feature = "unstable-backtraces-impl-std") {
+            quote! {
+                fn backtrace(&self) -> Option<&std::backtrace::Backtrace> {
+                    snafu::ErrorCompat::backtrace(self)
+                }
+            }
+        } else {
+            quote! {}
+        };
+
         stream.extend({
             quote! {
                 impl<#(#original_generics),*> snafu::Error for #parameterized_enum_name
@@ -1570,6 +1580,7 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
                     #description_fn
                     #cause_fn
                     #source_fn
+                    #std_backtrace_fn
                 }
             }
         })
@@ -1690,6 +1701,16 @@ impl StructInfo {
             }
         };
 
+        let std_backtrace_fn = if cfg!(feature = "unstable-backtraces-impl-std") {
+            quote! {
+                fn backtrace(&self) -> Option<&std::backtrace::Backtrace> {
+                    snafu::ErrorCompat::backtrace(self)
+                }
+            }
+        } else {
+            quote! {}
+        };
+
         let error_impl = quote! {
             impl#generics snafu::Error for #parameterized_struct_name
             where
@@ -1698,6 +1719,7 @@ impl StructInfo {
                 #description_fn
                 #cause_fn
                 #source_fn
+                #std_backtrace_fn
             }
         };
 

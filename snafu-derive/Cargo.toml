@@ -10,6 +10,9 @@ repository = "https://github.com/shepmaster/snafu"
 
 license = "MIT OR Apache-2.0"
 
+[features]
+unstable-backtraces-impl-std = []
+
 [lib]
 proc-macro = true
 

@@ -35,6 +35,10 @@ backtraces = ["std", "backtrace"]
 # The backtrace type becomes `backtrace::Backtrace`
 backtraces-impl-backtrace-crate = ["backtraces"]
 
+# The backtrace type becomes `std::backtrace::Backtrace` and we
+# implement `std::error::Error::backtrace`
+unstable-backtraces-impl-std = ["backtraces", "snafu-derive/unstable-backtraces-impl-std"]
+
 # Add extension traits for the futures 0.1 crate
 "futures-01" = ["futures01"]
 
