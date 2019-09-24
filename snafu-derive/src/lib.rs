@@ -1257,7 +1257,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
             ..
         } = *self.1;
 
-        let generic_names: &Vec<_> = &(0..user_fields.len())
+        let generic_names: Vec<_> = (0..user_fields.len())
             .map(|i| format_ident!("__T{}", i))
             .collect();
 
@@ -1270,7 +1270,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
         let generics_list = quote! { <#(#original_lifetimes,)* #(#generic_names,)* #(#original_generic_types_without_defaults,)*> };
         let selector_name = quote! { #variant_name<#(#generic_names,)*> };
 
-        let names: &Vec<_> = &user_fields.iter().map(|f| f.name.clone()).collect();
+        let names: Vec<_> = user_fields.iter().map(|f| f.name.clone()).collect();
 
         let variant_selector_struct = {
             if user_fields.is_empty() {
@@ -1298,7 +1298,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
             None => quote! {},
         };
 
-        let where_clauses: &Vec<_> = &generic_names
+        let where_clauses: Vec<_> = generic_names
             .iter()
             .zip(user_fields)
             .map(|(gen_ty, f)| {
@@ -1522,7 +1522,7 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let original_generics = self.0.provided_generics_without_defaults();
         let parameterized_enum_name = &self.0.parameterized_name();
-        let where_clauses: &Vec<_> = &self.0.provided_where_clauses();
+        let where_clauses: Vec<_> = self.0.provided_where_clauses();
 
         let variants_to_description = &self.variants_to_description();
 
@@ -1659,7 +1659,7 @@ impl StructInfo {
         let inner_type = transformation.ty();
         let transformation = transformation.transformation();
 
-        let where_clauses: &Vec<_> = &generics
+        let where_clauses: Vec<_> = generics
             .where_clause
             .iter()
             .flat_map(|c| c.predicates.iter().map(|p| quote! { #p }))
