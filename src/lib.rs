@@ -1,4 +1,3 @@
-#![allow(unknown_lints, bare_trait_objects)]
 #![deny(missing_docs)]
 
 //! # SNAFU
@@ -496,35 +495,35 @@ pub trait AsErrorSource {
     /// For maximum effectiveness, this needs to be called as a method
     /// to benefit from Rust's automatic dereferencing of method
     /// receivers.
-    fn as_error_source(&self) -> &(error::Error + 'static);
+    fn as_error_source(&self) -> &(dyn error::Error + 'static);
 }
 
-impl AsErrorSource for error::Error + 'static {
-    fn as_error_source(&self) -> &(error::Error + 'static) {
+impl AsErrorSource for dyn error::Error + 'static {
+    fn as_error_source(&self) -> &(dyn error::Error + 'static) {
         self
     }
 }
 
-impl AsErrorSource for error::Error + Send + 'static {
-    fn as_error_source(&self) -> &(error::Error + 'static) {
+impl AsErrorSource for dyn error::Error + Send + 'static {
+    fn as_error_source(&self) -> &(dyn error::Error + 'static) {
         self
     }
 }
 
-impl AsErrorSource for error::Error + Sync + 'static {
-    fn as_error_source(&self) -> &(error::Error + 'static) {
+impl AsErrorSource for dyn error::Error + Sync + 'static {
+    fn as_error_source(&self) -> &(dyn error::Error + 'static) {
         self
     }
 }
 
-impl AsErrorSource for error::Error + Send + Sync + 'static {
-    fn as_error_source(&self) -> &(error::Error + 'static) {
+impl AsErrorSource for dyn error::Error + Send + Sync + 'static {
+    fn as_error_source(&self) -> &(dyn error::Error + 'static) {
         self
     }
 }
 
 impl<T: error::Error + 'static> AsErrorSource for T {
-    fn as_error_source(&self) -> &(error::Error + 'static) {
+    fn as_error_source(&self) -> &(dyn error::Error + 'static) {
         self
     }
 }
