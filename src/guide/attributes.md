@@ -84,6 +84,11 @@ enum Error {
 }
 ```
 
+It should be noted that API stability of context selectors is not
+guaranteed. Therefore, exporting them in a crate's public API
+could cause semver breakage for such crates, should SNAFU internals
+change.
+
 ## Controlling error sources
 
 ### Selecting the source field

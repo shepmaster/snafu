@@ -1267,11 +1267,16 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
         let selector_name = quote! { #variant_name<#(#generic_names,)*> };
 
         let names: Vec<_> = user_fields.iter().map(|f| f.name.clone()).collect();
+        let selector_doc = format!(
+            "SNAFU context selector for the `{}::{}` error variant",
+            enum_name, variant_name,
+        );
 
         let variant_selector_struct = {
             if user_fields.is_empty() {
                 quote! {
                     #[derive(Debug, Copy, Clone)]
+                    #[doc = #selector_doc]
                     #visibility struct #selector_name;
                 }
             } else {
@@ -1279,8 +1284,12 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
 
                 quote! {
                     #[derive(Debug, Copy, Clone)]
+                    #[doc = #selector_doc]
                     #visibility struct #selector_name {
-                        #( #visibilities #names: #generic_names ),*
+                        #(
+                            #[allow(missing_docs)]
+                            #visibilities #names: #generic_names
+                        ),*
                     }
                 }
             }
@@ -1308,6 +1317,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
             quote! {
                 impl<#(#generic_names,)*> #selector_name
                 {
+                    #[doc = "Consume the selector and return a `Result` with the associated error"]
                     #visibility fn fail<#(#original_generics_without_defaults,)* __T>(self) -> std::result::Result<__T, #parameterized_enum_name>
                     where
                         #(#where_clauses),*
