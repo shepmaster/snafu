@@ -3,7 +3,7 @@
 //! [`Stream`]: futures01_crate::Stream
 
 use crate::{ErrorCompat, IntoError};
-use futures01_crate::{Async, Stream};
+use futures01::{Async, Stream};
 use std::error;
 use std::marker::PhantomData;
 
@@ -15,7 +15,6 @@ pub trait StreamExt: Stream + Sized {
     /// [`Stream`]: futures01::Stream]
     ///
     /// ```rust
-    /// # extern crate futures01;
     /// use futures01::Stream;
     /// # use futures01::stream;
     /// use snafu::{futures01::StreamExt, Snafu};
@@ -56,7 +55,6 @@ pub trait StreamExt: Stream + Sized {
     /// [`Stream`]: futures01::Stream]
     ///
     /// ```rust
-    /// # extern crate futures01;
     /// use futures01::Stream;
     /// # use futures01::stream;
     /// use snafu::{futures01::StreamExt, Snafu};

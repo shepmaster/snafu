@@ -18,7 +18,6 @@ pub trait TryFutureExt: TryFuture + Sized {
     /// information.
     ///
     /// ```rust
-    /// # extern crate futures;
     /// use futures::future::TryFuture;
     /// use snafu::{futures::TryFutureExt, Snafu};
     ///
@@ -56,7 +55,6 @@ pub trait TryFutureExt: TryFuture + Sized {
     /// information.
     ///
     /// ```rust
-    /// # extern crate futures;
     /// use futures::future::TryFuture;
     /// use snafu::{futures::TryFutureExt, Snafu};
     ///

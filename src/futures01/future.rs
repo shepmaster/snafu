@@ -3,7 +3,7 @@
 //! [`Future`]: futures01_crate::Future
 
 use crate::{ErrorCompat, IntoError};
-use futures01_crate::{Async, Future};
+use futures01::{Async, Future};
 use std::error;
 use std::marker::PhantomData;
 
@@ -15,7 +15,6 @@ pub trait FutureExt: Future + Sized {
     /// [`Future`]: futures01::Future]
     ///
     /// ```rust
-    /// # extern crate futures01;
     /// use futures01::Future;
     /// # use futures01::future;
     /// use snafu::{futures01::FutureExt, Snafu};
@@ -56,7 +55,6 @@ pub trait FutureExt: Future + Sized {
     /// [`Future`]: futures01::Future]
     ///
     /// ```rust
-    /// # extern crate futures01;
     /// use futures01::Future;
     /// # use futures01::future;
     /// use snafu::{futures01::FutureExt, Snafu};

@@ -1,5 +1,3 @@
-extern crate snafu;
-
 use snafu::{Backtrace, OptionExt, Snafu};
 use std::collections::HashMap;
 

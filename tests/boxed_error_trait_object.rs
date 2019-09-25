@@ -1,5 +1,4 @@
 // This test asserts that a boxed error trait object can be used as a source.
-extern crate snafu;
 
 use snafu::{ResultExt, Snafu};
 

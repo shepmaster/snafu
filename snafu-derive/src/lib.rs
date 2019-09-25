@@ -2,16 +2,13 @@
 #![recursion_limit = "128"] // https://github.com/rust-lang/rust/issues/62059
 
 extern crate proc_macro;
-extern crate proc_macro2;
-#[macro_use]
-extern crate quote;
-#[macro_use]
-extern crate syn;
 
 use proc_macro::TokenStream;
+use quote::{format_ident, quote};
 use std::collections::VecDeque;
 use std::fmt;
 use std::iter;
+use syn::parenthesized;
 use syn::parse::Result as SynResult;
 
 /// See the crate-level documentation for SNAFU which contains tested

@@ -1,5 +1,3 @@
-extern crate snafu;
-
 mod inner {
     use snafu::Snafu;
 

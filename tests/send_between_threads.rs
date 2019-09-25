@@ -1,5 +1,4 @@
 // This test asserts that errors can be used across threads.
-extern crate snafu;
 
 use std::thread;
 

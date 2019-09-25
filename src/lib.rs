@@ -76,28 +76,17 @@
 //! ```
 
 #[cfg(feature = "backtraces")]
-extern crate backtrace;
-#[cfg(feature = "backtraces")]
 mod backtrace_shim;
 #[cfg(feature = "backtraces")]
 pub use crate::backtrace_shim::*;
 
 #[cfg(feature = "futures-01")]
-extern crate futures01 as futures01_crate;
-#[cfg(feature = "futures-01")]
 pub mod futures01;
 
 #[cfg(feature = "unstable-futures")]
-extern crate futures_core;
-#[cfg(feature = "unstable-futures")]
-extern crate pin_project;
-#[cfg(feature = "unstable-futures")]
 pub mod futures;
 
-extern crate snafu_derive;
 pub use snafu_derive::Snafu;
-
-extern crate doc_comment;
 
 macro_rules! generate_guide {
     (pub mod $name:ident; $($rest:tt)*) => {
