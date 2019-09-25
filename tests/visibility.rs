@@ -1,5 +1,3 @@
-extern crate snafu;
-
 // There are also sad-path tests
 
 mod outer {

@@ -1,5 +1,3 @@
-extern crate snafu;
-
 use snafu::{Backtrace, ErrorCompat, ResultExt, Snafu};
 
 #[derive(Debug, Snafu)]

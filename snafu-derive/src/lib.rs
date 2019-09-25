@@ -1,17 +1,13 @@
-#![allow(unknown_lints, bare_trait_objects)]
 #![recursion_limit = "128"] // https://github.com/rust-lang/rust/issues/62059
 
 extern crate proc_macro;
-extern crate proc_macro2;
-#[macro_use]
-extern crate quote;
-#[macro_use]
-extern crate syn;
 
 use proc_macro::TokenStream;
+use quote::{format_ident, quote};
 use std::collections::VecDeque;
 use std::fmt;
 use std::iter;
+use syn::parenthesized;
 use syn::parse::Result as SynResult;
 
 /// See the crate-level documentation for SNAFU which contains tested
@@ -26,7 +22,7 @@ pub fn snafu_derive(input: TokenStream) -> TokenStream {
 
 type MultiSynResult<T> = std::result::Result<T, Vec<syn::Error>>;
 
-type UserInput = Box<quote::ToTokens>;
+type UserInput = Box<dyn quote::ToTokens>;
 
 enum SnafuInfo {
     Enum(EnumInfo),
@@ -1537,7 +1533,7 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
         let variants_to_source = &self.variants_to_source();
 
         let cause_fn = quote! {
-            fn cause(&self) -> Option<&std::error::Error> {
+            fn cause(&self) -> Option<&dyn std::error::Error> {
                 use snafu::AsErrorSource;
                 match *self {
                     #(#variants_to_source)*
@@ -1546,7 +1542,7 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
         };
 
         let source_fn = quote! {
-            fn source(&self) -> Option<&(std::error::Error + 'static)> {
+            fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
                 use snafu::AsErrorSource;
                 match *self {
                     #(#variants_to_source)*
@@ -1672,13 +1668,13 @@ impl StructInfo {
         };
 
         let cause_fn = quote! {
-            fn cause(&self) -> Option<&std::error::Error> {
+            fn cause(&self) -> Option<&dyn std::error::Error> {
                 std::error::Error::cause(&self.0)
             }
         };
 
         let source_fn = quote! {
-            fn source(&self) -> Option<&(std::error::Error + 'static)> {
+            fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
                 std::error::Error::source(&self.0)
             }
         };

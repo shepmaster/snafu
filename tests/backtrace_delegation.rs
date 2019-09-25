@@ -1,5 +1,3 @@
-extern crate snafu;
-
 use snafu::{ErrorCompat, ResultExt, Snafu};
 
 mod house {

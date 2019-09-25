@@ -1,5 +1,3 @@
-extern crate snafu;
-
 use snafu::{Backtrace, ResultExt, Snafu};
 
 type BoxError = Box<dyn std::error::Error>;

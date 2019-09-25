@@ -1,5 +1,3 @@
-extern crate snafu;
-
 mod default_with_lifetime {
     use snafu::{AsErrorSource, Snafu};
     use std::fmt::{Debug, Display};

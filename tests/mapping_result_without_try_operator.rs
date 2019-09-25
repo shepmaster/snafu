@@ -1,8 +1,6 @@
 // This test asserts that `ResultExt::eager_context` can be used even
 // when `try!` or `?` is not used.
 
-extern crate snafu;
-
 use snafu::{ResultExt, Snafu};
 
 #[derive(Debug, Snafu)]

@@ -1,4 +1,3 @@
-#![allow(unknown_lints, bare_trait_objects)]
 #![deny(missing_docs)]
 
 //! # SNAFU
@@ -76,28 +75,17 @@
 //! ```
 
 #[cfg(feature = "backtraces")]
-extern crate backtrace;
-#[cfg(feature = "backtraces")]
 mod backtrace_shim;
 #[cfg(feature = "backtraces")]
 pub use crate::backtrace_shim::*;
 
 #[cfg(feature = "futures-01")]
-extern crate futures01 as futures01_crate;
-#[cfg(feature = "futures-01")]
 pub mod futures01;
 
 #[cfg(feature = "unstable-futures")]
-extern crate futures_core;
-#[cfg(feature = "unstable-futures")]
-extern crate pin_project;
-#[cfg(feature = "unstable-futures")]
 pub mod futures;
 
-extern crate snafu_derive;
 pub use snafu_derive::Snafu;
-
-extern crate doc_comment;
 
 macro_rules! generate_guide {
     (pub mod $name:ident; $($rest:tt)*) => {
@@ -507,35 +495,35 @@ pub trait AsErrorSource {
     /// For maximum effectiveness, this needs to be called as a method
     /// to benefit from Rust's automatic dereferencing of method
     /// receivers.
-    fn as_error_source(&self) -> &(error::Error + 'static);
+    fn as_error_source(&self) -> &(dyn error::Error + 'static);
 }
 
-impl AsErrorSource for error::Error + 'static {
-    fn as_error_source(&self) -> &(error::Error + 'static) {
+impl AsErrorSource for dyn error::Error + 'static {
+    fn as_error_source(&self) -> &(dyn error::Error + 'static) {
         self
     }
 }
 
-impl AsErrorSource for error::Error + Send + 'static {
-    fn as_error_source(&self) -> &(error::Error + 'static) {
+impl AsErrorSource for dyn error::Error + Send + 'static {
+    fn as_error_source(&self) -> &(dyn error::Error + 'static) {
         self
     }
 }
 
-impl AsErrorSource for error::Error + Sync + 'static {
-    fn as_error_source(&self) -> &(error::Error + 'static) {
+impl AsErrorSource for dyn error::Error + Sync + 'static {
+    fn as_error_source(&self) -> &(dyn error::Error + 'static) {
         self
     }
 }
 
-impl AsErrorSource for error::Error + Send + Sync + 'static {
-    fn as_error_source(&self) -> &(error::Error + 'static) {
+impl AsErrorSource for dyn error::Error + Send + Sync + 'static {
+    fn as_error_source(&self) -> &(dyn error::Error + 'static) {
         self
     }
 }
 
 impl<T: error::Error + 'static> AsErrorSource for T {
-    fn as_error_source(&self) -> &(error::Error + 'static) {
+    fn as_error_source(&self) -> &(dyn error::Error + 'static) {
         self
     }
 }

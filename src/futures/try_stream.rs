@@ -17,7 +17,6 @@ pub trait TryStreamExt: TryStream + Sized {
     /// information.
     ///
     /// ```rust
-    /// # extern crate futures;
     /// use futures::TryStream;
     /// # use futures::stream;
     /// use snafu::{futures::TryStreamExt, Snafu};
@@ -56,7 +55,6 @@ pub trait TryStreamExt: TryStream + Sized {
     /// context-sensitive information.
     ///
     /// ```rust
-    /// # extern crate futures;
     /// use futures::TryStream;
     /// # use futures::stream;
     /// use snafu::{futures::TryStreamExt, Snafu};
