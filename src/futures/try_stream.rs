@@ -4,7 +4,7 @@
 
 use crate::{ErrorCompat, IntoError};
 use futures_core::stream::{Stream, TryStream};
-use pin_project::unsafe_project;
+use pin_project::pin_project;
 use std::{
     marker::PhantomData,
     pin::Pin,
@@ -124,7 +124,7 @@ where
 /// Stream for the [`context`](TryStreamExt::context) combinator.
 ///
 /// See the [`TryStreamExt::context`] method for more details.
-#[unsafe_project(Unpin)]
+#[pin_project]
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Context<St, C, E> {
@@ -162,7 +162,7 @@ where
 /// Stream for the [`with_context`](TryStreamExt::with_context) combinator.
 ///
 /// See the [`TryStreamExt::with_context`] method for more details.
-#[unsafe_project(Unpin)]
+#[pin_project]
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct WithContext<St, F, E> {
