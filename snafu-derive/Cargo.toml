@@ -2,6 +2,7 @@
 name = "snafu-derive"
 version = "0.5.0"
 authors = ["Jake Goulding <jake.goulding@gmail.com>"]
+edition = "2018"
 
 description = "An ergonomic error handling library"
 documentation = "https://docs.rs/snafu"
@@ -11,12 +12,11 @@ license = "MIT OR Apache-2.0"
 
 [features]
 backtraces = []
-rust_1_30 = []
 
 [lib]
 proc-macro = true
 
 [dependencies]
-syn = { version = "0.15.19", features = ["full"] }
-quote = "0.6"
-proc-macro2 = "0.4"
+syn = { version = "1.0", features = ["full"] }
+quote = "1.0"
+proc-macro2 = "1.0"

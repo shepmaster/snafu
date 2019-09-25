@@ -113,12 +113,13 @@ impl SyntaxErrors {
     /// Adds a new syntax error.  The given description will be used in the compile error pointing
     /// to the given span.  Helper structs are available to format common descriptions, e.g.
     /// OnlyValidOn and DuplicateAttribute.
-    fn add<D, T>(&mut self, tts: T, description: D)
+    fn add<D, T>(&mut self, tokens: T, description: D)
     where
         D: fmt::Display,
         T: quote::ToTokens,
     {
-        self.inner.push(syn::Error::new_spanned(tts, description));
+        self.inner
+            .push(syn::Error::new_spanned(tokens, description));
     }
 
     /// Adds the given list of errors.
@@ -243,18 +244,18 @@ where
         }
     }
 
-    /// Add an occurence of the attribute found at the given token tree `tts`.
-    fn add(&mut self, item: T, tts: U) {
+    /// Add an occurence of the attribute found at the given token tree `tokens`.
+    fn add(&mut self, item: T, tokens: U) {
         if !self.values.is_empty() {
             self.errors.add(
-                tts.clone(),
+                tokens.clone(),
                 DuplicateAttribute {
                     attribute: self.name,
                     location: self.location,
                 },
             );
         }
-        self.values.push_back((item, tts));
+        self.values.push_back((item, tokens));
     }
 
     #[allow(dead_code)]
@@ -349,12 +350,12 @@ fn parse_snafu_enum(
 
     for attr in attributes_from_syn(attrs)? {
         match attr {
-            SnafuAttribute::Visibility(tts, v) => {
-                default_visibilities.add(v, tts);
+            SnafuAttribute::Visibility(tokens, v) => {
+                default_visibilities.add(v, tokens);
             }
-            SnafuAttribute::Display(tts, ..) => {
+            SnafuAttribute::Display(tokens, ..) => {
                 errors.add(
-                    tts,
+                    tokens,
                     OnlyValidOn {
                         attribute: "display",
                         valid_on: "variants of an error enum",
@@ -362,12 +363,12 @@ fn parse_snafu_enum(
                     },
                 );
             }
-            SnafuAttribute::Source(tts, ss) => {
+            SnafuAttribute::Source(tokens, ss) => {
                 for s in ss {
                     match s {
                         Source::Flag(..) => {
                             errors.add(
-                                tts.clone(),
+                                tokens.clone(),
                                 OnlyValidOn {
                                     attribute: "source(bool)",
                                     valid_on: "fields of an error variant",
@@ -377,7 +378,7 @@ fn parse_snafu_enum(
                         }
                         Source::From(_t, _e) => {
                             errors.add(
-                                tts.clone(),
+                                tokens.clone(),
                                 OnlyValidOn {
                                     attribute: "source(from)",
                                     valid_on: "fields of an error variant",
@@ -388,9 +389,9 @@ fn parse_snafu_enum(
                     }
                 }
             }
-            SnafuAttribute::Backtrace(tts, ..) => {
+            SnafuAttribute::Backtrace(tokens, ..) => {
                 errors.add(
-                    tts,
+                    tokens,
                     OnlyValidOn {
                         attribute: "backtrace",
                         valid_on: "fields of an error variant",
@@ -419,11 +420,11 @@ fn parse_snafu_enum(
 
             for attr in attributes_from_syn(variant.attrs)? {
                 match attr {
-                    SnafuAttribute::Display(tts, d) => display_formats.add(d, tts),
-                    SnafuAttribute::Visibility(tts, v) => visibilities.add(v, tts),
-                    SnafuAttribute::Source(tts, ..) => {
+                    SnafuAttribute::Display(tokens, d) => display_formats.add(d, tokens),
+                    SnafuAttribute::Visibility(tokens, v) => visibilities.add(v, tokens),
+                    SnafuAttribute::Source(tokens, ..) => {
                         errors.add(
-                            tts,
+                            tokens,
                             OnlyValidOn {
                                 attribute: "source",
                                 valid_on: "fields of an error variant",
@@ -431,9 +432,9 @@ fn parse_snafu_enum(
                             },
                         );
                     }
-                    SnafuAttribute::Backtrace(tts, ..) => {
+                    SnafuAttribute::Backtrace(tokens, ..) => {
                         errors.add(
-                            tts,
+                            tokens,
                             OnlyValidOn {
                                 attribute: "backtrace",
                                 valid_on: "fields of an error variant",
@@ -504,7 +505,7 @@ fn parse_snafu_enum(
 
                 for attr in attributes_from_syn(syn_field.attrs.clone())? {
                     match attr {
-                        SnafuAttribute::Source(tts, ss) => {
+                        SnafuAttribute::Source(tokens, ss) => {
                             static INCOMPATIBLE: &[&str] = &["source(false)", "source(from)"];
                             for s in ss {
                                 match s {
@@ -513,11 +514,11 @@ fn parse_snafu_enum(
                                         // `Some` value in `source_attrs`.
                                         let seen_source_from = source_attrs
                                             .iter()
-                                            .map(|&(ref val, ref _location)| val)
+                                            .map(|(val, _location)| val)
                                             .any(Option::is_some);
                                         if !v && seen_source_from {
                                             errors.add(
-                                                tts.clone(),
+                                                tokens.clone(),
                                                 IncompatibleAttributes {
                                                     attributes: INCOMPATIBLE,
                                                     location: "a field",
@@ -525,12 +526,12 @@ fn parse_snafu_enum(
                                             );
                                         }
                                         if v {
-                                            source_attrs.add(None, tts.clone());
+                                            source_attrs.add(None, tokens.clone());
                                         } else if name == "source" {
                                             source_opt_out = true;
                                         } else {
                                             errors.add(
-                                                tts.clone(),
+                                                tokens.clone(),
                                                 OnlyValidOn {
                                                     attribute: "source(false)",
                                                     valid_on: "a field named \"source\"",
@@ -542,26 +543,26 @@ fn parse_snafu_enum(
                                     Source::From(t, e) => {
                                         if source_opt_out {
                                             errors.add(
-                                                tts.clone(),
+                                                tokens.clone(),
                                                 IncompatibleAttributes {
                                                     attributes: INCOMPATIBLE,
                                                     location: "a field",
                                                 },
                                             );
                                         }
-                                        source_attrs.add(Some((t, e)), tts.clone());
+                                        source_attrs.add(Some((t, e)), tokens.clone());
                                     }
                                 }
                             }
                         }
-                        SnafuAttribute::Backtrace(tts, v) => {
+                        SnafuAttribute::Backtrace(tokens, v) => {
                             if v {
-                                backtrace_attrs.add((), tts);
+                                backtrace_attrs.add((), tokens);
                             } else if name == "backtrace" {
                                 backtrace_opt_out = true;
                             } else {
                                 errors.add(
-                                    tts,
+                                    tokens,
                                     OnlyValidOn {
                                         attribute: "backtrace(false)",
                                         valid_on: "a field named \"backtrace\"",
@@ -570,9 +571,9 @@ fn parse_snafu_enum(
                                 );
                             }
                         }
-                        SnafuAttribute::Visibility(tts, ..) => {
+                        SnafuAttribute::Visibility(tokens, ..) => {
                             errors.add(
-                                tts,
+                                tokens,
                                 OnlyValidOn {
                                     attribute: "visibility",
                                     valid_on: "an error enum and its variants",
@@ -580,9 +581,9 @@ fn parse_snafu_enum(
                                 },
                             );
                         }
-                        SnafuAttribute::Display(tts, ..) => {
+                        SnafuAttribute::Display(tokens, ..) => {
                             errors.add(
-                                tts,
+                                tokens,
                                 OnlyValidOn {
                                     attribute: "display",
                                     valid_on: "variants of an error enum",
@@ -646,7 +647,7 @@ fn parse_snafu_enum(
             errors.extend(errs);
 
             match (&source, &backtrace) {
-                (&Some(ref source), &Some(ref backtrace)) if source.0.backtrace_delegate => {
+                (Some(source), Some(backtrace)) if source.0.backtrace_delegate => {
                     let source_location = source.1.clone();
                     let backtrace_location = backtrace.1.clone();
                     errors.add(
@@ -706,9 +707,9 @@ fn parse_snafu_struct(
 
     for attr in attributes_from_syn(attrs)? {
         match attr {
-            SnafuAttribute::Display(tts, ..) => {
+            SnafuAttribute::Display(tokens, ..) => {
                 errors.add(
-                    tts,
+                    tokens,
                     OnlyValidOn {
                         attribute: "display",
                         valid_on: "variants of an error enum",
@@ -716,9 +717,9 @@ fn parse_snafu_struct(
                     },
                 );
             }
-            SnafuAttribute::Visibility(tts, ..) => {
+            SnafuAttribute::Visibility(tokens, ..) => {
                 errors.add(
-                    tts,
+                    tokens,
                     OnlyValidOn {
                         attribute: "visibility",
                         valid_on: "an error enum and its variants",
@@ -726,12 +727,12 @@ fn parse_snafu_struct(
                     },
                 );
             }
-            SnafuAttribute::Source(tts, ss) => {
+            SnafuAttribute::Source(tokens, ss) => {
                 for s in ss {
                     match s {
                         Source::Flag(..) => {
                             errors.add(
-                                tts.clone(),
+                                tokens.clone(),
                                 OnlyValidOn {
                                     attribute: "source(bool)",
                                     valid_on: "fields of an error variant",
@@ -739,13 +740,13 @@ fn parse_snafu_struct(
                                 },
                             );
                         }
-                        Source::From(t, e) => transformations.add((t, e), tts.clone()),
+                        Source::From(t, e) => transformations.add((t, e), tokens.clone()),
                     }
                 }
             }
-            SnafuAttribute::Backtrace(tts, ..) => {
+            SnafuAttribute::Backtrace(tokens, ..) => {
                 errors.add(
-                    tts,
+                    tokens,
                     OnlyValidOn {
                         attribute: "backtrace",
                         valid_on: "fields of an error variant",
@@ -1046,10 +1047,10 @@ impl syn::parse::Parse for DocComment {
         use syn::LitStr;
 
         let _: Eq = input.parse()?;
-        let tts = input.cursor().token_stream();
+        let tokens = input.cursor().token_stream();
         let doc: LitStr = input.parse()?;
 
-        Ok(DocComment(SnafuAttribute::DocComment(tts, doc.value())))
+        Ok(DocComment(SnafuAttribute::DocComment(tokens, doc.value())))
     }
 }
 
@@ -1061,12 +1062,12 @@ fn attributes_from_syn(attrs: Vec<syn::Attribute>) -> MultiSynResult<Vec<SnafuAt
 
     let parsed_attrs = attrs.into_iter().flat_map(|attr| {
         if attr.path.is_ident("snafu") {
-            Some(parse2::<SnafuAttributeBody>(attr.tts).map(|body| body.0))
+            Some(parse2::<SnafuAttributeBody>(attr.tokens).map(|body| body.0))
         } else if attr.path.is_ident("doc") {
             // Ignore any errors that occur while parsing the doc
             // comment. This isn't our attribute so we shouldn't
             // assume that we know what values are acceptable.
-            parse2::<DocComment>(attr.tts)
+            parse2::<DocComment>(attr.tokens)
                 .ok()
                 .map(|comment| Ok(vec![comment.0]))
         } else {
@@ -1240,9 +1241,6 @@ struct ContextSelector<'a>(&'a EnumInfo, &'a VariantInfo);
 
 impl<'a> quote::ToTokens for ContextSelector<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        use proc_macro2::Span;
-        use syn::Ident;
-
         let enum_name = &self.0.name;
         let original_lifetimes = self.0.provided_generic_lifetimes();
         let original_generic_types_without_defaults =
@@ -1259,8 +1257,8 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
             ..
         } = *self.1;
 
-        let generic_names: &Vec<_> = &(0..user_fields.len())
-            .map(|i| Ident::new(&format!("__T{}", i), Span::call_site()))
+        let generic_names: Vec<_> = (0..user_fields.len())
+            .map(|i| format_ident!("__T{}", i))
             .collect();
 
         let visibility = self
@@ -1272,8 +1270,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
         let generics_list = quote! { <#(#original_lifetimes,)* #(#generic_names,)* #(#original_generic_types_without_defaults,)*> };
         let selector_name = quote! { #variant_name<#(#generic_names,)*> };
 
-        let names: &Vec<_> = &user_fields.iter().map(|f| f.name.clone()).collect();
-        let types = generic_names;
+        let names: Vec<_> = user_fields.iter().map(|f| f.name.clone()).collect();
 
         let variant_selector_struct = {
             if user_fields.is_empty() {
@@ -1287,7 +1284,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
                 quote! {
                     #[derive(Debug, Copy, Clone)]
                     #visibility struct #selector_name {
-                        #( #visibilities #names: #types ),*
+                        #( #visibilities #names: #generic_names ),*
                     }
                 }
             }
@@ -1301,7 +1298,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
             None => quote! {},
         };
 
-        let where_clauses: &Vec<_> = &generic_names
+        let where_clauses: Vec<_> = generic_names
             .iter()
             .zip(user_fields)
             .map(|(gen_ty, f)| {
@@ -1312,8 +1309,6 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
             .collect();
 
         let inherent_impl = if source_field.is_none() {
-            let names2 = names;
-
             quote! {
                 impl<#(#generic_names,)*> #selector_name
                 {
@@ -1324,7 +1319,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
                         let Self { #(#names),* } = self;
                         let error = #enum_name::#variant_name {
                             #backtrace_field
-                            #( #names: std::convert::Into::into(#names2) ),*
+                            #( #names: std::convert::Into::into(#names) ),*
                         };
                         std::result::Result::Err(error)
                     }
@@ -1371,7 +1366,6 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
                 {
                     type Source = #source_ty;
 
-                    #[allow(unused_variables)] // Workaround Rust 1.18 bug
                     fn into_error(self, error: Self::Source) -> #parameterized_enum_name {
                         #enum_name::#variant_name {
                             #source_xfer_field
@@ -1414,15 +1408,15 @@ impl<'a> DisplayImpl<'a> {
                 } = *variant;
 
                 let format = match (display_format, source_field) {
-                    (&Some(ref v), _) => quote! { #v },
-                    (&None, _) if !doc_comment.is_empty() => {
+                    (Some(ref v), _) => quote! { #v },
+                    (None, _) if !doc_comment.is_empty() => {
                         quote! { #doc_comment }
                     }
-                    (&None, &Some(ref f)) => {
+                    (None, Some(ref f)) => {
                         let field_name = &f.name;
                         quote! { concat!(stringify!(#variant_name), ": {}"), #field_name }
                     }
-                    (&None, &None) => quote! { stringify!(#variant_name)},
+                    (None, None) => quote! { stringify!(#variant_name)},
                 };
 
                 let field_names = user_fields
@@ -1528,7 +1522,7 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         let original_generics = self.0.provided_generics_without_defaults();
         let parameterized_enum_name = &self.0.parameterized_name();
-        let where_clauses: &Vec<_> = &self.0.provided_where_clauses();
+        let where_clauses: Vec<_> = self.0.provided_where_clauses();
 
         let variants_to_description = &self.variants_to_description();
 
@@ -1551,17 +1545,13 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
             }
         };
 
-        let source_fn = if cfg!(feature = "rust_1_30") {
-            quote! {
-                fn source(&self) -> Option<&(std::error::Error + 'static)> {
-                    use snafu::AsErrorSource;
-                    match *self {
-                        #(#variants_to_source)*
-                    }
+        let source_fn = quote! {
+            fn source(&self) -> Option<&(std::error::Error + 'static)> {
+                use snafu::AsErrorSource;
+                match *self {
+                    #(#variants_to_source)*
                 }
             }
-        } else {
-            quote! {}
         };
 
         stream.extend({
@@ -1595,7 +1585,7 @@ impl<'a> ErrorCompatImpl<'a> {
 
 
             match (source_field, backtrace_field) {
-                (&Some(ref source_field), _) if source_field.backtrace_delegate => {
+                (Some(ref source_field), _) if source_field.backtrace_delegate => {
                     let SourceField {
                         name: ref field_name,
                         ..
@@ -1669,7 +1659,7 @@ impl StructInfo {
         let inner_type = transformation.ty();
         let transformation = transformation.transformation();
 
-        let where_clauses: &Vec<_> = &generics
+        let where_clauses: Vec<_> = generics
             .where_clause
             .iter()
             .flat_map(|c| c.predicates.iter().map(|p| quote! { #p }))
@@ -1687,14 +1677,10 @@ impl StructInfo {
             }
         };
 
-        let source_fn = if cfg!(feature = "rust_1_30") {
-            quote! {
-                fn source(&self) -> Option<&(std::error::Error + 'static)> {
-                    std::error::Error::source(&self.0)
-                }
+        let source_fn = quote! {
+            fn source(&self) -> Option<&(std::error::Error + 'static)> {
+                std::error::Error::source(&self.0)
             }
-        } else {
-            quote! {}
         };
 
         let backtrace_fn = if cfg!(feature = "backtraces") {

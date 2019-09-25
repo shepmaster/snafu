@@ -2,6 +2,7 @@
 //!
 //! [`TryStream`]: futures_core::TryStream
 
+use crate::{ErrorCompat, IntoError};
 use futures_core::stream::{Stream, TryStream};
 use pin_project::unsafe_project;
 use std::{
@@ -9,7 +10,6 @@ use std::{
     pin::Pin,
     task::{Context as TaskContext, Poll},
 };
-use {ErrorCompat, IntoError};
 
 /// Additions to [`TryStream`].
 pub trait TryStreamExt: TryStream + Sized {

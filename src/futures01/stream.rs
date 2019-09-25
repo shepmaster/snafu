@@ -2,10 +2,10 @@
 //!
 //! [`Stream`]: futures01_crate::Stream
 
+use crate::{ErrorCompat, IntoError};
 use futures01_crate::{Async, Stream};
 use std::error;
 use std::marker::PhantomData;
-use {ErrorCompat, IntoError};
 
 /// Additions to [`Stream`].
 pub trait StreamExt: Stream + Sized {
