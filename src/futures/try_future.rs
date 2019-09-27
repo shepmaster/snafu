@@ -4,7 +4,7 @@
 
 use crate::{ErrorCompat, IntoError};
 use futures_core::future::TryFuture;
-use pin_project::unsafe_project;
+use pin_project::pin_project;
 use std::{
     future::Future,
     marker::PhantomData,
@@ -123,7 +123,7 @@ where
 /// Future for the [`context`](TryFutureExt::context) combinator.
 ///
 /// See the [`TryFutureExt::context`] method for more details.
-#[unsafe_project(Unpin)]
+#[pin_project]
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Context<Fut, C, E> {
@@ -158,7 +158,7 @@ where
 /// Future for the [`with_context`](TryFutureExt::with_context) combinator.
 ///
 /// See the [`TryFutureExt::with_context`] method for more details.
-#[unsafe_project(Unpin)]
+#[pin_project]
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct WithContext<Fut, F, E> {
