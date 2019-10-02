@@ -24,13 +24,13 @@ exclude = [
 all-features = true
 
 [features]
-default = ["backtraces", "std"]
+default = ["std"]
 
 # Implement the `std::error::Error` trait.
 std = []
 
-# Adds the backtrace type
-backtraces = ["std", "snafu-derive/backtraces", "backtrace"]
+# Makes the backtrace type live
+backtraces = ["std", "backtrace"]
 
 # Add conversion to `backtrace::Backtrace`
 backtrace-crate = ["backtraces"]
