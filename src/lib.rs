@@ -75,6 +75,11 @@
 //! }
 //! ```
 
+#[cfg(not(feature = "backtraces"))]
+mod backtrace_inert;
+#[cfg(not(feature = "backtraces"))]
+pub use crate::backtrace_inert::*;
+
 #[cfg(feature = "backtraces")]
 mod backtrace_shim;
 #[cfg(feature = "backtraces")]
@@ -432,7 +437,6 @@ impl<T> OptionExt<T> for Option<T> {
 /// ```
 pub trait ErrorCompat {
     /// Returns a [`Backtrace`](Backtrace) that may be printed.
-    #[cfg(feature = "backtraces")]
     fn backtrace(&self) -> Option<&Backtrace> {
         None
     }
@@ -442,7 +446,6 @@ impl<'a, E> ErrorCompat for &'a E
 where
     E: ErrorCompat,
 {
-    #[cfg(feature = "backtraces")]
     fn backtrace(&self) -> Option<&Backtrace> {
         (**self).backtrace()
     }
@@ -453,7 +456,6 @@ impl<E> ErrorCompat for Box<E>
 where
     E: ErrorCompat,
 {
-    #[cfg(feature = "backtraces")]
     fn backtrace(&self) -> Option<&Backtrace> {
         (**self).backtrace()
     }
