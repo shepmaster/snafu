@@ -2,10 +2,9 @@
 //!
 //! [`Future`]: futures01_crate::Future
 
-use crate::{ErrorCompat, IntoError};
+use crate::{Error, ErrorCompat, IntoError};
+use core::marker::PhantomData;
 use futures01::{Async, Future};
-use std::error;
-use std::marker::PhantomData;
 
 /// Additions to [`Future`].
 pub trait FutureExt: Future + Sized {
@@ -47,7 +46,7 @@ pub trait FutureExt: Future + Sized {
     fn context<C, E>(self, context: C) -> Context<Self, C, E>
     where
         C: IntoError<E, Source = Self::Error>,
-        E: error::Error + ErrorCompat;
+        E: Error + ErrorCompat;
 
     /// Extend a [`Future`]'s error with lazily-generated context-sensitive
     /// information.
@@ -88,7 +87,7 @@ pub trait FutureExt: Future + Sized {
     where
         F: FnOnce() -> C,
         C: IntoError<E, Source = Self::Error>,
-        E: error::Error + ErrorCompat;
+        E: Error + ErrorCompat;
 }
 
 impl<Fut> FutureExt for Fut
@@ -98,7 +97,7 @@ where
     fn context<C, E>(self, context: C) -> Context<Self, C, E>
     where
         C: IntoError<E, Source = Self::Error>,
-        E: error::Error + ErrorCompat,
+        E: Error + ErrorCompat,
     {
         Context {
             future: self,
@@ -111,7 +110,7 @@ where
     where
         F: FnOnce() -> C,
         C: IntoError<E, Source = Self::Error>,
-        E: error::Error + ErrorCompat,
+        E: Error + ErrorCompat,
     {
         WithContext {
             future: self,
@@ -134,7 +133,7 @@ impl<Fut, C, E> Future for Context<Fut, C, E>
 where
     Fut: Future,
     C: IntoError<E, Source = Fut::Error>,
-    E: error::Error + ErrorCompat,
+    E: Error + ErrorCompat,
 {
     type Item = Fut::Item;
     type Error = E;
@@ -163,7 +162,7 @@ where
     Fut: Future,
     F: FnOnce() -> C,
     C: IntoError<E, Source = Fut::Error>,
-    E: error::Error + ErrorCompat,
+    E: Error + ErrorCompat,
 {
     type Item = Fut::Item;
     type Error = E;

@@ -2,15 +2,15 @@
 //!
 //! [`TryFuture`]: futures_core::future::TryFuture
 
-use crate::{ErrorCompat, IntoError};
-use futures_core::future::TryFuture;
-use pin_project::pin_project;
-use std::{
+use crate::{Error, ErrorCompat, IntoError};
+use core::{
     future::Future,
     marker::PhantomData,
     pin::Pin,
     task::{Context as TaskContext, Poll},
 };
+use futures_core::future::TryFuture;
+use pin_project::pin_project;
 
 /// Additions to [`TryFuture`].
 pub trait TryFutureExt: TryFuture + Sized {
@@ -49,7 +49,7 @@ pub trait TryFutureExt: TryFuture + Sized {
     fn context<C, E>(self, context: C) -> Context<Self, C, E>
     where
         C: IntoError<E, Source = Self::Error>,
-        E: std::error::Error + ErrorCompat;
+        E: Error + ErrorCompat;
 
     /// Extend a [`TryFuture`]'s error with lazily-generated context-sensitive
     /// information.
@@ -87,7 +87,7 @@ pub trait TryFutureExt: TryFuture + Sized {
     where
         F: FnOnce() -> C,
         C: IntoError<E, Source = Self::Error>,
-        E: std::error::Error + ErrorCompat;
+        E: Error + ErrorCompat;
 }
 
 impl<Fut> TryFutureExt for Fut
@@ -97,7 +97,7 @@ where
     fn context<C, E>(self, context: C) -> Context<Self, C, E>
     where
         C: IntoError<E, Source = Self::Error>,
-        E: std::error::Error + ErrorCompat,
+        E: Error + ErrorCompat,
     {
         Context {
             inner: self,
@@ -110,7 +110,7 @@ where
     where
         F: FnOnce() -> C,
         C: IntoError<E, Source = Self::Error>,
-        E: std::error::Error + ErrorCompat,
+        E: Error + ErrorCompat,
     {
         WithContext {
             inner: self,
@@ -137,7 +137,7 @@ impl<Fut, C, E> Future for Context<Fut, C, E>
 where
     Fut: TryFuture,
     C: IntoError<E, Source = Fut::Error>,
-    E: std::error::Error + ErrorCompat,
+    E: Error + ErrorCompat,
 {
     type Output = Result<Fut::Ok, E>;
 
@@ -173,7 +173,7 @@ where
     Fut: TryFuture,
     F: FnOnce() -> C,
     C: IntoError<E, Source = Fut::Error>,
-    E: std::error::Error + ErrorCompat,
+    E: Error + ErrorCompat,
 {
     type Output = Result<Fut::Ok, E>;
 

@@ -11,8 +11,8 @@ repository = "https://github.com/shepmaster/snafu"
 
 license = "MIT OR Apache-2.0"
 
-keywords = ["error", "ergonomic", "library"]
-categories = ["rust-patterns"]
+keywords = ["error", "ergonomic", "library", "no_std"]
+categories = ["rust-patterns", "no-std"]
 
 exclude = [
   "/.cirrus.yml",
@@ -24,10 +24,13 @@ exclude = [
 all-features = true
 
 [features]
-default = ["backtraces"]
+default = ["backtraces", "std"]
+
+# Implement the `std::error::Error` trait.
+std = []
 
 # Adds the backtrace type
-backtraces = ["snafu-derive/backtraces", "backtrace"]
+backtraces = ["std", "snafu-derive/backtraces", "backtrace"]
 
 # Add conversion to `backtrace::Backtrace`
 backtrace-crate = ["backtraces"]

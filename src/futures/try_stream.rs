@@ -2,14 +2,14 @@
 //!
 //! [`TryStream`]: futures_core::TryStream
 
-use crate::{ErrorCompat, IntoError};
-use futures_core::stream::{Stream, TryStream};
-use pin_project::pin_project;
-use std::{
+use crate::{Error, ErrorCompat, IntoError};
+use core::{
     marker::PhantomData,
     pin::Pin,
     task::{Context as TaskContext, Poll},
 };
+use futures_core::stream::{Stream, TryStream};
+use pin_project::pin_project;
 
 /// Additions to [`TryStream`].
 pub trait TryStreamExt: TryStream + Sized {
@@ -49,7 +49,7 @@ pub trait TryStreamExt: TryStream + Sized {
     fn context<C, E>(self, context: C) -> Context<Self, C, E>
     where
         C: IntoError<E, Source = Self::Error> + Clone,
-        E: std::error::Error + ErrorCompat;
+        E: Error + ErrorCompat;
 
     /// Extend a [`TryStream`]'s error with lazily-generated
     /// context-sensitive information.
@@ -88,7 +88,7 @@ pub trait TryStreamExt: TryStream + Sized {
     where
         F: FnMut() -> C,
         C: IntoError<E, Source = Self::Error>,
-        E: std::error::Error + ErrorCompat;
+        E: Error + ErrorCompat;
 }
 
 impl<St> TryStreamExt for St
@@ -98,7 +98,7 @@ where
     fn context<C, E>(self, context: C) -> Context<Self, C, E>
     where
         C: IntoError<E, Source = Self::Error> + Clone,
-        E: std::error::Error + ErrorCompat,
+        E: Error + ErrorCompat,
     {
         Context {
             inner: self,
@@ -111,7 +111,7 @@ where
     where
         F: FnMut() -> C,
         C: IntoError<E, Source = Self::Error>,
-        E: std::error::Error + ErrorCompat,
+        E: Error + ErrorCompat,
     {
         WithContext {
             inner: self,
@@ -138,7 +138,7 @@ impl<St, C, E> Stream for Context<St, C, E>
 where
     St: TryStream,
     C: IntoError<E, Source = St::Error> + Clone,
-    E: std::error::Error + ErrorCompat,
+    E: Error + ErrorCompat,
 {
     type Item = Result<St::Ok, E>;
 
@@ -177,7 +177,7 @@ where
     St: TryStream,
     F: FnMut() -> C,
     C: IntoError<E, Source = St::Error>,
-    E: std::error::Error + ErrorCompat,
+    E: Error + ErrorCompat,
 {
     type Item = Result<St::Ok, E>;
 
