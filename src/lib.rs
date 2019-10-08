@@ -151,7 +151,7 @@ use std::error;
 macro_rules! ensure {
     ($predicate:expr, $context_selector:expr) => {
         if !$predicate {
-            return $context_selector.fail();
+            return $context_selector.fail().map_err(core::convert::Into::into);
         }
     };
 }
