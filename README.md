@@ -35,6 +35,21 @@ fn process_data() -> Result<()> {
 fn unpack_config(data: &str) -> &str {
     "/some/path/that/does/not/exist"
 }
+
+fn main() {
+    if let Err(e) = process_data() {
+        print_error(&e);
+    }
+}
+
+fn print_error(e: &dyn std::error::Error) {
+    eprintln!("error: {}", e);
+    let mut cause = e.source();
+    while let Some(e) = cause {
+        eprintln!("caused by: {}", e);
+        cause = e.source();
+    }
+}
 ```
 
 Please see [the documentation][Doc] and the [user's guide][Guide] for
