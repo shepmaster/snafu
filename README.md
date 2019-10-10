@@ -10,7 +10,7 @@ SNAFU is a library to easily assign underlying errors into
 domain-specific errors while adding context.
 
 ```rust
-use snafu::{ResultExt, Snafu};
+use snafu::{ResultExt, Snafu, ErrorCompat};
 use std::{fs, io, path::PathBuf};
 
 #[derive(Debug, Snafu)]
@@ -38,16 +38,10 @@ fn unpack_config(data: &str) -> &str {
 
 fn main() {
     if let Err(e) = process_data() {
-        print_error(&e);
-    }
-}
-
-fn print_error(e: &dyn std::error::Error) {
-    eprintln!("error: {}", e);
-    let mut cause = e.source();
-    while let Some(e) = cause {
-        eprintln!("caused by: {}", e);
-        cause = e.source();
+        eprintln!("error: {}", &e);
+        for cause in ErrorCompat::iter_chain(&e) {
+            eprintln!("caused by: {}", cause);
+        }
     }
 }
 ```
