@@ -1298,7 +1298,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
         let backtrace_field = match *backtrace_field {
             Some(ref field) => {
                 let name = &field.name;
-                quote! { #name: core::default::Default::default(), }
+                quote! { #name: snafu::GenerateBacktrace::generate(), }
             }
             None => quote! {},
         };
@@ -1606,7 +1606,7 @@ impl<'a> ErrorCompatImpl<'a> {
                         ..
                     } = *backtrace_field;
                     quote! {
-                        #enum_name::#variant_name { ref #field_name, .. } => { core::option::Option::Some(#field_name) }
+                        #enum_name::#variant_name { ref #field_name, .. } => { snafu::GenerateBacktrace::as_backtrace(#field_name) }
                     }
                 }
                 _ => {
