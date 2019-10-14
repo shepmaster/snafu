@@ -75,15 +75,30 @@
 //! }
 //! ```
 
-#[cfg(not(feature = "backtraces"))]
+#[cfg(all(
+    not(feature = "backtraces"),
+    not(feature = "backtraces-impl-backtrace-crate"),
+))]
 mod backtrace_inert;
-#[cfg(not(feature = "backtraces"))]
+#[cfg(all(
+    not(feature = "backtraces"),
+    not(feature = "backtraces-impl-backtrace-crate"),
+))]
 pub use crate::backtrace_inert::*;
 
-#[cfg(feature = "backtraces")]
+#[cfg(all(
+    feature = "backtraces",
+    not(feature = "backtraces-impl-backtrace-crate"),
+))]
 mod backtrace_shim;
-#[cfg(feature = "backtraces")]
+#[cfg(all(
+    feature = "backtraces",
+    not(feature = "backtraces-impl-backtrace-crate"),
+))]
 pub use crate::backtrace_shim::*;
+
+#[cfg(feature = "backtraces-impl-backtrace-crate")]
+pub use backtrace::Backtrace;
 
 #[cfg(feature = "futures-01")]
 pub mod futures01;
@@ -602,5 +617,16 @@ impl GenerateBacktrace for Option<Backtrace> {
 
     fn as_backtrace(&self) -> Option<&Backtrace> {
         self.as_ref()
+    }
+}
+
+#[cfg(feature = "backtraces-impl-backtrace-crate")]
+impl GenerateBacktrace for Backtrace {
+    fn generate() -> Self {
+        Backtrace::new()
+    }
+
+    fn as_backtrace(&self) -> Option<&Backtrace> {
+        Some(self)
     }
 }

@@ -71,13 +71,6 @@ impl fmt::Display for Backtrace {
     }
 }
 
-#[cfg(feature = "backtrace-crate")]
-impl AsRef<backtrace::Backtrace> for Backtrace {
-    fn as_ref(&self) -> &backtrace::Backtrace {
-        &self.0
-    }
-}
-
 struct SymbolDisplay<'a>(&'a backtrace::BacktraceSymbol);
 
 impl<'a> SymbolDisplay<'a> {
