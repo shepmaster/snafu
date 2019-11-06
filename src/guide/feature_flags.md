@@ -9,11 +9,13 @@ cases.
 
 ### `backtraces`
 
-**default**: enabled
+**default**: disabled
 
-When enabled, you can use the [`Backtrace`] type in
-your enum variant. If you never use backtraces, you can omit this
-feature to speed up compilation a small amount.
+When enabled, the [`Backtrace`] type in your enum variant will capture
+a backtrace when the error is generated. If you never use backtraces,
+you can omit this feature to speed up compilation a small amount.
+
+It is recommended that only applications make use of this feature.
 
 [`Backtrace`]: crate::Backtrace
 

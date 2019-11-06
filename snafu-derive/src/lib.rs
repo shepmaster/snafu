@@ -1624,19 +1624,14 @@ impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
         let original_generics = self.0.provided_generics_without_defaults();
         let parameterized_enum_name = &self.0.parameterized_name();
         let where_clauses = &self.0.provided_where_clauses();
-
         let variants = &self.variants_to_backtrace();
 
-        let backtrace_fn = if cfg!(feature = "backtraces") {
-            quote! {
-                fn backtrace(&self) -> Option<&snafu::Backtrace> {
-                    match *self {
-                        #(#variants),*
-                    }
+        let backtrace_fn = quote! {
+            fn backtrace(&self) -> Option<&snafu::Backtrace> {
+                match *self {
+                    #(#variants),*
                 }
             }
-        } else {
-            quote! {}
         };
 
         stream.extend({
@@ -1689,14 +1684,10 @@ impl StructInfo {
             }
         };
 
-        let backtrace_fn = if cfg!(feature = "backtraces") {
-            quote! {
-                fn backtrace(&self) -> Option<&snafu::Backtrace> {
-                    snafu::ErrorCompat::backtrace(&self.0)
-                }
+        let backtrace_fn = quote! {
+            fn backtrace(&self) -> Option<&snafu::Backtrace> {
+                snafu::ErrorCompat::backtrace(&self.0)
             }
-        } else {
-            quote! {}
         };
 
         let error_impl = quote! {

@@ -15,8 +15,8 @@ stable_test_task:
   primary_test_script:
     - rustc --version
     - cargo test --all
-  without_backtrace_test_script:
-    - cargo test --manifest-path compatibility-tests/without-backtrace/Cargo.toml
+  backtrace_shim_test_script:
+    - cargo test --manifest-path compatibility-tests/backtrace-shim/Cargo.toml
   futures_0.1_test_script:
     - cargo test --manifest-path compatibility-tests/futures-0.1/Cargo.toml
   context_selectors_have_documentation_test_script:
