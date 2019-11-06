@@ -4,13 +4,16 @@ use core::fmt;
 ///
 /// Backtrace functionality is currently **disabled**. Please review
 /// [the feature flags](crate::guide::feature_flags) to enable it.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Backtrace(());
 
-impl Backtrace {
-    /// Creates the backtrace.
-    pub fn new() -> Self {
+impl crate::GenerateBacktrace for Backtrace {
+    fn generate() -> Self {
         Backtrace(())
+    }
+
+    fn as_backtrace(&self) -> Option<&Backtrace> {
+        Some(self)
     }
 }
 

@@ -75,15 +75,30 @@
 //! }
 //! ```
 
-#[cfg(not(feature = "backtraces"))]
+#[cfg(all(
+    not(feature = "backtraces"),
+    not(feature = "backtraces-impl-backtrace-crate"),
+))]
 mod backtrace_inert;
-#[cfg(not(feature = "backtraces"))]
+#[cfg(all(
+    not(feature = "backtraces"),
+    not(feature = "backtraces-impl-backtrace-crate"),
+))]
 pub use crate::backtrace_inert::*;
 
-#[cfg(feature = "backtraces")]
+#[cfg(all(
+    feature = "backtraces",
+    not(feature = "backtraces-impl-backtrace-crate"),
+))]
 mod backtrace_shim;
-#[cfg(feature = "backtraces")]
+#[cfg(all(
+    feature = "backtraces",
+    not(feature = "backtraces-impl-backtrace-crate"),
+))]
 pub use crate::backtrace_shim::*;
+
+#[cfg(feature = "backtraces-impl-backtrace-crate")]
+pub use backtrace::Backtrace;
 
 #[cfg(feature = "futures-01")]
 pub mod futures01;
@@ -554,4 +569,65 @@ where
 
     /// Combine the information to produce the error
     fn into_error(self, source: Self::Source) -> E;
+}
+
+/// Construct a backtrace, allowing it to be optional.
+pub trait GenerateBacktrace {
+    /// Generate a new backtrace instance
+    fn generate() -> Self;
+
+    /// Retrieve the optional backtrace
+    fn as_backtrace(&self) -> Option<&Backtrace>;
+}
+
+/// Only create a backtrace when an environment variable is set.
+///
+/// This looks first for the value of `RUST_LIB_BACKTRACE` then
+/// `RUST_BACKTRACE`. If the value is set to `1`, backtraces will be
+/// enabled.
+///
+/// This value will be tested only once per program execution;
+/// changing the environment variable after it has been checked will
+/// have no effect.
+#[cfg(any(feature = "std", test))]
+impl GenerateBacktrace for Option<Backtrace> {
+    fn generate() -> Self {
+        use std::env;
+        use std::sync::{
+            atomic::{AtomicBool, Ordering},
+            Once,
+        };
+
+        static START: Once = Once::new();
+        static ENABLED: AtomicBool = AtomicBool::new(false);
+
+        START.call_once(|| {
+            // TODO: What values count as "true"?
+            let enabled = env::var_os("RUST_LIB_BACKTRACE")
+                .or_else(|| env::var_os("RUST_BACKTRACE"))
+                .map_or(false, |v| v == "1");
+            ENABLED.store(enabled, Ordering::SeqCst);
+        });
+
+        if ENABLED.load(Ordering::SeqCst) {
+            Some(Backtrace::generate())
+        } else {
+            None
+        }
+    }
+
+    fn as_backtrace(&self) -> Option<&Backtrace> {
+        self.as_ref()
+    }
+}
+
+#[cfg(feature = "backtraces-impl-backtrace-crate")]
+impl GenerateBacktrace for Backtrace {
+    fn generate() -> Self {
+        Backtrace::new()
+    }
+
+    fn as_backtrace(&self) -> Option<&Backtrace> {
+        Some(self)
+    }
 }

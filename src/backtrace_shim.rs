@@ -8,20 +8,15 @@ use std::{fmt, path};
 #[derive(Debug)]
 pub struct Backtrace(backtrace::Backtrace);
 
-impl Backtrace {
-    /// Creates the backtrace.
+impl crate::GenerateBacktrace for Backtrace {
     // Inlining in an attempt to remove this function from the backtrace
     #[inline(always)]
-    pub fn new() -> Self {
+    fn generate() -> Self {
         Backtrace(backtrace::Backtrace::new())
     }
-}
 
-impl Default for Backtrace {
-    // Inlining in an attempt to remove this function from the backtrace
-    #[inline(always)]
-    fn default() -> Self {
-        Self::new()
+    fn as_backtrace(&self) -> Option<&Backtrace> {
+        Some(self)
     }
 }
 
@@ -73,13 +68,6 @@ impl fmt::Display for Backtrace {
         }
 
         Ok(())
-    }
-}
-
-#[cfg(feature = "backtrace-crate")]
-impl AsRef<backtrace::Backtrace> for Backtrace {
-    fn as_ref(&self) -> &backtrace::Backtrace {
-        &self.0
     }
 }
 
