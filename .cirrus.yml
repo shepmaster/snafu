@@ -56,6 +56,8 @@ nightly_test_task:
     fingerprint_script: cat Cargo.toml
   primary_test_script:
     - cargo +nightly test
+  std_backtrace_test_script:
+    - RUST_BACKTRACE=1 cargo +nightly test --manifest-path compatibility-tests/backtraces-impl-std/Cargo.toml
   minimum_version_test_script:
     - cargo +nightly -Z minimal-versions update
     # These versions determined by trial and error
