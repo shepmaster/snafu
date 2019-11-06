@@ -111,7 +111,7 @@ pub use std::backtrace::Backtrace;
 #[cfg(feature = "futures-01")]
 pub mod futures01;
 
-#[cfg(feature = "unstable-futures")]
+#[cfg(feature = "futures")]
 pub mod futures;
 
 pub use snafu_derive::Snafu;

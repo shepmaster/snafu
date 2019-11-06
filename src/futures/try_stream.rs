@@ -1,6 +1,6 @@
 //! Additions to the [`TryStream`] trait.
 //!
-//! [`TryStream`]: futures_core::TryStream
+//! [`TryStream`]: futures_core_crate::TryStream
 
 use crate::{Error, ErrorCompat, IntoError};
 use core::{
@@ -8,7 +8,7 @@ use core::{
     pin::Pin,
     task::{Context as TaskContext, Poll},
 };
-use futures_core::stream::{Stream, TryStream};
+use futures_core_crate::stream::{Stream, TryStream};
 use pin_project::pin_project;
 
 /// Additions to [`TryStream`].
@@ -17,6 +17,7 @@ pub trait TryStreamExt: TryStream + Sized {
     /// information.
     ///
     /// ```rust
+    /// # use futures_crate as futures;
     /// use futures::TryStream;
     /// # use futures::stream;
     /// use snafu::{futures::TryStreamExt, Snafu};
@@ -55,6 +56,7 @@ pub trait TryStreamExt: TryStream + Sized {
     /// context-sensitive information.
     ///
     /// ```rust
+    /// # use futures_crate as futures;
     /// use futures::TryStream;
     /// # use futures::stream;
     /// use snafu::{futures::TryStreamExt, Snafu};

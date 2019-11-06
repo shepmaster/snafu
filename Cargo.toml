@@ -40,14 +40,14 @@ backtraces-impl-backtrace-crate = ["backtraces"]
 unstable-backtraces-impl-std = ["backtraces", "snafu-derive/unstable-backtraces-impl-std"]
 
 # Add extension traits for the futures 0.1 crate
-"futures-01" = ["futures01"]
+futures-01 = ["futures-01-crate"]
 
 # The standard library's implementation of futures
-"unstable-futures" = ["futures-core-preview", "pin-project"]
+futures = ["futures-core-crate", "pin-project"]
 
 # No public user should make use of this feature
 # https://github.com/rust-lang/cargo/issues/1596
-"internal-dev-dependencies" = ["futures-preview"]
+"internal-dev-dependencies" = ["futures-crate"]
 
 [workspace]
 # The compatibility tests each set feature flags for the library and
@@ -58,7 +58,7 @@ exclude = ["compatibility-tests"]
 snafu-derive = { path = "snafu-derive", version = "0.5.0" }
 doc-comment = { version = "0.3.1", default-features = false }
 backtrace = { version = "0.3.0", optional = true }
-futures01 = { version = "0.1", optional = true, default-features = false }
-futures-preview = { version = "0.3.0-alpha.16", optional = true, default-features = false }
-futures-core-preview = { version = "0.3.0-alpha.16", optional = true, default-features = false }
+futures-01-crate = { package = "futures", version = "0.1", optional = true, default-features = false }
+futures-crate = { package = "futures", version = "0.3.0", optional = true, default-features = false }
+futures-core-crate = { package = "futures-core", version = "0.3.0", optional = true, default-features = false }
 pin-project = { version = "0.4", optional = true, default-features = false }

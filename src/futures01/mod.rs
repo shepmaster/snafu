@@ -3,8 +3,8 @@
 //! This module is only available when the `futures-01` [feature
 //! flag] is enabled.
 //!
-//! [`Future`]: futures01_crate::Future
-//! [`Stream`]: futures01_crate::Stream
+//! [`Future`]: futures_01_crate::Future
+//! [`Stream`]: futures_01_crate::Stream
 //! [feature flag]: crate::guide::feature_flags
 
 pub mod future;
