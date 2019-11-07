@@ -1,9 +1,41 @@
 # Upgrading from previous releases
 
+- [Version 0.5 → 0.6](#version-05--06)
 - [Version 0.4 → 0.5](#version-04--05)
 - [Version 0.3 → 0.4](#version-03--04)
 - [Version 0.2 → 0.3](#version-02--03)
 - [Version 0.1 → 0.2](#version-01--02)
+
+## Version 0.5 → 0.6
+
+### Minimum supported version of Rust is now 1.31
+
+If you are writing a library, you will need to increase your minimum
+supported version of Rust to 1.31 or better. If you are writing an
+application, you should be able to upgrade your installed compiler by
+the same mechanism that you installed it.
+
+### Backtraces
+
+The `Backtrace` type is now always available, so it is encouraged to
+make liberal use of it in your errors. If you are writing an
+application that displays backtraces, make sure to enable the
+[`backtrace` feature flag](crate::guide::feature_flags) so that
+backtraces are populated when they are created.
+
+Implementations of `Backtrace::default` and `Backtrace::new` have been
+removed and replaced with `GenerateBacktrace::generate`.
+
+The `backtrace-crate` feature flag has been renamed to
+`backtraces-impl-backtrace-crate`. The backtrace returned by
+`ErrorCompat::backtrace` is now the `backtrace::Backtrace` type when
+this flag is enabled, so the implementation of `AsRef` has been
+removed..
+
+### Futures
+
+Support for the standard library features has been stabilized, so the
+feature flag has been renamed from `unstable-futures` to `futures`.
 
 ## Version 0.4 → 0.5
 
