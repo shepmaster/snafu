@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2019-xx-xx
+
+### Added
+
+- Optional support for using the unstable `std::backtrace::Backtrace`
+  type and implementing `std::error::Error::backtrace` via the
+  `+unstable-backtraces-impl-std` feature flag.
+- Error variants can now use `Option<Backtrace>` for the `backtrace`
+  field. `Backtrace` will always have the backtrace collected, while
+  `Option<Backtrace>` requires that an environment variable be set.
+- Basic support for no-std environments.
+- The `ensure!` macro now allows creating opaque errors.
+- Context selectors have basic documentation generated. This allows
+  using `#[deny(missing_docs)]`.
+
+### Changed
+
+- Rust 1.31 is now the minimum supported Rust version. This is a
+  **breaking change**.
+- The `Backtrace` type is now always available, but does nothing by
+  default. It is recommended that the end application enables
+  backtrace functionality. This is a **breaking change**.
+- Support for `std::future::Future` has been stabilized, which means
+  the feature flag has been renamed from `unstable-futures` to
+  `futures`. This is a **breaking change**.
+- The `backtrace-crate` feature flag has been renamed to
+  `backtraces-impl-backtrace-crate`. Enabling this flag now *replaces*
+  `snafu::Backtrace` with `backtrace::Backtrace`. The `AsRef`
+  implementation has been removed. This is a **breaking change**.
+- A new trait for constructing backtraces is used instead of `Default`
+  so the `Backtrace` type no longer implements `Default` or has any
+  inherent methods. This is a **breaking change**.
+
+[0.6.0]: https://github.com/shepmaster/snafu/releases/tag/0.6.0
+
 ## [0.5.0] - 2019-08-26
 
 ### Added

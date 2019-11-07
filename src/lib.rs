@@ -15,9 +15,10 @@
 //! two of our operations involve an [`io::Error`](std::io::Error),
 //! these are different conceptual errors to us.
 //!
-//! SNAFU creates *context selectors* mirroring each error
-//! variant. These are used with the [`context`](ResultExt::context)
-//! method to provide ergonomic error handling.
+//! SNAFU creates a *context selector* type for each variant in the
+//! error enum. These context selectors are used with the
+//! [`context`](ResultExt::context) method to provide ergonomic error
+//! handling.
 //!
 //! ```rust
 //! use snafu::{ensure, Backtrace, ErrorCompat, ResultExt, Snafu};
@@ -62,6 +63,7 @@
 //!
 //! # const CONFIG_DIRECTORY: &str = "/does/not/exist";
 //! # const USER_ID: i32 = 0;
+//! # #[cfg(not(feature = "backtraces-impl-backtrace-crate"))]
 //! fn log_in() {
 //!     match log_in_user(CONFIG_DIRECTORY, USER_ID) {
 //!         Ok(true) => println!("Logged in!"),

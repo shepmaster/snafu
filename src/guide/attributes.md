@@ -54,7 +54,7 @@ have one or more error types that are scoped to that module,
 reducing the need to deal with unrelated errors when matching and
 increasing cohesiveness.
 
-If you need access the context selectors from outside of their
+If you need to access the context selectors from outside of their
 module, you can use the `#[snafu(visibility)]` attribute. This can
 be applied to the error type as a default visibility or to
 specific context selectors.
@@ -76,7 +76,7 @@ There are a number of forms of the attribute:
 ```
 # use snafu::Snafu;
 #[derive(Debug, Snafu)]
-#[snafu(visibility = "pub(crate)")] // Default
+#[snafu(visibility = "pub(crate)")] // Sets the default visibility for these context selectors
 enum Error {
     IsPubCrate, // Uses the default
     #[snafu(visibility)]

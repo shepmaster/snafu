@@ -1,5 +1,6 @@
 env:
   RUSTFLAGS: -D warnings
+  RUSTDOCFLAGS: -D warnings
 
 stable_test_task:
   name: "Rust Stable"
@@ -29,6 +30,57 @@ stable_test_task:
     - cargo fmt --all -- --check
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
+doc_test_task:
+  name: "Docs"
+  container:
+    image: rustlang/rust:nightly
+    cpu: 1
+    memory: 2Gi
+  cargo_cache:
+    folder: $CARGO_HOME/registry
+    fingerprint_script: cat Cargo.toml
+  version_information_script:
+    - rustc +nightly --version
+  docs_script:
+    - cargo +nightly doc
+  backtraces_docs_script:
+    - cargo +nightly doc --features=backtraces
+  backtraces_impl_backtrace_crate_docs_script:
+    - cargo +nightly doc --features=backtraces-impl-backtrace-crate
+  unstable_backtraces_impl_std_docs_script:
+    - cargo +nightly doc --features=unstable-backtraces-impl-std
+  futures_01_docs_script:
+    - cargo +nightly doc --features=futures-01
+  futures_docs_script:
+    - cargo +nightly doc --features=futures
+  before_cache_script: rm -rf $CARGO_HOME/registry/index
+
+doc_tests_task:
+  name: "Documentation Tests"
+  container:
+    image: rustlang/rust:nightly
+    cpu: 1
+    memory: 2Gi
+  cargo_cache:
+    folder: $CARGO_HOME/registry
+    fingerprint_script: cat Cargo.toml
+  version_information_script:
+    - rustc +nightly --version
+  backtraces_doctests_script:
+    - cargo +nightly test --doc --features=backtraces
+  backtraces_impl_backtrace_crate_doctests_script:
+    - cargo +nightly test --doc --features=backtraces-impl-backtrace-crate
+  # Disabled because every doctest would need to enable the feature
+  # from the standard library too.
+  #
+  # unstable_backtraces_impl_std_doctests_script:
+  #   - cargo +nightly test --doc --features=unstable-backtraces-impl-std
+  futures_01_doctests_script:
+    - cargo +nightly test --doc --features=futures-01
+  futures_doctests_script:
+    - cargo +nightly test --doc --features=futures,internal-dev-dependencies
+  before_cache_script: rm -rf $CARGO_HOME/registry/index
+
 no_std_test_task:
   name: "Rust Stable (no_std)"
   container:
@@ -55,6 +107,7 @@ nightly_test_task:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
   primary_test_script:
+    - rustc +nightly --version
     - cargo +nightly test
   std_backtrace_test_script:
     - RUST_BACKTRACE=1 cargo +nightly test --manifest-path compatibility-tests/backtraces-impl-std/Cargo.toml

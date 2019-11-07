@@ -21,7 +21,8 @@ exclude = [
 ]
 
 [package.metadata.docs.rs]
-all-features = true
+# The backtraces-impl-* features are incompatible with each other
+features = [ "std", "backtraces", "futures-01", "futures" ]
 
 [features]
 default = ["std"]
