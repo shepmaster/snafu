@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Optional support for using the unstable `std::backtrace::Backtrace`
   type and implementing `std::error::Error::backtrace` via the
-  `+unstable-backtraces-impl-std` feature flag.
+  `unstable-backtraces-impl-std` feature flag.
 - Error variants can now use `Option<Backtrace>` for the `backtrace`
   field. `Backtrace` will always have the backtrace collected, while
   `Option<Backtrace>` requires that an environment variable be set.
