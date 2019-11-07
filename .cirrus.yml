@@ -55,6 +55,7 @@ nightly_test_task:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
   primary_test_script:
+    - rustc +nightly --version
     - cargo +nightly test
   std_backtrace_test_script:
     - RUST_BACKTRACE=1 cargo +nightly test --manifest-path compatibility-tests/backtraces-impl-std/Cargo.toml
