@@ -62,6 +62,7 @@
 //!
 //! # const CONFIG_DIRECTORY: &str = "/does/not/exist";
 //! # const USER_ID: i32 = 0;
+//! # #[cfg(not(feature = "backtraces-impl-backtrace-crate"))]
 //! fn log_in() {
 //!     match log_in_user(CONFIG_DIRECTORY, USER_ID) {
 //!         Ok(true) => println!("Logged in!"),
