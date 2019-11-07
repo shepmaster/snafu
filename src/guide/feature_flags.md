@@ -32,7 +32,7 @@ some point in the future, the standard library will have its own
 backtrace type that SNAFU will use and this feature will conflict with
 its use.
 
-### `unstable-futures`
+### `futures`
 
 **default**: disabled
 
@@ -40,9 +40,7 @@ When enabled, you can use the [`futures::TryFutureExt`] and
 [`futures::TryStreamExt`] traits to add context methods to futures
 and streams returning `Result`s.
 
-Note that this feature requires nightly Rust and may break at any
-time. When the standard library implementation stabilizes, this
-feature flag will be renamed and stabilized.
+Note that this feature requires Rust 1.39.
 
 [`futures::TryFutureExt`]: crate::futures::TryFutureExt
 [`futures::TryStreamExt`]: crate::futures::TryStreamExt

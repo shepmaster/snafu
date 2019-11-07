@@ -1,21 +1,22 @@
 //! Additions to the Futures 0.1 [`Stream`] trait.
 //!
-//! [`Stream`]: futures01_crate::Stream
+//! [`Stream`]: futures_01_crate::Stream
 
 use crate::{Error, ErrorCompat, IntoError};
 use core::marker::PhantomData;
-use futures01::{Async, Stream};
+use futures_01_crate::{Async, Stream};
 
 /// Additions to [`Stream`].
 pub trait StreamExt: Stream + Sized {
     /// Extend a [`Stream`]'s error with additional context-sensitive
     /// information.
     ///
-    /// [`Stream`]: futures01::Stream]
+    /// [`Stream`]: futures_01_crate::Stream]
     ///
     /// ```rust
-    /// use futures01::Stream;
-    /// # use futures01::stream;
+    /// # use futures_01_crate as futures;
+    /// use futures::Stream;
+    /// # use futures::stream;
     /// use snafu::{futures01::StreamExt, Snafu};
     ///
     /// #[derive(Debug, Snafu)]
@@ -51,11 +52,12 @@ pub trait StreamExt: Stream + Sized {
     /// Extend a [`Stream`]'s error with lazily-generated context-sensitive
     /// information.
     ///
-    /// [`Stream`]: futures01::Stream]
+    /// [`Stream`]: futures_01_crate::Stream]
     ///
     /// ```rust
-    /// use futures01::Stream;
-    /// # use futures01::stream;
+    /// # use futures_01_crate as futures;
+    /// use futures::Stream;
+    /// # use futures::stream;
     /// use snafu::{futures01::StreamExt, Snafu};
     ///
     /// #[derive(Debug, Snafu)]

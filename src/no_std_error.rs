@@ -37,7 +37,7 @@ impl_error![
 ];
 
 // We can gate these together with std futures.
-#[cfg(feature = "unstable-futures")]
+#[cfg(feature = "futures")]
 impl_error![
     core::num::TryFromIntError,     // 1.34
     core::array::TryFromSliceError, // 1.34

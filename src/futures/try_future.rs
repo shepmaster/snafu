@@ -1,6 +1,6 @@
 //! Additions to the [`TryFuture`] trait.
 //!
-//! [`TryFuture`]: futures_core::future::TryFuture
+//! [`TryFuture`]: futures_core_crate::future::TryFuture
 
 use crate::{Error, ErrorCompat, IntoError};
 use core::{
@@ -9,7 +9,7 @@ use core::{
     pin::Pin,
     task::{Context as TaskContext, Poll},
 };
-use futures_core::future::TryFuture;
+use futures_core_crate::future::TryFuture;
 use pin_project::pin_project;
 
 /// Additions to [`TryFuture`].
@@ -18,6 +18,7 @@ pub trait TryFutureExt: TryFuture + Sized {
     /// information.
     ///
     /// ```rust
+    /// # use futures_crate as futures;
     /// use futures::future::TryFuture;
     /// use snafu::{futures::TryFutureExt, Snafu};
     ///
@@ -55,6 +56,7 @@ pub trait TryFutureExt: TryFuture + Sized {
     /// information.
     ///
     /// ```rust
+    /// # use futures_crate as futures;
     /// use futures::future::TryFuture;
     /// use snafu::{futures::TryFutureExt, Snafu};
     ///

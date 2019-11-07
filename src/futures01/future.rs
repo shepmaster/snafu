@@ -1,21 +1,22 @@
 //! Additions to the Futures 0.1 [`Future`] trait.
 //!
-//! [`Future`]: futures01_crate::Future
+//! [`Future`]: futures_01_crate::Future
 
 use crate::{Error, ErrorCompat, IntoError};
 use core::marker::PhantomData;
-use futures01::{Async, Future};
+use futures_01_crate::{Async, Future};
 
 /// Additions to [`Future`].
 pub trait FutureExt: Future + Sized {
     /// Extend a [`Future`]'s error with additional context-sensitive
     /// information.
     ///
-    /// [`Future`]: futures01::Future]
+    /// [`Future`]: futures_01_crate::Future]
     ///
     /// ```rust
-    /// use futures01::Future;
-    /// # use futures01::future;
+    /// # use futures_01_crate as futures;
+    /// use futures::Future;
+    /// # use futures::future;
     /// use snafu::{futures01::FutureExt, Snafu};
     ///
     /// #[derive(Debug, Snafu)]
@@ -51,11 +52,12 @@ pub trait FutureExt: Future + Sized {
     /// Extend a [`Future`]'s error with lazily-generated context-sensitive
     /// information.
     ///
-    /// [`Future`]: futures01::Future]
+    /// [`Future`]: futures_01_crate::Future]
     ///
     /// ```rust
-    /// use futures01::Future;
-    /// # use futures01::future;
+    /// # use futures_01_crate as futures;
+    /// use futures::Future;
+    /// # use futures::future;
     /// use snafu::{futures01::FutureExt, Snafu};
     ///
     /// #[derive(Debug, Snafu)]

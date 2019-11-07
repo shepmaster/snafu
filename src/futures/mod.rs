@@ -1,10 +1,10 @@
 //! Additions to the [`TryFuture`] and [`TryStream`] traits.
 //!
-//! This module is only available when the `unstable-futures` [feature
-//! flag] is enabled.
+//! This module is only available when the `futures` [feature flag] is
+//! enabled.
 //!
-//! [`TryFuture`]: futures_core::TryFuture
-//! [`TryStream`]: futures_core::TryStream
+//! [`TryFuture`]: futures_core_crate::TryFuture
+//! [`TryStream`]: futures_core_crate::TryStream
 //! [feature flag]: crate::guide::feature_flags
 
 pub mod try_future;
