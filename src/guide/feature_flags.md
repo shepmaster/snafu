@@ -24,7 +24,7 @@ It is recommended that only applications make use of this feature.
 **default**: disabled
 
 When enabled, the SNAFU [`Backtrace`] type becomes an alias to the
-[`backtrace::Backtrace`] type. This allows interoperability with other
+`backtrace::Backtrace` type. This allows interoperability with other
 crates that require this type.
 
 It is recommended that only applications make use of this feature. At
