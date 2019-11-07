@@ -55,6 +55,32 @@ doc_test_task:
     - cargo +nightly doc --features=futures
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
+doc_tests_task:
+  name: "Documentation Tests"
+  container:
+    image: rustlang/rust:nightly
+    cpu: 1
+    memory: 2Gi
+  cargo_cache:
+    folder: $CARGO_HOME/registry
+    fingerprint_script: cat Cargo.toml
+  version_information_script:
+    - rustc +nightly --version
+  backtraces_doctests_script:
+    - cargo +nightly test --doc --features=backtraces
+  backtraces_impl_backtrace_crate_doctests_script:
+    - cargo +nightly test --doc --features=backtraces-impl-backtrace-crate
+  # Disabled because every doctest would need to enable the feature
+  # from the standard library too.
+  #
+  # unstable_backtraces_impl_std_doctests_script:
+  #   - cargo +nightly test --doc --features=unstable-backtraces-impl-std
+  futures_01_doctests_script:
+    - cargo +nightly test --doc --features=futures-01
+  futures_doctests_script:
+    - cargo +nightly test --doc --features=futures,internal-dev-dependencies
+  before_cache_script: rm -rf $CARGO_HOME/registry/index
+
 no_std_test_task:
   name: "Rust Stable (no_std)"
   container:
