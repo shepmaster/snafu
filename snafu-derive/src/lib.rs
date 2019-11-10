@@ -381,7 +381,7 @@ fn parse_snafu_enum(
 
     let mut errors = SyntaxErrors::default();
 
-    let mut default_visibilities = AtMostOne::new("visibility", "on an error enum");
+    let mut default_visibilities = AtMostOne::new("visibility", "on an enum");
 
     for attr in attributes_from_syn(attrs)? {
         match attr {
@@ -393,7 +393,7 @@ fn parse_snafu_enum(
                     tokens,
                     OnlyValidOn {
                         attribute: "display",
-                        valid_on: "variants of an error enum",
+                        valid_on: "variants of an enum",
                         not_on: "an enum",
                     },
                 );
@@ -406,7 +406,7 @@ fn parse_snafu_enum(
                                 tokens.clone(),
                                 OnlyValidOn {
                                     attribute: "source(bool)",
-                                    valid_on: "fields of an error variant",
+                                    valid_on: "fields of a variant",
                                     not_on: "an enum",
                                 },
                             );
@@ -416,7 +416,7 @@ fn parse_snafu_enum(
                                 tokens.clone(),
                                 OnlyValidOn {
                                     attribute: "source(from)",
-                                    valid_on: "fields of an error variant",
+                                    valid_on: "fields of a variant",
                                     not_on: "an enum",
                                 },
                             );
@@ -429,7 +429,7 @@ fn parse_snafu_enum(
                     tokens,
                     OnlyValidOn {
                         attribute: "backtrace",
-                        valid_on: "fields of an error variant",
+                        valid_on: "fields of a variant",
                         not_on: "an enum",
                     },
                 );
@@ -440,7 +440,7 @@ fn parse_snafu_enum(
                     OnlyValidOn {
                         // TODO: enums for these
                         attribute: "context",
-                        valid_on: "an error variant",
+                        valid_on: "a variant",
                         not_on: "an enum",
                     },
                 );
@@ -460,9 +460,9 @@ fn parse_snafu_enum(
             let name = variant.ident;
             let variant_span = name.span();
 
-            let mut display_formats = AtMostOne::new("display", "on an error variant");
-            let mut visibilities = AtMostOne::new("visibility", "on an error variant");
-            let mut contexts = AtMostOne::new("context", "on an error variant");
+            let mut display_formats = AtMostOne::new("display", "on a variant");
+            let mut visibilities = AtMostOne::new("visibility", "on a variant");
+            let mut contexts = AtMostOne::new("context", "on a variant");
             let mut doc_comment = String::new();
             let mut reached_end_of_doc_comment = false;
 
@@ -476,7 +476,7 @@ fn parse_snafu_enum(
                             tokens,
                             OnlyValidOn {
                                 attribute: "source",
-                                valid_on: "fields of an error variant",
+                                valid_on: "fields of a variant",
                                 not_on: "a variant",
                             },
                         );
@@ -486,7 +486,7 @@ fn parse_snafu_enum(
                             tokens,
                             OnlyValidOn {
                                 attribute: "backtrace",
-                                valid_on: "fields of an error variant",
+                                valid_on: "fields of a variant",
                                 not_on: "a variant",
                             },
                         );
@@ -522,8 +522,8 @@ fn parse_snafu_enum(
             };
 
             let mut user_fields = Vec::new();
-            let mut source_fields = AtMostOne::new("source", "within an error variant");
-            let mut backtrace_fields = AtMostOne::new("backtrace", "within an error variant");
+            let mut source_fields = AtMostOne::new("source", "within a variant");
+            let mut backtrace_fields = AtMostOne::new("backtrace", "within a variant");
 
             for syn_field in fields {
                 let original = syn_field.clone();
@@ -627,7 +627,7 @@ fn parse_snafu_enum(
                                 tokens,
                                 OnlyValidOn {
                                     attribute: "visibility",
-                                    valid_on: "an error enum and its variants",
+                                    valid_on: "an enum and its variants",
                                     not_on: "a field",
                                 },
                             );
@@ -637,7 +637,7 @@ fn parse_snafu_enum(
                                 tokens,
                                 OnlyValidOn {
                                     attribute: "display",
-                                    valid_on: "variants of an error enum",
+                                    valid_on: "variants of an enum",
                                     not_on: "a field",
                                 },
                             );
@@ -647,7 +647,7 @@ fn parse_snafu_enum(
                                 tokens,
                                 OnlyValidOn {
                                     attribute: "context",
-                                    valid_on: "variants of an error enum",
+                                    valid_on: "variants of an enum",
                                     not_on: "a field",
                                 },
                             );
@@ -713,11 +713,11 @@ fn parse_snafu_enum(
                     let backtrace_location = backtrace.1.clone();
                     errors.add(
                         source_location,
-                        "Cannot have `backtrace` field and `backtrace` attribute on a source field in the same error variant",
+                        "Cannot have `backtrace` field and `backtrace` attribute on a source field in the same variant",
                     );
                     errors.add(
                         backtrace_location,
-                        "Cannot have `backtrace` field and `backtrace` attribute on a source field in the same error variant",
+                        "Cannot have `backtrace` field and `backtrace` attribute on a source field in the same variant",
                     );
                 }
                 _ => {} // no conflict
@@ -789,7 +789,7 @@ fn parse_snafu_struct(
 ) -> MultiSynResult<StructInfo> {
     use syn::Fields;
 
-    let mut transformations = AtMostOne::new("source(from)", "on an error struct");
+    let mut transformations = AtMostOne::new("source(from)", "on a struct");
 
     let mut errors = SyntaxErrors::default();
 
@@ -800,7 +800,7 @@ fn parse_snafu_struct(
                     tokens,
                     OnlyValidOn {
                         attribute: "display",
-                        valid_on: "variants of an error enum",
+                        valid_on: "variants of an enum",
                         not_on: "a struct",
                     },
                 );
@@ -810,7 +810,7 @@ fn parse_snafu_struct(
                     tokens,
                     OnlyValidOn {
                         attribute: "visibility",
-                        valid_on: "an error enum and its variants",
+                        valid_on: "an enum and its variants",
                         not_on: "a struct",
                     },
                 );
@@ -823,7 +823,7 @@ fn parse_snafu_struct(
                                 tokens.clone(),
                                 OnlyValidOn {
                                     attribute: "source(bool)",
-                                    valid_on: "fields of an error variant",
+                                    valid_on: "fields of a variant",
                                     not_on: "a struct",
                                 },
                             );
@@ -837,7 +837,7 @@ fn parse_snafu_struct(
                     tokens,
                     OnlyValidOn {
                         attribute: "backtrace",
-                        valid_on: "fields of an error variant",
+                        valid_on: "fields of a variant",
                         not_on: "a struct",
                     },
                 );
@@ -847,7 +847,7 @@ fn parse_snafu_struct(
                     tokens,
                     OnlyValidOn {
                         attribute: "context",
-                        valid_on: "variants of an error enum",
+                        valid_on: "variants of an enum",
                         not_on: "a struct",
                     },
                 );
@@ -1388,7 +1388,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
 
                 let names: Vec<_> = user_fields.iter().map(|f| f.name.clone()).collect();
                 let selector_doc = format!(
-                    "SNAFU context selector for the `{}::{}` error variant",
+                    "SNAFU context selector for the `{}::{}` variant",
                     enum_name, variant_name,
                 );
 

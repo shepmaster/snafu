@@ -1,11 +1,11 @@
-error: Cannot have `backtrace` field and `backtrace` attribute on a source field in the same error variant
+error: Cannot have `backtrace` field and `backtrace` attribute on a source field in the same variant
   --> $DIR/duplication-backtrace-delegate.rs:10:9
    |
 10 | /         #[snafu(backtrace)]
 11 | |         source: String,
    | |______________________^
 
-error: Cannot have `backtrace` field and `backtrace` attribute on a source field in the same error variant
+error: Cannot have `backtrace` field and `backtrace` attribute on a source field in the same variant
  --> $DIR/duplication-backtrace-delegate.rs:7:9
   |
 7 |         backtrace: Backtrace,
