@@ -46,6 +46,42 @@ fn main() {
 }
 ```
 
+## Controlling context
+
+Sometimes, an underlying error can only occur in exactly one context
+and there's no additional information that can be provided to the
+caller. In these cases, you can use `#[snafu(context(false))]` to
+indicate that no context selector should be created. This allows using
+the `?` operator directly on the underlying error.
+
+Please think about your end users before making liberal use of this
+feature. Adding context to an error is often what distinguishes an
+actionable error from a frustrating one.
+
+**Example**
+
+```rust
+# use snafu::Snafu;
+#
+#[derive(Debug, Snafu)]
+enum Error {
+    #[snafu(context(false))]
+    NeedsNoIntroduction { source: VeryUniqueError },
+}
+
+fn my_code() -> Result<i32, Error> {
+    let val = do_something_unique()?;
+    Ok(val + 10)
+}
+
+# #[derive(Debug, Snafu)]
+# enum VeryUniqueError {}
+fn do_something_unique() -> Result<i32, VeryUniqueError> {
+    // ...
+#    Ok(42)
+}
+```
+
 ## Controlling visibility
 
 By default, each of the context selectors and their inherent
