@@ -58,20 +58,16 @@ enum ContextSelectorKind {
 
 impl ContextSelectorKind {
     fn user_fields(&self) -> &[Field] {
-        match *self {
-            ContextSelectorKind::Context {
-                ref user_fields, ..
-            } => user_fields,
+        match self {
+            ContextSelectorKind::Context { user_fields, .. } => user_fields,
             ContextSelectorKind::NoContext { .. } => &[],
         }
     }
 
     fn source_field(&self) -> Option<&SourceField> {
-        match *self {
-            ContextSelectorKind::Context {
-                ref source_field, ..
-            } => source_field.as_ref(),
-            ContextSelectorKind::NoContext { ref source_field } => Some(source_field),
+        match self {
+            ContextSelectorKind::Context { source_field, .. } => source_field.as_ref(),
+            ContextSelectorKind::NoContext { source_field } => Some(source_field),
         }
     }
 }
@@ -114,16 +110,16 @@ enum Transformation {
 
 impl Transformation {
     fn ty(&self) -> &syn::Type {
-        match *self {
-            Transformation::None { ref ty } => ty,
-            Transformation::Transform { ref ty, .. } => ty,
+        match self {
+            Transformation::None { ty } => ty,
+            Transformation::Transform { ty, .. } => ty,
         }
     }
 
     fn transformation(&self) -> proc_macro2::TokenStream {
-        match *self {
+        match self {
             Transformation::None { .. } => quote! { |v| v },
-            Transformation::Transform { ref expr, .. } => quote! { #expr },
+            Transformation::Transform { expr, .. } => quote! { #expr },
         }
     }
 }
@@ -1241,11 +1237,11 @@ trait GenericAwareNames {
         self.generics()
             .type_params()
             .map(|t: &TypeParam| {
-                let &TypeParam {
-                    ref attrs,
-                    ref ident,
-                    ref colon_token,
-                    ref bounds,
+                let TypeParam {
+                    attrs,
+                    ident,
+                    colon_token,
+                    bounds,
                     ..
                 } = t;
                 quote! {
@@ -1271,10 +1267,8 @@ trait GenericAwareNames {
         self.generics()
             .params
             .iter()
-            .flat_map(|p| match *p {
-                GenericParam::Lifetime(LifetimeDef { ref lifetime, .. }) => {
-                    Some(quote! { #lifetime })
-                }
+            .flat_map(|p| match p {
+                GenericParam::Lifetime(LifetimeDef { lifetime, .. }) => Some(quote! { #lifetime }),
                 _ => None,
             })
             .collect()
@@ -1286,10 +1280,10 @@ trait GenericAwareNames {
         self.generics()
             .params
             .iter()
-            .map(|p| match *p {
-                GenericParam::Type(TypeParam { ref ident, .. }) => quote! { #ident },
-                GenericParam::Lifetime(LifetimeDef { ref lifetime, .. }) => quote! { #lifetime },
-                GenericParam::Const(ConstParam { ref ident, .. }) => quote! { #ident },
+            .map(|p| match p {
+                GenericParam::Type(TypeParam { ident, .. }) => quote! { #ident },
+                GenericParam::Lifetime(LifetimeDef { lifetime, .. }) => quote! { #lifetime },
+                GenericParam::Const(ConstParam { ident, .. }) => quote! { #ident },
             })
             .collect()
     }
@@ -1360,24 +1354,24 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
         let parameterized_enum_name = &self.0.parameterized_name();
 
         let VariantInfo {
-            name: ref variant_name,
-            ref selector_kind,
-            ref backtrace_field,
+            name: variant_name,
+            selector_kind,
+            backtrace_field,
             ..
-        } = *self.1;
+        } = self.1;
 
-        let backtrace_field = match *backtrace_field {
-            Some(ref field) => {
+        let backtrace_field = match backtrace_field {
+            Some(field) => {
                 let name = &field.name;
                 quote! { #name: snafu::GenerateBacktrace::generate(), }
             }
             None => quote! {},
         };
 
-        match *selector_kind {
+        match selector_kind {
             ContextSelectorKind::Context {
-                ref user_fields,
-                ref source_field,
+                user_fields,
+                source_field,
             } => {
                 let generic_names: Vec<_> = (0..user_fields.len())
                     .map(|i| format_ident!("__T{}", i))
@@ -1425,7 +1419,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
                     .iter()
                     .zip(user_fields)
                     .map(|(gen_ty, f)| {
-                        let Field { ref ty, .. } = *f;
+                        let Field { ty, .. } = f;
                         quote! { #gen_ty: core::convert::Into<#ty> }
                     })
                     .chain(self.0.provided_where_clauses())
@@ -1455,20 +1449,20 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
 
                 let enum_from_variant_selector_impl = {
                     let user_fields = user_fields.iter().map(|f| {
-                        let Field { ref name, .. } = *f;
+                        let Field { name, .. } = f;
                         quote! { #name: self.#name.into() }
                     });
 
                     let source_ty;
                     let source_xfer_field;
 
-                    match *source_field {
-                        Some(ref source_field) => {
+                    match source_field {
+                        Some(source_field) => {
                             let SourceField {
-                                name: ref source_name,
-                                transformation: ref source_transformation,
+                                name: source_name,
+                                transformation: source_transformation,
                                 ..
-                            } = *source_field;
+                            } = source_field;
 
                             let source_ty2 = source_transformation.ty();
                             let source_transformation = source_transformation.transformation();
@@ -1511,16 +1505,16 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
                 })
             }
 
-            ContextSelectorKind::NoContext { ref source_field } => {
+            ContextSelectorKind::NoContext { source_field } => {
                 let original_generics = self.0.provided_generics_without_defaults();
                 let generics_list = quote! { <#(#original_generics,)*> };
                 let wheres = self.0.provided_where_clauses();
 
                 let SourceField {
-                    name: ref source_name,
-                    transformation: ref source_transformation,
+                    name: source_name,
+                    transformation: source_transformation,
                     ..
-                } = *source_field;
+                } = source_field;
 
                 let source_ty = source_transformation.ty();
                 let source_transformation = source_transformation.transformation();
@@ -1559,23 +1553,23 @@ impl<'a> DisplayImpl<'a> {
             .iter()
             .map(|variant| {
                 let VariantInfo {
-                    name: ref variant_name,
-                    ref selector_kind,
-                    ref backtrace_field,
-                    ref display_format,
-                    ref doc_comment,
+                    name: variant_name,
+                    selector_kind,
+                    backtrace_field,
+                    display_format,
+                    doc_comment,
                     ..
-                } = *variant;
+                } = variant;
 
                 let user_fields = selector_kind.user_fields();
                 let source_field = selector_kind.source_field();
 
                 let format = match (display_format, source_field) {
-                    (Some(ref v), _) => quote! { #v },
+                    (Some(v), _) => quote! { #v },
                     (None, _) if !doc_comment.is_empty() => {
                         quote! { #doc_comment }
                     }
-                    (None, Some(ref f)) => {
+                    (None, Some(f)) => {
                         let field_name = &f.name;
                         quote! { concat!(stringify!(#variant_name), ": {}"), #field_name }
                     }
@@ -1636,9 +1630,8 @@ impl<'a> ErrorImpl<'a> {
             .iter()
             .map(|variant| {
                 let VariantInfo {
-                    name: ref variant_name,
-                    ..
-                } = *variant;
+                    name: variant_name, ..
+                } = variant;
                 quote! {
                     #enum_name::#variant_name { .. } => stringify!(#enum_name::#variant_name),
                 }
@@ -1653,19 +1646,18 @@ impl<'a> ErrorImpl<'a> {
             .iter()
             .map(|variant| {
                 let VariantInfo {
-                    name: ref variant_name,
-                    ref selector_kind,
+                    name: variant_name,
+                    selector_kind,
                     ..
-                } = *variant;
+                } = variant;
 
                 let source_field = selector_kind.source_field();
 
                 match source_field {
                     Some(source_field) => {
                         let SourceField {
-                            name: ref field_name,
-                            ..
-                        } = *source_field;
+                            name: field_name, ..
+                        } = source_field;
                         quote! {
                             #enum_name::#variant_name { ref #field_name, .. } => {
                                 core::option::Option::Some(#field_name.as_error_source())
@@ -1753,27 +1745,27 @@ impl<'a> ErrorCompatImpl<'a> {
         let enum_name = &self.0.name;
         self.0.variants.iter().map(|variant| {
             let VariantInfo {
-                name: ref variant_name,
-                ref selector_kind,
-                ref backtrace_field,
+                name: variant_name,
+                selector_kind,
+                backtrace_field,
                 ..
-            } = *variant;
+            } = variant;
 
             match (selector_kind.source_field(), backtrace_field) {
-                (Some(ref source_field), _) if source_field.backtrace_delegate => {
+                (Some(source_field), _) if source_field.backtrace_delegate => {
                     let SourceField {
-                        name: ref field_name,
+                        name: field_name,
                         ..
-                    } = *source_field;
+                    } = source_field;
                     quote! {
                         #enum_name::#variant_name { ref #field_name, .. } => { snafu::ErrorCompat::backtrace(#field_name) }
                     }
                 },
-                (_, &Some(ref backtrace_field)) => {
+                (_, Some(backtrace_field)) => {
                     let Field {
-                        name: ref field_name,
+                        name: field_name,
                         ..
-                    } = *backtrace_field;
+                    } = backtrace_field;
                     quote! {
                         #enum_name::#variant_name { ref #field_name, .. } => { snafu::GenerateBacktrace::as_backtrace(#field_name) }
                     }
