@@ -27,6 +27,7 @@ error: format argument must be a string literal
    |
 37 |         #[snafu(display(foo()))]
    |                         ^^^^^
+   |
 help: you might be missing a string literal to format with
    |
 37 |         #[snafu(display("{}", foo()))]
@@ -37,6 +38,7 @@ error: format argument must be a string literal
    |
 40 |         #[snafu(display = "42")]
    |                           ^^^^
+   |
 help: you might be missing a string literal to format with
    |
 40 |         #[snafu(display = "{}", "42")]
