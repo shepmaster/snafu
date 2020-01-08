@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.1] - 2020-01-07
 
+### Added
+
+- It is now possible to create errors that have no context using
+  `#[snafu(context(false))]`. This allows using the question mark
+  operator without calling `.context(...)`.
+
 ### Fixed
 
 - Reduced the possibility for a name collision when implementing
