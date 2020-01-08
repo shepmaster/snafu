@@ -1149,6 +1149,16 @@ fn private_visibility() -> UserInput {
     Box::new(quote! {})
 }
 
+struct StaticIdent(&'static str);
+
+impl quote::ToTokens for StaticIdent {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        proc_macro2::Ident::new(self.0, proc_macro2::Span::call_site()).to_tokens(tokens)
+    }
+}
+
+const FORMATTER_ARG: StaticIdent = StaticIdent("__snafu_display_formatter");
+
 impl From<SnafuInfo> for proc_macro::TokenStream {
     fn from(other: SnafuInfo) -> proc_macro::TokenStream {
         match other {
@@ -1536,7 +1546,7 @@ impl<'a> DisplayImpl<'a> {
 
                 quote! {
                     #enum_name::#variant_name { #field_names } => {
-                        write!(f, #format)
+                        write!(#FORMATTER_ARG, #format)
                     }
                 }
             })
@@ -1558,7 +1568,7 @@ impl<'a> quote::ToTokens for DisplayImpl<'a> {
                 where
                     #(#where_clauses),*
                 {
-                    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+                    fn fmt(&self, #FORMATTER_ARG: &mut core::fmt::Formatter) -> core::fmt::Result {
                         #[allow(unused_variables)]
                         match *self {
                             #(#variants_to_display)*
