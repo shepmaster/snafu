@@ -1564,6 +1564,7 @@ impl<'a> quote::ToTokens for DisplayImpl<'a> {
 
         stream.extend({
             quote! {
+                #[allow(single_use_lifetimes)]
                 impl<#(#original_generics),*> core::fmt::Display for #parameterized_enum_name
                 where
                     #(#where_clauses),*
@@ -1683,6 +1684,7 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
 
         stream.extend({
             quote! {
+                #[allow(single_use_lifetimes)]
                 impl<#(#original_generics),*> snafu::Error for #parameterized_enum_name
                 where
                     Self: core::fmt::Debug + core::fmt::Display,
@@ -1757,6 +1759,7 @@ impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
 
         stream.extend({
             quote! {
+                #[allow(single_use_lifetimes)]
                 impl<#(#original_generics),*> snafu::ErrorCompat for #parameterized_enum_name
                 where
                     #(#where_clauses),*
@@ -1822,6 +1825,7 @@ impl StructInfo {
         };
 
         let error_impl = quote! {
+            #[allow(single_use_lifetimes)]
             impl#generics snafu::Error for #parameterized_struct_name
             where
                 #(#where_clauses),*
@@ -1834,6 +1838,7 @@ impl StructInfo {
         };
 
         let error_compat_impl = quote! {
+            #[allow(single_use_lifetimes)]
             impl#generics snafu::ErrorCompat for #parameterized_struct_name
             where
                 #(#where_clauses),*
@@ -1843,6 +1848,7 @@ impl StructInfo {
         };
 
         let display_impl = quote! {
+            #[allow(single_use_lifetimes)]
             impl#generics core::fmt::Display for #parameterized_struct_name
             where
                 #(#where_clauses),*
