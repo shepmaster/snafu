@@ -3,7 +3,7 @@ use std::{fmt, path};
 
 /// A backtrace starting from the beginning of the thread.
 ///
-/// Backtrace functionality is currently **diabled**. Please review
+/// Backtrace functionality is currently **disabled**. Please review
 /// [the feature flags](crate::guide::feature_flags) to enable it.
 #[derive(Debug)]
 pub struct Backtrace(backtrace::Backtrace);
