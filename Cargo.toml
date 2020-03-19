@@ -1,6 +1,6 @@
 [package]
 name = "snafu"
-version = "0.6.2"
+version = "0.6.3"
 authors = ["Jake Goulding <jake.goulding@gmail.com>"]
 edition = "2018"
 
@@ -56,7 +56,7 @@ futures = ["futures-core-crate", "pin-project"]
 exclude = ["compatibility-tests"]
 
 [dependencies]
-snafu-derive = { path = "snafu-derive", version = "0.6.2" }
+snafu-derive = { path = "snafu-derive", version = "0.6.3" }
 doc-comment = { version = "0.3.1", default-features = false }
 backtrace = { version = "0.3.0", optional = true }
 futures-01-crate = { package = "futures", version = "0.1", optional = true, default-features = false }
