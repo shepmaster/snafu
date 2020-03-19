@@ -2,19 +2,37 @@ error[E0603]: unit struct `Private` is private
   --> $DIR/visibility.rs:19:30
    |
 19 |         let _ = self::inner::Private.fail::<()>();
-   |                              ^^^^^^^
+   |                              ^^^^^^^ this unit struct is private
+   |
+note: the unit struct `Private` is defined here
+  --> $DIR/visibility.rs:7:25
+   |
+7  |         #[derive(Debug, Snafu)]
+   |                         ^^^^^
 
 error[E0603]: unit struct `PubInPath` is private
   --> $DIR/visibility.rs:24:33
    |
 24 |     let _ = self::outer::inner::PubInPath.fail::<()>();
-   |                                 ^^^^^^^^^
+   |                                 ^^^^^^^^^ this unit struct is private
+   |
+note: the unit struct `PubInPath` is defined here
+  --> $DIR/visibility.rs:7:25
+   |
+7  |         #[derive(Debug, Snafu)]
+   |                         ^^^^^
 
 error[E0603]: unit struct `Private` is private
   --> $DIR/visibility.rs:28:33
    |
 28 |     let _ = self::outer::inner::Private.fail::<()>();
-   |                                 ^^^^^^^
+   |                                 ^^^^^^^ this unit struct is private
+   |
+note: the unit struct `Private` is defined here
+  --> $DIR/visibility.rs:7:25
+   |
+7  |         #[derive(Debug, Snafu)]
+   |                         ^^^^^
 
 error[E0624]: method `fail` is private
   --> $DIR/visibility.rs:19:38
@@ -33,6 +51,3 @@ error[E0624]: method `fail` is private
    |
 28 |     let _ = self::outer::inner::Private.fail::<()>();
    |                                         ^^^^
-
-Some errors have detailed explanations: E0603, E0624.
-For more information about an error, try `rustc --explain E0603`.
