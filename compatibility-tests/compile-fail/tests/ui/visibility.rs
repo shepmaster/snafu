@@ -16,16 +16,16 @@ mod outer {
     }
 
     fn private_is_applied() {
-        let _ = self::inner::Private.fail::<()>();
+        let _ = self::inner::Private.build();
     }
 }
 
 fn pub_in_path_is_applied() {
-    let _ = self::outer::inner::PubInPath.fail::<()>();
+    let _ = self::outer::inner::PubInPath.build();
 }
 
 fn private_is_applied() {
-    let _ = self::outer::inner::Private.fail::<()>();
+    let _ = self::outer::inner::Private.build();
 }
 
 fn main() {}
