@@ -32,6 +32,10 @@ stable_test_task:
 
 doc_test_task:
   name: "Docs"
+  env:
+    # unused-braces is due to https://github.com/rust-lang/rust/issues/70717
+    RUSTFLAGS: "-D warnings -A unused-braces"
+    RUSTDOCFLAGS: "${RUSTFLAGS}"
   container:
     image: rustlang/rust:nightly
     cpu: 1
