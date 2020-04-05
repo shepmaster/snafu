@@ -68,21 +68,23 @@ where
     P: Into<PathBuf>,
 ```
 
-Otherwise, the context selector will have an inherent method
-`fail` and can be used with the [`ensure`](ensure) macro:
+Otherwise, the context selector will have the inherent methods `build`
+and `fail` and can be used with the [`ensure`](ensure) macro:
 
 ```rust,ignore
 impl<I> UserIdInvalid<I>
 where
     I: Into<i32>,
 {
+    fn build(self) -> Error { /* ... */ }
+
     fn fail<T>(self) -> Result<T, Error> { /* ... */ }
 }
 ```
 
 If the original variant had a `backtrace` field, the backtrace
 will be automatically constructed when either `IntoError` or
-`fail` are called.
+`build`/`fail` are called.
 
 #### `Error`
 

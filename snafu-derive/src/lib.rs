@@ -1387,22 +1387,29 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
 
                 let inherent_impl = if source_field.is_none() {
                     quote! {
-                    impl<#(#generic_names,)*> #selector_name
-                    {
-                        #[doc = "Consume the selector and return a `Result` with the associated error"]
-                        #visibility fn fail<#(#original_generics_without_defaults,)* __T>(self) -> core::result::Result<__T, #parameterized_enum_name>
-                        where
-                            #(#where_clauses),*
-                        {
-                            let Self { #(#names),* } = self;
-                            let error = #enum_name::#variant_name {
-                                #backtrace_field
-                                #( #names: core::convert::Into::into(#names) ),*
-                            };
-                            core::result::Result::Err(error)
+                        impl<#(#generic_names,)*> #selector_name {
+                            #[doc = "Consume the selector and return the associated error"]
+                            #[must_use]
+                            #visibility fn build<#(#original_generics_without_defaults,)*>(self) -> #parameterized_enum_name
+                            where
+                                #(#where_clauses),*
+                            {
+                                let Self { #(#names),* } = self;
+                                #enum_name::#variant_name {
+                                    #backtrace_field
+                                    #( #names: core::convert::Into::into(#names) ),*
                                 }
                             }
+
+                            #[doc = "Consume the selector and return a `Result` with the associated error"]
+                            #visibility fn fail<#(#original_generics_without_defaults,)* __T>(self) -> core::result::Result<__T, #parameterized_enum_name>
+                            where
+                                #(#where_clauses),*
+                            {
+                                core::result::Result::Err(self.build())
+                            }
                         }
+                    }
                 } else {
                     quote! {}
                 };
