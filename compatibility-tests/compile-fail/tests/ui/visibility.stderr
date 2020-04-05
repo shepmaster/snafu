@@ -1,7 +1,7 @@
 error[E0603]: unit struct `Private` is private
   --> $DIR/visibility.rs:19:30
    |
-19 |         let _ = self::inner::Private.fail::<()>();
+19 |         let _ = self::inner::Private.build();
    |                              ^^^^^^^ this unit struct is private
    |
 note: the unit struct `Private` is defined here
@@ -13,7 +13,7 @@ note: the unit struct `Private` is defined here
 error[E0603]: unit struct `PubInPath` is private
   --> $DIR/visibility.rs:24:33
    |
-24 |     let _ = self::outer::inner::PubInPath.fail::<()>();
+24 |     let _ = self::outer::inner::PubInPath.build();
    |                                 ^^^^^^^^^ this unit struct is private
    |
 note: the unit struct `PubInPath` is defined here
@@ -25,7 +25,7 @@ note: the unit struct `PubInPath` is defined here
 error[E0603]: unit struct `Private` is private
   --> $DIR/visibility.rs:28:33
    |
-28 |     let _ = self::outer::inner::Private.fail::<()>();
+28 |     let _ = self::outer::inner::Private.build();
    |                                 ^^^^^^^ this unit struct is private
    |
 note: the unit struct `Private` is defined here
@@ -34,20 +34,20 @@ note: the unit struct `Private` is defined here
 7  |         #[derive(Debug, Snafu)]
    |                         ^^^^^
 
-error[E0624]: method `fail` is private
+error[E0624]: method `build` is private
   --> $DIR/visibility.rs:19:38
    |
-19 |         let _ = self::inner::Private.fail::<()>();
-   |                                      ^^^^
+19 |         let _ = self::inner::Private.build();
+   |                                      ^^^^^
 
-error[E0624]: method `fail` is private
+error[E0624]: method `build` is private
   --> $DIR/visibility.rs:24:43
    |
-24 |     let _ = self::outer::inner::PubInPath.fail::<()>();
-   |                                           ^^^^
+24 |     let _ = self::outer::inner::PubInPath.build();
+   |                                           ^^^^^
 
-error[E0624]: method `fail` is private
+error[E0624]: method `build` is private
   --> $DIR/visibility.rs:28:41
    |
-28 |     let _ = self::outer::inner::Private.fail::<()>();
-   |                                         ^^^^
+28 |     let _ = self::outer::inner::Private.build();
+   |                                         ^^^^^
