@@ -30,6 +30,7 @@ enum SnafuInfo {
 }
 
 struct EnumInfo {
+    crate_root: UserInput,
     name: syn::Ident,
     generics: syn::Generics,
     variants: Vec<VariantInfo>,
@@ -73,6 +74,7 @@ impl ContextSelectorKind {
 }
 
 struct StructInfo {
+    crate_root: UserInput,
     name: syn::Ident,
     generics: syn::Generics,
     transformation: Transformation,
@@ -470,6 +472,11 @@ const ATTR_CONTEXT: OnlyValidOn = OnlyValidOn {
     valid_on: "enum variant fields",
 };
 
+const ATTR_CRATE_ROOT: OnlyValidOn = OnlyValidOn {
+    attribute: "crate_root",
+    valid_on: "an enum or a struct",
+};
+
 const SOURCE_BOOL_FROM_INCOMPATIBLE: IncompatibleAttributes =
     IncompatibleAttributes(&["source(false)", "source(from)"]);
 
@@ -486,7 +493,9 @@ fn parse_snafu_enum(
     let mut errors = SyntaxErrors::default();
 
     let mut default_visibilities = AtMostOne::new("visibility", ErrorLocation::OnEnum);
+    let mut crate_roots = AtMostOne::new("crate_root", ErrorLocation::OnEnum);
     let mut enum_errors = errors.scoped(ErrorLocation::OnEnum);
+
     for attr in attributes_from_syn(attrs)? {
         match attr {
             SnafuAttribute::Visibility(tokens, v) => {
@@ -501,6 +510,9 @@ fn parse_snafu_enum(
                     }
                 }
             }
+            SnafuAttribute::CrateRoot(tokens, root) => {
+                crate_roots.add(root, tokens);
+            }
             SnafuAttribute::Backtrace(tokens, ..) => enum_errors.add(tokens, ATTR_BACKTRACE),
             SnafuAttribute::Context(tokens, ..) => enum_errors.add(tokens, ATTR_CONTEXT),
             SnafuAttribute::DocComment(..) => { /* Just a regular doc comment. */ }
@@ -509,6 +521,10 @@ fn parse_snafu_enum(
 
     let (maybe_default_visibility, errs) = default_visibilities.finish();
     let default_visibility = maybe_default_visibility.unwrap_or_else(private_visibility);
+    errors.extend(errs);
+
+    let (maybe_crate_root, errs) = crate_roots.finish();
+    let crate_root = maybe_crate_root.unwrap_or_else(default_crate_root);
     errors.extend(errs);
 
     let variants: sponge::AllErrors<_, _> = enum_
@@ -533,6 +549,7 @@ fn parse_snafu_enum(
                     SnafuAttribute::Context(tokens, c) => contexts.add(c, tokens),
                     SnafuAttribute::Source(tokens, ..) => variant_errors.add(tokens, ATTR_SOURCE),
                     SnafuAttribute::Backtrace(tokens, ..) => variant_errors.add(tokens, ATTR_BACKTRACE),
+                    SnafuAttribute::CrateRoot(tokens, ..) => variant_errors.add(tokens, ATTR_CRATE_ROOT),
                     SnafuAttribute::DocComment(_tts, doc_comment_line) => {
                         // We join all the doc comment attributes with a space,
                         // but end once the summary of the doc comment is
@@ -646,6 +663,7 @@ fn parse_snafu_enum(
                         SnafuAttribute::Visibility(tokens, ..) => field_errors.add(tokens, ATTR_VISIBILITY),
                         SnafuAttribute::Display(tokens, ..) => field_errors.add(tokens, ATTR_DISPLAY),
                         SnafuAttribute::Context(tokens, ..) => field_errors.add(tokens, ATTR_CONTEXT),
+                        SnafuAttribute::CrateRoot(tokens, ..) => field_errors.add(tokens, ATTR_CRATE_ROOT),
                         SnafuAttribute::DocComment(..) => { /* Just a regular doc comment. */ }
                     }
                 }
@@ -767,6 +785,7 @@ fn parse_snafu_enum(
     let variants = errors.absorb(variants.into_result())?;
 
     Ok(EnumInfo {
+        crate_root,
         name,
         generics,
         variants,
@@ -784,6 +803,7 @@ fn parse_snafu_struct(
     use syn::Fields;
 
     let mut transformations = AtMostOne::new("source(from)", ErrorLocation::OnStruct);
+    let mut crate_roots = AtMostOne::new("crate_root", ErrorLocation::OnStruct);
 
     let mut errors = SyntaxErrors::default();
     let mut struct_errors = errors.scoped(ErrorLocation::OnStruct);
@@ -802,6 +822,7 @@ fn parse_snafu_struct(
             }
             SnafuAttribute::Backtrace(tokens, ..) => struct_errors.add(tokens, ATTR_BACKTRACE),
             SnafuAttribute::Context(tokens, ..) => struct_errors.add(tokens, ATTR_CONTEXT),
+            SnafuAttribute::CrateRoot(tokens, root) => crate_roots.add(root, tokens),
             SnafuAttribute::DocComment(..) => { /* Just a regular doc comment. */ }
         }
     }
@@ -839,9 +860,14 @@ fn parse_snafu_struct(
         });
     errors.extend(errs);
 
+    let (maybe_crate_root, errs) = crate_roots.finish();
+    let crate_root = maybe_crate_root.unwrap_or_else(default_crate_root);
+    errors.extend(errs);
+
     errors.finish()?;
 
     Ok(StructInfo {
+        crate_root,
         name,
         generics,
         transformation,
@@ -1014,13 +1040,14 @@ enum SnafuAttribute {
     Source(proc_macro2::TokenStream, Vec<Source>),
     Backtrace(proc_macro2::TokenStream, bool),
     Context(proc_macro2::TokenStream, bool),
+    CrateRoot(proc_macro2::TokenStream, UserInput),
     DocComment(proc_macro2::TokenStream, String),
 }
 
 impl syn::parse::Parse for SnafuAttribute {
     fn parse(input: syn::parse::ParseStream) -> SynResult<Self> {
         use syn::token::{Comma, Paren};
-        use syn::{Expr, Ident, LitBool, Visibility};
+        use syn::{Expr, Ident, LitBool, Path, Visibility};
 
         let input_tts = input.cursor().token_stream();
         let name: Ident = input.parse()?;
@@ -1065,10 +1092,17 @@ impl syn::parse::Parse for SnafuAttribute {
                 let v: MyParens<LitBool> = input.parse()?;
                 Ok(SnafuAttribute::Context(input_tts, v.0.value))
             }
+        } else if name == "crate_root" {
+            let m: MyMeta<Path> = input.parse()?;
+            let v = m.into_option().ok_or_else(|| {
+                syn::Error::new(name.span(), "`snafu(crate_root)` requires an argument")
+            })?;
+            let v = Box::new(v);
+            Ok(SnafuAttribute::CrateRoot(input_tts, v))
         } else {
             Err(syn::Error::new(
                 name.span(),
-                "expected `display`, `visibility`, `source`, `backtrace`, or `context`",
+                "expected `display`, `visibility`, `source`, `backtrace`, `context`, or `crate_root`",
             ))
         }
     }
@@ -1143,6 +1177,10 @@ fn attributes_from_syn(attrs: Vec<syn::Attribute>) -> MultiSynResult<Vec<SnafuAt
     } else {
         Err(errs)
     }
+}
+
+fn default_crate_root() -> UserInput {
+    Box::new(quote! { snafu })
 }
 
 fn private_visibility() -> UserInput {
@@ -1305,6 +1343,7 @@ struct ContextSelector<'a>(&'a EnumInfo, &'a VariantInfo);
 
 impl<'a> quote::ToTokens for ContextSelector<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        let crate_root = &self.0.crate_root;
         let enum_name = &self.0.name;
         let original_lifetimes = self.0.provided_generic_lifetimes();
         let original_generic_types_without_defaults =
@@ -1323,7 +1362,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
         let backtrace_field = match backtrace_field {
             Some(field) => {
                 let name = &field.name;
-                quote! { #name: snafu::GenerateBacktrace::generate(), }
+                quote! { #name: #crate_root::GenerateBacktrace::generate(), }
             }
             None => quote! {},
         };
@@ -1439,15 +1478,15 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
                                 quote! { #source_name: (#source_transformation)(error), };
                         }
                         None => {
-                            source_ty = quote! { snafu::NoneError };
+                            source_ty = quote! { #crate_root::NoneError };
                             source_xfer_field = quote! {};
                         }
                     }
 
                     quote! {
-                        impl#generics_list snafu::IntoError<#parameterized_enum_name> for #selector_name
+                        impl#generics_list #crate_root::IntoError<#parameterized_enum_name> for #selector_name
                         where
-                            #parameterized_enum_name: snafu::Error + snafu::ErrorCompat,
+                            #parameterized_enum_name: #crate_root::Error + #crate_root::ErrorCompat,
                             #(#where_clauses),*
                         {
                             type Source = #source_ty;
@@ -1645,6 +1684,7 @@ impl<'a> ErrorImpl<'a> {
 
 impl<'a> quote::ToTokens for ErrorImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        let crate_root = &self.0.crate_root;
         let original_generics = self.0.provided_generics_without_defaults();
         let parameterized_enum_name = &self.0.parameterized_name();
         let where_clauses: Vec<_> = self.0.provided_where_clauses();
@@ -1662,8 +1702,8 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
         let variants_to_source = &self.variants_to_source();
 
         let cause_fn = quote! {
-            fn cause(&self) -> Option<&dyn snafu::Error> {
-                use snafu::AsErrorSource;
+            fn cause(&self) -> Option<&dyn #crate_root::Error> {
+                use #crate_root::AsErrorSource;
                 match *self {
                     #(#variants_to_source)*
                 }
@@ -1671,8 +1711,8 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
         };
 
         let source_fn = quote! {
-            fn source(&self) -> Option<&(dyn snafu::Error + 'static)> {
-                use snafu::AsErrorSource;
+            fn source(&self) -> Option<&(dyn #crate_root::Error + 'static)> {
+                use #crate_root::AsErrorSource;
                 match *self {
                     #(#variants_to_source)*
                 }
@@ -1682,7 +1722,7 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
         let std_backtrace_fn = if cfg!(feature = "unstable-backtraces-impl-std") {
             quote! {
                 fn backtrace(&self) -> Option<&std::backtrace::Backtrace> {
-                    snafu::ErrorCompat::backtrace(self)
+                    #crate_root::ErrorCompat::backtrace(self)
                 }
             }
         } else {
@@ -1692,7 +1732,7 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
         stream.extend({
             quote! {
                 #[allow(single_use_lifetimes)]
-                impl<#(#original_generics),*> snafu::Error for #parameterized_enum_name
+                impl<#(#original_generics),*> #crate_root::Error for #parameterized_enum_name
                 where
                     Self: core::fmt::Debug + core::fmt::Display,
                     #(#where_clauses),*
@@ -1711,6 +1751,7 @@ struct ErrorCompatImpl<'a>(&'a EnumInfo);
 
 impl<'a> ErrorCompatImpl<'a> {
     fn variants_to_backtrace(&self) -> Vec<proc_macro2::TokenStream> {
+        let crate_root = &self.0.crate_root;
         let enum_name = &self.0.name;
         self.0.variants.iter().map(|variant| {
             let VariantInfo {
@@ -1727,7 +1768,7 @@ impl<'a> ErrorCompatImpl<'a> {
                         ..
                     } = source_field;
                     quote! {
-                        #enum_name::#variant_name { ref #field_name, .. } => { snafu::ErrorCompat::backtrace(#field_name) }
+                        #enum_name::#variant_name { ref #field_name, .. } => { #crate_root::ErrorCompat::backtrace(#field_name) }
                     }
                 },
                 (_, Some(backtrace_field)) => {
@@ -1736,7 +1777,7 @@ impl<'a> ErrorCompatImpl<'a> {
                         ..
                     } = backtrace_field;
                     quote! {
-                        #enum_name::#variant_name { ref #field_name, .. } => { snafu::GenerateBacktrace::as_backtrace(#field_name) }
+                        #enum_name::#variant_name { ref #field_name, .. } => { #crate_root::GenerateBacktrace::as_backtrace(#field_name) }
                     }
                 }
                 _ => {
@@ -1751,13 +1792,14 @@ impl<'a> ErrorCompatImpl<'a> {
 
 impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        let crate_root = &self.0.crate_root;
         let original_generics = self.0.provided_generics_without_defaults();
         let parameterized_enum_name = &self.0.parameterized_name();
         let where_clauses = &self.0.provided_where_clauses();
         let variants = &self.variants_to_backtrace();
 
         let backtrace_fn = quote! {
-            fn backtrace(&self) -> Option<&snafu::Backtrace> {
+            fn backtrace(&self) -> Option<&#crate_root::Backtrace> {
                 match *self {
                     #(#variants),*
                 }
@@ -1767,7 +1809,7 @@ impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
         stream.extend({
             quote! {
                 #[allow(single_use_lifetimes)]
-                impl<#(#original_generics),*> snafu::ErrorCompat for #parameterized_enum_name
+                impl<#(#original_generics),*> #crate_root::ErrorCompat for #parameterized_enum_name
                 where
                     #(#where_clauses),*
                 {
@@ -1783,6 +1825,7 @@ impl StructInfo {
         let parameterized_struct_name = self.parameterized_name();
 
         let StructInfo {
+            crate_root,
             generics,
             name,
             transformation,
@@ -1799,32 +1842,32 @@ impl StructInfo {
 
         let description_fn = quote! {
             fn description(&self) -> &str {
-                snafu::Error::description(&self.0)
+                #crate_root::Error::description(&self.0)
             }
         };
 
         let cause_fn = quote! {
-            fn cause(&self) -> Option<&dyn snafu::Error> {
-                snafu::Error::cause(&self.0)
+            fn cause(&self) -> Option<&dyn #crate_root::Error> {
+                #crate_root::Error::cause(&self.0)
             }
         };
 
         let source_fn = quote! {
-            fn source(&self) -> Option<&(dyn snafu::Error + 'static)> {
-                snafu::Error::source(&self.0)
+            fn source(&self) -> Option<&(dyn #crate_root::Error + 'static)> {
+                #crate_root::Error::source(&self.0)
             }
         };
 
         let backtrace_fn = quote! {
-            fn backtrace(&self) -> Option<&snafu::Backtrace> {
-                snafu::ErrorCompat::backtrace(&self.0)
+            fn backtrace(&self) -> Option<&#crate_root::Backtrace> {
+                #crate_root::ErrorCompat::backtrace(&self.0)
             }
         };
 
         let std_backtrace_fn = if cfg!(feature = "unstable-backtraces-impl-std") {
             quote! {
                 fn backtrace(&self) -> Option<&std::backtrace::Backtrace> {
-                    snafu::ErrorCompat::backtrace(self)
+                    #crate_root::ErrorCompat::backtrace(self)
                 }
             }
         } else {
@@ -1833,7 +1876,7 @@ impl StructInfo {
 
         let error_impl = quote! {
             #[allow(single_use_lifetimes)]
-            impl#generics snafu::Error for #parameterized_struct_name
+            impl#generics #crate_root::Error for #parameterized_struct_name
             where
                 #(#where_clauses),*
             {
@@ -1846,7 +1889,7 @@ impl StructInfo {
 
         let error_compat_impl = quote! {
             #[allow(single_use_lifetimes)]
-            impl#generics snafu::ErrorCompat for #parameterized_struct_name
+            impl#generics #crate_root::ErrorCompat for #parameterized_struct_name
             where
                 #(#where_clauses),*
             {

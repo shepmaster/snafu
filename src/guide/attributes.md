@@ -231,3 +231,24 @@ enum Error {
     },
 }
 ```
+
+## Controlling how the `snafu` crate is resolved
+
+If the `snafu` crate is not called `snafu` for some reason, you can
+use `#[snafu(crate_root)]` to instruct the macro how to find the crate
+root:
+
+```rust
+# use snafu as my_custom_naming_of_snafu;
+use my_custom_naming_of_snafu::Snafu;
+
+#[derive(Debug, Snafu)]
+#[snafu(crate_root(my_custom_naming_of_snafu))]
+enum Error {
+    SomeFailureMode,
+}
+
+#[derive(Debug, Snafu)]
+#[snafu(crate_root(my_custom_naming_of_snafu))]
+struct ApiError(Error);
+```
