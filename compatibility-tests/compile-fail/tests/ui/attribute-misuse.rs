@@ -21,6 +21,7 @@ mod variant_misuse {
         #[snafu(display("an error variant"), source(from(XXXX, Box::new)))]
         #[snafu(source)]
         #[snafu(backtrace)]
+        #[snafu(crate_root(XXXX))]
         AVariant,
     }
 }
@@ -36,6 +37,7 @@ mod field_misuse {
             #[snafu(source(false))]
             #[snafu(source(from(XXXX, Box::new)))]
             #[snafu(context)]
+            #[snafu(crate_root(XXXX))]
             source: String,
         },
     }

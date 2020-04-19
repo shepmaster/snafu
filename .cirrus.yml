@@ -24,6 +24,8 @@ stable_test_task:
     - cargo test --manifest-path compatibility-tests/futures-0.1/Cargo.toml
   context_selectors_have_documentation_test_script:
     - cargo test --manifest-path compatibility-tests/context-selectors-have-documentation/Cargo.toml
+  renamed_import_test_script:
+    - cargo test --manifest-path compatibility-tests/renamed-import/Cargo.toml
   compile_fail_test_script:
     - cargo test --manifest-path compatibility-tests/compile-fail/Cargo.toml
   lint_script:
