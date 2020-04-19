@@ -130,6 +130,10 @@ macro_rules! generate_guide {
     (@gen $prefix:expr, pub mod $name:ident; $($rest:tt)*) => {
         generate_guide!(@gen $prefix, pub mod $name { } $($rest)*);
     };
+    (@gen $prefix:expr, @code pub mod $name:ident; $($rest:tt)*) => {
+        pub mod $name;
+        generate_guide!(@gen $prefix, $($rest)*);
+    };
     (@gen $prefix:expr, pub mod $name:ident { $($children:tt)* } $($rest:tt)*) => {
         doc_comment::doc_comment! {
             include_str!(concat!($prefix, "/", stringify!($name), ".md")),
@@ -155,6 +159,8 @@ generate_guide! {
         pub mod philosophy;
         pub mod the_macro;
         pub mod upgrading;
+
+        @code pub mod examples;
     }
 }
 
