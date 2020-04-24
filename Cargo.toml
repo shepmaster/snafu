@@ -46,6 +46,9 @@ futures-01 = ["futures-01-crate"]
 # The standard library's implementation of futures
 futures = ["futures-core-crate", "pin-project"]
 
+# Add extension trait for the SinkExt trait
+sink = ["futures-crate"]
+
 # No public user should make use of this feature
 # https://github.com/rust-lang/cargo/issues/1596
 "internal-dev-dependencies" = ["futures-crate"]

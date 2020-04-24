@@ -8,11 +8,13 @@
 //! [feature flag]: crate::guide::feature_flags
 
 pub mod try_future;
+#[cfg(feature = "sink")]
 pub mod try_sink;
 pub mod try_stream;
 
 #[doc(inline)]
 pub use self::try_future::TryFutureExt;
+#[cfg(feature = "sink")]
 #[doc(inline)]
 pub use self::try_sink::SnafuSinkExt;
 #[doc(inline)]
