@@ -37,7 +37,7 @@ pub trait SinkExt: Sink + Sized {
     /// # type ApiError = Box<dyn std::error::Error>;
     /// fn stock_prices() -> impl Sink<SinkItem = i32, SinkError = ApiError> {
     ///     /* ... */
-    /// # Vec::new()
+    /// # Vec::new().sink_map_err(|_| String::new()).sink_from_err()
     /// }
     /// ```
     ///
@@ -74,10 +74,10 @@ pub trait SinkExt: Sink + Sized {
     ///     })
     /// }
     ///
-    /// # type ApiError = std::io::Error;
+    /// # type ApiError = Box<dyn std::error::Error>;
     /// fn stock_prices() -> impl Sink<SinkItem = i32, SinkError = ApiError> {
     ///     /* ... */
-    /// # Vec::new()
+    /// # Vec::new().sink_map_err(|_| String::new()).sink_from_err()
     /// }
     /// ```
     ///

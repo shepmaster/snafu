@@ -18,7 +18,7 @@ pub trait SnafuSinkExt<I>: SinkExt<I> + Sized {
     ///
     /// ```rust
     /// # use futures_crate as futures;
-    /// use futures::Sink;
+    /// use futures::{Sink, SinkExt};
     /// # use futures::sink;
     /// use snafu::{futures::SnafuSinkExt, Snafu};
     ///
@@ -41,7 +41,7 @@ pub trait SnafuSinkExt<I>: SinkExt<I> + Sized {
     /// # type ApiError = Box<dyn std::error::Error>;
     /// fn transactions() -> impl Sink<i32, Error = ApiError> {
     ///     /* ... */
-    /// # sink::drain()
+    /// # sink::drain().sink_err_into()
     /// }
     /// ```
     ///
@@ -57,7 +57,7 @@ pub trait SnafuSinkExt<I>: SinkExt<I> + Sized {
     ///
     /// ```rust
     /// # use futures_crate as futures;
-    /// use futures::Sink;
+    /// use futures::{Sink, SinkExt};
     /// # use futures::sink;
     /// use snafu::{futures::SnafuSinkExt, Snafu};
     ///
@@ -80,7 +80,7 @@ pub trait SnafuSinkExt<I>: SinkExt<I> + Sized {
     /// # type ApiError = Box<dyn std::error::Error>;
     /// fn transactions() -> impl Sink<i32, Error = ApiError> {
     ///     /* ... */
-    /// # sink::drain()
+    /// # sink::drain().sink_err_into()
     /// }
     /// ```
     ///
