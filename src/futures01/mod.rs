@@ -8,9 +8,12 @@
 //! [feature flag]: crate::guide::feature_flags
 
 pub mod future;
+pub mod sink;
 pub mod stream;
 
 #[doc(inline)]
 pub use self::future::FutureExt;
+#[doc(inline)]
+pub use self::sink::SinkExt;
 #[doc(inline)]
 pub use self::stream::StreamExt;

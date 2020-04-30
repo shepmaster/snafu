@@ -5,5 +5,5 @@ authors = ["Jake Goulding <jake.goulding@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-snafu = { path = "../..", features = ["futures"] }
+snafu = { path = "../..", features = ["futures", "sink"] }
 futures = "0.3.0"
