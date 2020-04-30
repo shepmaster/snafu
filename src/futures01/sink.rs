@@ -56,7 +56,6 @@ pub trait SinkExt: Sink + Sized {
     /// ```rust
     /// # use futures_01_crate as futures;
     /// use futures::Sink;
-    /// # use futures::stream;
     /// use snafu::{futures01::SinkExt, Snafu};
     ///
     /// #[derive(Debug, Snafu)]
@@ -78,7 +77,7 @@ pub trait SinkExt: Sink + Sized {
     /// # type ApiError = std::io::Error;
     /// fn stock_prices() -> impl Sink<SinkItem = i32, SinkError = ApiError> {
     ///     /* ... */
-    /// # stream::empty()
+    /// # Vec::new()
     /// }
     /// ```
     ///
@@ -139,12 +138,6 @@ where
     type SinkItem = Si::SinkItem;
     type SinkError = E;
 
-    // fn poll(&mut self) -> Result<Async<Option<Self::SinkItem>>, Self::SinkError> {
-    //     self.sink
-    //         .poll()
-    //         .map_err(|error| self.context.clone().into_error(error))
-    // }
-
     fn start_send(
         &mut self,
         item: Self::SinkItem,
@@ -179,13 +172,6 @@ where
 {
     type SinkItem = St::SinkItem;
     type SinkError = E;
-
-    // fn poll(&mut self) -> Result<Async<Option<Self::SinkItem>>, Self::SinkError> {
-    //     self.sink.poll().map_err(|error| {
-    //         let context = &mut self.context;
-    //         context().into_error(error)
-    //     })
-    // }
 
     fn start_send(
         &mut self,
