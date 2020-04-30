@@ -9,13 +9,13 @@
 
 pub mod try_future;
 #[cfg(feature = "sink")]
-pub mod try_sink;
+pub mod sink;
 pub mod try_stream;
 
 #[doc(inline)]
 pub use self::try_future::TryFutureExt;
 #[cfg(feature = "sink")]
 #[doc(inline)]
-pub use self::try_sink::SnafuSinkExt;
+pub use self::sink::SnafuSinkExt;
 #[doc(inline)]
 pub use self::try_stream::TryStreamExt;
