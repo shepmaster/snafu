@@ -22,10 +22,10 @@ exclude = [
 
 [package.metadata.docs.rs]
 # The backtraces-impl-* features are incompatible with each other
-features = [ "std", "backtraces", "futures-01", "futures" ]
+features = [ "std", "backtraces", "futures-01", "futures", "guide" ]
 
 [features]
-default = ["std"]
+default = ["std", "guide"]
 
 # Implement the `std::error::Error` trait.
 std = []
@@ -45,6 +45,9 @@ futures-01 = ["futures-01-crate"]
 
 # The standard library's implementation of futures
 futures = ["futures-core-crate", "pin-project"]
+
+# Include the built-in user guide documentation
+guide = []
 
 # No public user should make use of this feature
 # https://github.com/rust-lang/cargo/issues/1596
