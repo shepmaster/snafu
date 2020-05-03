@@ -1,8 +1,8 @@
 # SNAFU user's guide
 
-Once you've got a high-level idea of what SNAFU can do by looking
-at the [quick example](crate), take a peek at [our design
-philosophy](guide::philosophy).
+Once you've got a high-level idea of what SNAFU can do by looking at
+the [quick example](crate) and some [more examples](guide::examples),
+take a peek at [our design philosophy](guide::philosophy).
 
 For more advanced usage, take a deeper dive into [how the `Snafu`
 macro works](guide::the_macro), how to create [opaque error
