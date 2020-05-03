@@ -118,6 +118,7 @@ pub mod futures;
 
 pub use snafu_derive::Snafu;
 
+#[cfg(feature = "guide")]
 macro_rules! generate_guide {
     (pub mod $name:ident; $($rest:tt)*) => {
         generate_guide!(@gen ".", pub mod $name { } $($rest)*);
@@ -140,6 +141,7 @@ macro_rules! generate_guide {
     };
 }
 
+#[cfg(feature = "guide")]
 generate_guide! {
     pub mod guide {
         pub mod attributes;
