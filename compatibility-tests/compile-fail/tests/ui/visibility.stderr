@@ -9,6 +9,7 @@ note: the unit struct `Private` is defined here
    |
 7  |         #[derive(Debug, Snafu)]
    |                         ^^^^^
+   = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0603]: unit struct `PubInPath` is private
   --> $DIR/visibility.rs:24:33
@@ -21,6 +22,7 @@ note: the unit struct `PubInPath` is defined here
    |
 7  |         #[derive(Debug, Snafu)]
    |                         ^^^^^
+   = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0603]: unit struct `Private` is private
   --> $DIR/visibility.rs:28:33
@@ -33,6 +35,7 @@ note: the unit struct `Private` is defined here
    |
 7  |         #[derive(Debug, Snafu)]
    |                         ^^^^^
+   = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0624]: method `build` is private
   --> $DIR/visibility.rs:19:38
