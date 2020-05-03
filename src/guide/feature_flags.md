@@ -5,6 +5,7 @@ there are Cargo [feature flags] that extend SNAFU for various use
 cases:
 
 - [`std`](#std)
+- [`guide`](#guide)
 - [`backtraces`](#backtraces)
 - [`backtraces-impl-backtrace-crate`](#backtraces-impl-backtrace-crate)
 - [`unstable-backtraces-impl-std`](#unstable-backtraces-impl-std)
@@ -23,6 +24,16 @@ disabled, SNAFU will instead implement a custom `Error` trait that is
 similar, but does not need any features from the standard library.
 
 Most usages of SNAFU will want this feature enabled.
+
+## `guide`
+
+**default**: enabled
+
+When enabled, the `guide` module containing the user's guide will be
+built.
+
+Most usages of SNAFU will want this feature disabled. A future release
+will disable this by default.
 
 ## `backtraces`
 
