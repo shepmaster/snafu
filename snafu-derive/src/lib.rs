@@ -1180,7 +1180,7 @@ fn attributes_from_syn(attrs: Vec<syn::Attribute>) -> MultiSynResult<Vec<SnafuAt
 }
 
 fn default_crate_root() -> UserInput {
-    Box::new(quote! { snafu })
+    Box::new(quote! { ::snafu })
 }
 
 fn private_visibility() -> UserInput {
@@ -1419,7 +1419,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
                     .zip(user_fields)
                     .map(|(gen_ty, f)| {
                         let Field { ty, .. } = f;
-                        quote! { #gen_ty: core::convert::Into<#ty> }
+                        quote! { #gen_ty: ::core::convert::Into<#ty> }
                     })
                     .chain(self.0.provided_where_clauses())
                     .collect();
@@ -1436,16 +1436,16 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
                                 let Self { #(#names),* } = self;
                                 #enum_name::#variant_name {
                                     #backtrace_field
-                                    #( #names: core::convert::Into::into(#names) ),*
+                                    #( #names: ::core::convert::Into::into(#names) ),*
                                 }
                             }
 
                             #[doc = "Consume the selector and return a `Result` with the associated error"]
-                            #visibility fn fail<#(#original_generics_without_defaults,)* __T>(self) -> core::result::Result<__T, #parameterized_enum_name>
+                            #visibility fn fail<#(#original_generics_without_defaults,)* __T>(self) -> ::core::result::Result<__T, #parameterized_enum_name>
                             where
                                 #(#where_clauses),*
                             {
-                                core::result::Result::Err(self.build())
+                                ::core::result::Result::Err(self.build())
                             }
                         }
                     }
@@ -1611,11 +1611,11 @@ impl<'a> quote::ToTokens for DisplayImpl<'a> {
         stream.extend({
             quote! {
                 #[allow(single_use_lifetimes)]
-                impl<#(#original_generics),*> core::fmt::Display for #parameterized_enum_name
+                impl<#(#original_generics),*> ::core::fmt::Display for #parameterized_enum_name
                 where
                     #(#where_clauses),*
                 {
-                    fn fmt(&self, #FORMATTER_ARG: &mut core::fmt::Formatter) -> core::fmt::Result {
+                    fn fmt(&self, #FORMATTER_ARG: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                         #[allow(unused_variables)]
                         match *self {
                             #(#variants_to_display)*
@@ -1667,13 +1667,13 @@ impl<'a> ErrorImpl<'a> {
                         } = source_field;
                         quote! {
                             #enum_name::#variant_name { ref #field_name, .. } => {
-                                core::option::Option::Some(#field_name.as_error_source())
+                                ::core::option::Option::Some(#field_name.as_error_source())
                             }
                         }
                     }
                     None => {
                         quote! {
-                            #enum_name::#variant_name { .. } => { core::option::Option::None }
+                            #enum_name::#variant_name { .. } => { ::core::option::Option::None }
                         }
                     }
                 }
@@ -1734,7 +1734,7 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
                 #[allow(single_use_lifetimes)]
                 impl<#(#original_generics),*> #crate_root::Error for #parameterized_enum_name
                 where
-                    Self: core::fmt::Debug + core::fmt::Display,
+                    Self: ::core::fmt::Debug + ::core::fmt::Display,
                     #(#where_clauses),*
                 {
                     #description_fn
@@ -1782,7 +1782,7 @@ impl<'a> ErrorCompatImpl<'a> {
                 }
                 _ => {
                     quote! {
-                        #enum_name::#variant_name { .. } => { core::option::Option::None }
+                        #enum_name::#variant_name { .. } => { ::core::option::Option::None }
                     }
                 }
             }
@@ -1899,18 +1899,18 @@ impl StructInfo {
 
         let display_impl = quote! {
             #[allow(single_use_lifetimes)]
-            impl#generics core::fmt::Display for #parameterized_struct_name
+            impl#generics ::core::fmt::Display for #parameterized_struct_name
             where
                 #(#where_clauses),*
             {
-                fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-                    core::fmt::Display::fmt(&self.0, f)
+                fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                    ::core::fmt::Display::fmt(&self.0, f)
                 }
             }
         };
 
         let from_impl = quote! {
-            impl#generics core::convert::From<#inner_type> for #parameterized_struct_name
+            impl#generics ::core::convert::From<#inner_type> for #parameterized_struct_name
             where
                 #(#where_clauses),*
             {
