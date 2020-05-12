@@ -1,8 +1,10 @@
-use snafu::{ensure, Snafu};
+use ::snafu as real_snafu;
+use real_snafu::{ensure, Snafu};
 
-// Modules to clash with likely candidates from the standard library.
+// Likely candidates to clash with generated code
 mod core {}
 mod std {}
+mod snafu {}
 
 #[derive(Debug, Snafu)]
 enum VariantNamedNone {
