@@ -22,7 +22,7 @@ error: `backtrace` attribute is only valid on enum variant fields, not on an enu
 8 |     #[snafu(backtrace)]
   |             ^^^^^^^^^
 
-error: `context` attribute is only valid on enum variant fields, not on an enum
+error: `context` attribute is only valid on enum variants, not on an enum
  --> $DIR/attribute-misuse.rs:9:13
   |
 9 |     #[snafu(context)]
@@ -70,7 +70,7 @@ error: Incompatible attributes [`source(false)`, `source(from)`] specified on a 
 38 |             #[snafu(source(from(XXXX, Box::new)))]
    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error: `context` attribute is only valid on enum variant fields, not on a field
+error: `context` attribute is only valid on enum variants, not on a field
   --> $DIR/attribute-misuse.rs:39:21
    |
 39 |             #[snafu(context)]
@@ -106,7 +106,7 @@ error: `backtrace` attribute is only valid on enum variant fields, not on a stru
 57 |     #[snafu(backtrace)]
    |             ^^^^^^^^^
 
-error: `context` attribute is only valid on enum variant fields, not on a struct
+error: `context` attribute is only valid on enum variants, not on a struct
   --> $DIR/attribute-misuse.rs:58:13
    |
 58 |     #[snafu(context)]

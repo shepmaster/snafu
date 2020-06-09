@@ -469,7 +469,7 @@ const ATTR_VISIBILITY: OnlyValidOn = OnlyValidOn {
 
 const ATTR_CONTEXT: OnlyValidOn = OnlyValidOn {
     attribute: "context",
-    valid_on: "enum variant fields",
+    valid_on: "enum variants",
 };
 
 const ATTR_CRATE_ROOT: OnlyValidOn = OnlyValidOn {
