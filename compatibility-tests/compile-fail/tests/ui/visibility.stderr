@@ -2,7 +2,7 @@ error[E0603]: unit struct `Private` is private
   --> $DIR/visibility.rs:19:30
    |
 19 |         let _ = self::inner::Private.build();
-   |                              ^^^^^^^ this unit struct is private
+   |                              ^^^^^^^ private unit struct
    |
 note: the unit struct `Private` is defined here
   --> $DIR/visibility.rs:7:25
@@ -15,7 +15,7 @@ error[E0603]: unit struct `PubInPath` is private
   --> $DIR/visibility.rs:24:33
    |
 24 |     let _ = self::outer::inner::PubInPath.build();
-   |                                 ^^^^^^^^^ this unit struct is private
+   |                                 ^^^^^^^^^ private unit struct
    |
 note: the unit struct `PubInPath` is defined here
   --> $DIR/visibility.rs:7:25
@@ -28,7 +28,7 @@ error[E0603]: unit struct `Private` is private
   --> $DIR/visibility.rs:28:33
    |
 28 |     let _ = self::outer::inner::Private.build();
-   |                                 ^^^^^^^ this unit struct is private
+   |                                 ^^^^^^^ private unit struct
    |
 note: the unit struct `Private` is defined here
   --> $DIR/visibility.rs:7:25
@@ -37,20 +37,20 @@ note: the unit struct `Private` is defined here
    |                         ^^^^^
    = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0624]: method `build` is private
+error[E0624]: associated function `build` is private
   --> $DIR/visibility.rs:19:38
    |
 19 |         let _ = self::inner::Private.build();
-   |                                      ^^^^^
+   |                                      ^^^^^ private associated function
 
-error[E0624]: method `build` is private
+error[E0624]: associated function `build` is private
   --> $DIR/visibility.rs:24:43
    |
 24 |     let _ = self::outer::inner::PubInPath.build();
-   |                                           ^^^^^
+   |                                           ^^^^^ private associated function
 
-error[E0624]: method `build` is private
+error[E0624]: associated function `build` is private
   --> $DIR/visibility.rs:28:41
    |
 28 |     let _ = self::outer::inner::Private.build();
-   |                                         ^^^^^
+   |                                         ^^^^^ private associated function
