@@ -31,7 +31,7 @@ use crate::{Snafu, Backtrace, ErrorCompat, GenerateBacktrace};
 /// source error provides a backtrace of some kind. If it is another
 /// SNAFU error, for example, you can *delegate* retrieval of the
 /// backtrace to the source error. If the source error doesn't provide
-/// it's own backtrace, you should capture your own backtrace. This
+/// its own backtrace, you should capture your own backtrace. This
 /// backtrace would not be as useful as one captured by the source
 /// error, but it's as useful as you can get.
 ///
