@@ -8,6 +8,11 @@ use std::{fmt, path};
 #[derive(Debug)]
 pub struct Backtrace(backtrace::Backtrace);
 
+impl Backtrace {
+    /// Returns reference to the raw backtrace::Backtrace
+    pub fn raw(&self) -> &backtrace::Backtrace { &self.0 }
+}
+
 impl crate::GenerateBacktrace for Backtrace {
     // Inlining in an attempt to remove this function from the backtrace
     #[inline(always)]
