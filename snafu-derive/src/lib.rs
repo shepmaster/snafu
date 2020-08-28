@@ -26,7 +26,7 @@ type UserInput = Box<dyn quote::ToTokens>;
 
 enum SnafuInfo {
     Enum(EnumInfo),
-    Struct(StructInfo),
+    TupleStruct(TupleStructInfo),
 }
 
 struct EnumInfo {
@@ -73,7 +73,7 @@ impl ContextSelectorKind {
     }
 }
 
-struct StructInfo {
+struct TupleStructInfo {
     crate_root: UserInput,
     name: syn::Ident,
     generics: syn::Generics,
@@ -190,7 +190,7 @@ enum ErrorLocation {
     OnVariant,
     InVariant,
     OnField,
-    OnStruct,
+    OnTupleStruct,
 }
 
 impl fmt::Display for ErrorLocation {
@@ -202,7 +202,7 @@ impl fmt::Display for ErrorLocation {
             OnVariant => "on an enum variant".fmt(f),
             InVariant => "within an enum variant".fmt(f),
             OnField => "on a field".fmt(f),
-            OnStruct => "on a struct".fmt(f),
+            OnTupleStruct => "on a tuple struct".fmt(f),
         }
     }
 }
@@ -418,7 +418,7 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> MultiSynResult<SnafuInfo> {
     match data {
         Data::Enum(enum_) => parse_snafu_enum(enum_, ident, generics, attrs).map(SnafuInfo::Enum),
         Data::Struct(struct_) => {
-            parse_snafu_struct(struct_, ident, generics, attrs, span).map(SnafuInfo::Struct)
+            parse_snafu_struct(struct_, ident, generics, attrs, span).map(SnafuInfo::TupleStruct)
         }
         _ => Err(vec![syn::Error::new(
             span,
@@ -799,14 +799,30 @@ fn parse_snafu_struct(
     generics: syn::Generics,
     attrs: Vec<syn::Attribute>,
     span: proc_macro2::Span,
-) -> MultiSynResult<StructInfo> {
+) -> MultiSynResult<TupleStructInfo> {
     use syn::Fields;
 
-    let mut transformations = AtMostOne::new("source(from)", ErrorLocation::OnStruct);
-    let mut crate_roots = AtMostOne::new("crate_root", ErrorLocation::OnStruct);
+    match struct_.fields {
+        Fields::Unnamed(f) => parse_snafu_tuple_struct(f, name, generics, attrs, span),
+        _ => Err(vec![syn::Error::new(
+            span,
+            "Can only derive `Snafu` for tuple structs",
+        )]),
+    }
+}
+
+fn parse_snafu_tuple_struct(
+    mut fields: syn::FieldsUnnamed,
+    name: syn::Ident,
+    generics: syn::Generics,
+    attrs: Vec<syn::Attribute>,
+    span: proc_macro2::Span,
+) -> MultiSynResult<TupleStructInfo> {
+    let mut transformations = AtMostOne::new("source(from)", ErrorLocation::OnTupleStruct);
+    let mut crate_roots = AtMostOne::new("crate_root", ErrorLocation::OnTupleStruct);
 
     let mut errors = SyntaxErrors::default();
-    let mut struct_errors = errors.scoped(ErrorLocation::OnStruct);
+    let mut struct_errors = errors.scoped(ErrorLocation::OnTupleStruct);
 
     for attr in attributes_from_syn(attrs)? {
         match attr {
@@ -826,16 +842,6 @@ fn parse_snafu_struct(
             SnafuAttribute::DocComment(..) => { /* Just a regular doc comment. */ }
         }
     }
-
-    let mut fields = match struct_.fields {
-        Fields::Unnamed(f) => f,
-        _ => {
-            return Err(vec![syn::Error::new(
-                span,
-                "Can only derive `Snafu` for tuple structs",
-            )]);
-        }
-    };
 
     fn one_field_error(span: proc_macro2::Span) -> syn::Error {
         syn::Error::new(
@@ -866,7 +872,7 @@ fn parse_snafu_struct(
 
     errors.finish()?;
 
-    Ok(StructInfo {
+    Ok(TupleStructInfo {
         crate_root,
         name,
         generics,
@@ -1201,7 +1207,7 @@ impl From<SnafuInfo> for proc_macro::TokenStream {
     fn from(other: SnafuInfo) -> proc_macro::TokenStream {
         match other {
             SnafuInfo::Enum(e) => e.into(),
-            SnafuInfo::Struct(s) => s.into(),
+            SnafuInfo::TupleStruct(s) => s.into(),
         }
     }
 }
@@ -1212,8 +1218,8 @@ impl From<EnumInfo> for proc_macro::TokenStream {
     }
 }
 
-impl From<StructInfo> for proc_macro::TokenStream {
-    fn from(other: StructInfo) -> proc_macro::TokenStream {
+impl From<TupleStructInfo> for proc_macro::TokenStream {
+    fn from(other: TupleStructInfo) -> proc_macro::TokenStream {
         other.generate_snafu().into()
     }
 }
@@ -1820,11 +1826,11 @@ impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
     }
 }
 
-impl StructInfo {
+impl TupleStructInfo {
     fn generate_snafu(self) -> proc_macro2::TokenStream {
         let parameterized_struct_name = self.parameterized_name();
 
-        let StructInfo {
+        let TupleStructInfo {
             crate_root,
             generics,
             name,
@@ -1929,7 +1935,7 @@ impl StructInfo {
     }
 }
 
-impl GenericAwareNames for StructInfo {
+impl GenericAwareNames for TupleStructInfo {
     fn name(&self) -> &syn::Ident {
         &self.name
     }

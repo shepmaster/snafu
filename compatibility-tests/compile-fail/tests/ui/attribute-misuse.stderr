@@ -82,31 +82,31 @@ error: `crate_root` attribute is only valid on an enum or a struct, not on a fie
 40 |             #[snafu(crate_root(XXXX))]
    |                     ^^^^^^^^^^^^^^^^
 
-error: `display` attribute is only valid on enum variants, not on a struct
+error: `display` attribute is only valid on enum variants, not on a tuple struct
   --> $DIR/attribute-misuse.rs:53:13
    |
 53 |     #[snafu(display("display should not work here"))]
    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error: `visibility` attribute is only valid on an enum and its variants, not on a struct
+error: `visibility` attribute is only valid on an enum and its variants, not on a tuple struct
   --> $DIR/attribute-misuse.rs:55:13
    |
 55 |     #[snafu(visibility(pub))]
    |             ^^^^^^^^^^^^^^^
 
-error: `source(bool)` attribute is only valid on enum variant fields, not on a struct
+error: `source(bool)` attribute is only valid on enum variant fields, not on a tuple struct
   --> $DIR/attribute-misuse.rs:56:13
    |
 56 |     #[snafu(source(true))]
    |             ^^^^^^^^^^^^
 
-error: `backtrace` attribute is only valid on enum variant fields, not on a struct
+error: `backtrace` attribute is only valid on enum variant fields, not on a tuple struct
   --> $DIR/attribute-misuse.rs:57:13
    |
 57 |     #[snafu(backtrace)]
    |             ^^^^^^^^^
 
-error: `context` attribute is only valid on enum variants, not on a struct
+error: `context` attribute is only valid on enum variants, not on a tuple struct
   --> $DIR/attribute-misuse.rs:58:13
    |
 58 |     #[snafu(context)]
