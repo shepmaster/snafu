@@ -1847,26 +1847,26 @@ impl StructInfo {
         };
 
         let cause_fn = quote! {
-            fn cause(&self) -> Option<&dyn #crate_root::Error> {
+            fn cause(&self) -> ::core::option::Option<&dyn #crate_root::Error> {
                 #crate_root::Error::cause(&self.0)
             }
         };
 
         let source_fn = quote! {
-            fn source(&self) -> Option<&(dyn #crate_root::Error + 'static)> {
+            fn source(&self) -> ::core::option::Option<&(dyn #crate_root::Error + 'static)> {
                 #crate_root::Error::source(&self.0)
             }
         };
 
         let backtrace_fn = quote! {
-            fn backtrace(&self) -> Option<&#crate_root::Backtrace> {
+            fn backtrace(&self) -> ::core::option::Option<&#crate_root::Backtrace> {
                 #crate_root::ErrorCompat::backtrace(&self.0)
             }
         };
 
         let std_backtrace_fn = if cfg!(feature = "unstable-backtraces-impl-std") {
             quote! {
-                fn backtrace(&self) -> Option<&std::backtrace::Backtrace> {
+                fn backtrace(&self) -> ::core::option::Option<&std::backtrace::Backtrace> {
                     #crate_root::ErrorCompat::backtrace(self)
                 }
             }
