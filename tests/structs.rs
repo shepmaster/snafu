@@ -1,46 +1,7 @@
-use snafu::{ResultExt, Snafu};
-use std::{
-    error::Error as StdError,
-    fs, io,
-    path::{Path, PathBuf},
-    ptr,
-};
+// Using #[path] to work around a https://github.com/rust-lang/rustfmt/issues/4404
+// Once fixed and released, switch to a `mod structs { ... }`
 
-#[derive(Debug, Snafu)]
-#[snafu(display("filename: {}, source: {}", filename.display(), source))]
-struct Error {
-    filename: PathBuf,
-    source: io::Error,
-}
-
-type Result<T, E = Error> = std::result::Result<T, E>;
-
-fn example(filename: impl AsRef<Path>) -> Result<()> {
-    let filename = filename.as_ref();
-
-    let _config = fs::read(filename).context(Context { filename })?;
-
-    Ok(())
-}
-
-#[test]
-fn implements_error() {
-    fn check<T: StdError>() {}
-    check::<Error>();
-
-    let path = "/some/directory/that/does/not/exist";
-    let e = example(path).unwrap_err();
-    assert_eq!(e.filename, Path::new(path));
-
-    let source = e.source().expect("Source must be present");
-    let source_as_io_error =
-        StdError::downcast_ref::<io::Error>(source).expect("Source must be io::Error");
-    assert!(ptr::eq(source_as_io_error, &e.source));
-
-    let display = e.to_string();
-    assert!(
-        display.starts_with("filename: /some/directory/that/does/not/exist, source: "),
-        "Display string incorrect, is: {}",
-        display,
-    );
-}
+#[path = "structs/with_source.rs"]
+mod with_source;
+#[path = "structs/without_source.rs"]
+mod without_source;

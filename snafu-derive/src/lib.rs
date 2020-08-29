@@ -1997,6 +1997,49 @@ impl NamedStructInfo {
             }
         };
 
+        let context_selector_impl = {
+            if source_field.is_none() {
+                // COPY PASTA
+                let user_generics = user_generics.clone();
+
+                // COPY PASTA
+                let target_types = user_fields
+                    .iter()
+                    .map(|Field { ty, .. }| quote! { ::core::convert::Into<#ty>});
+                let where_clauses = user_generics
+                    .clone()
+                    .zip(target_types)
+                    .map(|(gen, bound)| quote! { #gen: #bound });
+
+                // COPY PASTA
+                let user_bindings = user_field_names.clone();
+                let user_conversions = user_field_names
+                    .clone()
+                    .map(|n| quote! { #n: ::core::convert::Into::into(#n) });
+
+                quote! {
+                    impl <#(#user_generics,)*> #parameterized_selector_name
+                    where
+                        #(#where_clauses,)*
+                    {
+                        fn build(self) -> #parameterized_struct_name {
+                            let Self { #(#user_bindings,)* } = self;
+                            #name {
+                                #(#user_conversions,)*
+                            }
+                        }
+
+                        fn fail<T>(self) -> ::core::result::Result<T, #parameterized_struct_name> {
+                            ::core::result::Result::Err(self.build())
+                        }
+                    }
+
+                }
+            } else {
+                quote! {}
+            }
+        };
+
         let into_error_impl = if let Some(source_field) = &source_field {
             let source_name = source_field.name();
             let source_type = source_field.transformation.ty();
@@ -2044,6 +2087,7 @@ impl NamedStructInfo {
             #error_compat_impl
             #display_impl
             #context_selector_type
+            #context_selector_impl
             #into_error_impl
         }
     }
