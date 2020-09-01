@@ -80,6 +80,7 @@ struct NamedStructInfo {
     source_field: Option<SourceField>,
     user_fields: Vec<Field>,
     display_format: Option<UserInput>,
+    doc_comment: String,
 }
 
 struct TupleStructInfo {
@@ -831,28 +832,25 @@ fn parse_snafu_struct(
 
     match struct_.fields {
         Fields::Named(f) => {
+            let f = f.named.into_iter().collect();
             parse_snafu_named_struct(f, name, generics, attrs, span).map(SnafuInfo::NamedStruct)
         }
         Fields::Unnamed(f) => {
             parse_snafu_tuple_struct(f, name, generics, attrs, span).map(SnafuInfo::TupleStruct)
         }
-        Fields::Unit => Err(vec![syn::Error::new(
-            span,
-            "Cannot derive `Snafu` for unit structs",
-        )]),
+        Fields::Unit => parse_snafu_named_struct(vec![], name, generics, attrs, span)
+            .map(SnafuInfo::NamedStruct),
     }
 }
 
 fn parse_snafu_named_struct(
-    fields: syn::FieldsNamed,
+    fields: Vec<syn::Field>,
     name: syn::Ident,
     generics: syn::Generics,
     attrs: Vec<syn::Attribute>,
     span: proc_macro2::Span,
 ) -> MultiSynResult<NamedStructInfo> {
     let mut errors = SyntaxErrors::default();
-
-    let fields = fields.named.into_iter().collect();
 
     let r = field_container(
         name,
@@ -870,6 +868,7 @@ fn parse_snafu_named_struct(
         name,
         selector_kind,
         display_format,
+        doc_comment,
         ..
     } = r;
 
@@ -887,6 +886,7 @@ fn parse_snafu_named_struct(
         source_field,
         user_fields,
         display_format,
+        doc_comment,
     })
 }
 
@@ -1930,6 +1930,7 @@ impl NamedStructInfo {
             source_field,
             user_fields,
             display_format,
+            doc_comment,
             ..
         } = self;
 
@@ -1977,7 +1978,18 @@ impl NamedStructInfo {
             // TODO: backtrace
             let field_names = user_field_names.chain(source_field_name);
 
-            let display_format = display_format.unwrap_or_else(|| unimplemented!());
+            // COPY PASTA
+            let display_format = match (&display_format, &source_field) {
+                (Some(v), _) => quote! { #v },
+                (None, _) if !doc_comment.is_empty() => {
+                    quote! { #doc_comment }
+                }
+                (None, Some(f)) => {
+                    let field_name = &f.name;
+                    quote! { concat!(stringify!(#name), ": {}"), #field_name }
+                }
+                (None, None) => quote! { stringify!(#name)},
+            };
 
             quote! {
                 impl ::core::fmt::Display for #parameterized_struct_name {
@@ -1991,14 +2003,22 @@ impl NamedStructInfo {
         };
 
         let context_selector_type = {
-            let user_fields = user_field_names
+            let user_fields: Vec<_> = user_field_names
                 .clone()
                 .zip(user_generics.clone())
-                .map(|(name, ty)| quote! { #name: #ty });
+                .map(|(name, ty)| quote! { #name: #ty })
+                .collect();
 
-            quote! {
-                struct #parameterized_selector_name {
-                    #(#user_fields,)*
+            // COPY PASTA
+            if user_fields.is_empty() {
+                quote! {
+                    struct #parameterized_selector_name;
+                }
+            } else {
+                quote! {
+                    struct #parameterized_selector_name {
+                        #(#user_fields,)*
+                    }
                 }
             }
         };
