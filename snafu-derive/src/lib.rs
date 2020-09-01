@@ -82,6 +82,7 @@ struct NamedStructInfo {
     user_fields: Vec<Field>,
     display_format: Option<UserInput>,
     doc_comment: String,
+    visibility: Option<UserInput>,
 }
 
 struct TupleStructInfo {
@@ -871,7 +872,7 @@ fn parse_snafu_named_struct(
         display_format,
         doc_comment,
         backtrace_field,
-        ..
+        visibility,
     } = r;
 
     let (source_field, user_fields) = match selector_kind {
@@ -890,6 +891,7 @@ fn parse_snafu_named_struct(
         user_fields,
         display_format,
         doc_comment,
+        visibility,
     })
 }
 
@@ -1935,6 +1937,7 @@ impl NamedStructInfo {
             user_fields,
             display_format,
             doc_comment,
+            visibility,
             ..
         } = self;
 
@@ -2033,11 +2036,11 @@ impl NamedStructInfo {
             // COPY PASTA
             if user_fields.is_empty() {
                 quote! {
-                    struct #parameterized_selector_name;
+                    #visibility struct #parameterized_selector_name;
                 }
             } else {
                 quote! {
-                    struct #parameterized_selector_name {
+                    #visibility struct #parameterized_selector_name {
                         #(#user_fields,)*
                     }
                 }
@@ -2078,7 +2081,7 @@ impl NamedStructInfo {
                     where
                         #(#where_clauses,)*
                     {
-                        fn build(self) -> #parameterized_struct_name {
+                        #visibility fn build(self) -> #parameterized_struct_name {
                             let Self { #(#user_bindings,)* } = self;
                             #name {
                                 #backtrace_field
@@ -2086,7 +2089,7 @@ impl NamedStructInfo {
                             }
                         }
 
-                        fn fail<T>(self) -> ::core::result::Result<T, #parameterized_struct_name> {
+                        #visibility fn fail<T>(self) -> ::core::result::Result<T, #parameterized_struct_name> {
                             ::core::result::Result::Err(self.build())
                         }
                     }
