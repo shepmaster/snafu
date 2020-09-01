@@ -1963,7 +1963,10 @@ impl NamedStructInfo {
             };
 
             quote! {
-                impl <#(#original_generics,)*> #crate_root::Error for #parameterized_struct_name {
+                impl <#(#original_generics,)*> #crate_root::Error for #parameterized_struct_name
+                where
+                    Self: ::core::fmt::Debug + ::core::fmt::Display,
+                {
                     fn cause(&self) -> ::core::option::Option<&dyn #crate_root::Error> {
                         #source_body
                     }
@@ -2061,6 +2064,7 @@ impl NamedStructInfo {
                     .clone()
                     .zip(target_types)
                     .map(|(gen, bound)| quote! { #gen: #bound });
+                let where_clauses: &Vec<_> = &where_clauses.collect();
 
                 // COPY PASTA
                 let backtrace_field = match &backtrace_field {
@@ -2078,11 +2082,11 @@ impl NamedStructInfo {
                     .map(|n| quote! { #n: ::core::convert::Into::into(#n) });
 
                 quote! {
-                    impl <#(#original_generics,)* #(#user_generics,)*> #parameterized_selector_name
-                    where
-                        #(#where_clauses,)*
-                    {
-                        #visibility fn build(self) -> #parameterized_struct_name {
+                    impl <#(#user_generics,)*> #parameterized_selector_name {
+                        #visibility fn build<#(#original_generics,)*>(self) -> #parameterized_struct_name
+                        where
+                            #(#where_clauses,)*
+                        {
                             let Self { #(#user_bindings,)* } = self;
                             #name {
                                 #backtrace_field
@@ -2090,7 +2094,11 @@ impl NamedStructInfo {
                             }
                         }
 
-                        #visibility fn fail<T>(self) -> ::core::result::Result<T, #parameterized_struct_name> {
+                        #visibility fn fail<#(#original_generics,)* __T>(self) -> ::core::result::Result<__T, #parameterized_struct_name>
+                        where
+                            #(#where_clauses,)*
+
+                        {
                             ::core::result::Result::Err(self.build())
                         }
                     }
