@@ -34,11 +34,11 @@ struct EnumInfo {
     crate_root: UserInput,
     name: syn::Ident,
     generics: syn::Generics,
-    variants: Vec<VariantInfo>,
+    variants: Vec<FieldContainer>,
     default_visibility: UserInput,
 }
 
-struct VariantInfo {
+struct FieldContainer {
     name: syn::Ident,
     backtrace_field: Option<Field>,
     selector_kind: ContextSelectorKind,
@@ -495,7 +495,6 @@ fn parse_snafu_enum(
     generics: syn::Generics,
     attrs: Vec<syn::Attribute>,
 ) -> MultiSynResult<EnumInfo> {
-    use quote::ToTokens;
     use syn::spanned::Spanned;
     use syn::Fields;
 
@@ -540,44 +539,6 @@ fn parse_snafu_enum(
         .variants
         .into_iter()
         .map(|variant| {
-            let mut variant_errors = errors.scoped(ErrorLocation::OnVariant);
-
-            let name = variant.ident;
-            let variant_span = name.span();
-
-            let mut display_formats = AtMostOne::new("display", ErrorLocation::OnVariant);
-            let mut visibilities = AtMostOne::new("visibility", ErrorLocation::OnVariant);
-            let mut contexts = AtMostOne::new("context", ErrorLocation::OnVariant);
-            let mut doc_comment = String::new();
-            let mut reached_end_of_doc_comment = false;
-
-            for attr in attributes_from_syn(variant.attrs)? {
-                match attr {
-                    SnafuAttribute::Display(tokens, d) => display_formats.add(d, tokens),
-                    SnafuAttribute::Visibility(tokens, v) => visibilities.add(v, tokens),
-                    SnafuAttribute::Context(tokens, c) => contexts.add(c, tokens),
-                    SnafuAttribute::Source(tokens, ..) => variant_errors.add(tokens, ATTR_SOURCE),
-                    SnafuAttribute::Backtrace(tokens, ..) => variant_errors.add(tokens, ATTR_BACKTRACE),
-                    SnafuAttribute::CrateRoot(tokens, ..) => variant_errors.add(tokens, ATTR_CRATE_ROOT),
-                    SnafuAttribute::DocComment(_tts, doc_comment_line) => {
-                        // We join all the doc comment attributes with a space,
-                        // but end once the summary of the doc comment is
-                        // complete, which is indicated by an empty line.
-                        if !reached_end_of_doc_comment {
-                            let trimmed = doc_comment_line.trim();
-                            if trimmed.is_empty() {
-                                reached_end_of_doc_comment = true;
-                            } else {
-                                if !doc_comment.is_empty() {
-                                    doc_comment.push_str(" ");
-                                }
-                                doc_comment.push_str(trimmed);
-                            }
-                        }
-                    }
-                }
-            }
-
             let fields = match variant.fields {
                 Fields::Named(f) => f.named.into_iter().collect(),
                 Fields::Unnamed(_) => {
@@ -589,205 +550,18 @@ fn parse_snafu_enum(
                 Fields::Unit => vec![],
             };
 
-            let mut user_fields = Vec::new();
-            let mut source_fields = AtMostOne::new("source", ErrorLocation::InVariant);
-            let mut backtrace_fields = AtMostOne::new("backtrace", ErrorLocation::InVariant);
+            let name = variant.ident;
+            let span = name.span();
 
-            for syn_field in fields {
-                let original = syn_field.clone();
-                let span = syn_field.span();
-                let name = syn_field
-                    .ident
-                    .as_ref()
-                    .ok_or_else(|| vec![syn::Error::new(span, "Must have a named field")])?;
-                let field = Field {
-                    name: name.clone(),
-                    ty: syn_field.ty.clone(),
-                    original,
-                };
-
-                // Check whether we have multiple source/backtrace attributes on this field.
-                // We can't just add to source_fields/backtrace_fields from inside the attribute
-                // loop because source and backtrace are connected and require a bit of special
-                // logic after the attribute loop.  For example, we need to know whether there's a
-                // source transformation before we record a source field, but it might be on a
-                // later attribute.  We use the data field of `source_attrs` to track any
-                // transformations in case it was a `source(from(...))`, but for backtraces we
-                // don't need any more data.
-                let mut source_attrs = AtMostOne::new("source", ErrorLocation::OnField);
-                let mut backtrace_attrs = AtMostOne::new("backtrace", ErrorLocation::OnField);
-
-                // Keep track of the negative markers so we can check for inconsistencies and
-                // exclude fields even if they have the "source" or "backtrace" name.
-                let mut source_opt_out = false;
-                let mut backtrace_opt_out = false;
-
-                let mut field_errors = errors.scoped(ErrorLocation::OnField);
-
-                for attr in attributes_from_syn(syn_field.attrs.clone())? {
-                    match attr {
-                        SnafuAttribute::Source(tokens, ss) => {
-                            for s in ss {
-                                match s {
-                                    Source::Flag(v) => {
-                                        // If we've seen a `source(from)` then there will be a
-                                        // `Some` value in `source_attrs`.
-                                        let seen_source_from = source_attrs
-                                            .iter()
-                                            .map(|(val, _location)| val)
-                                            .any(Option::is_some);
-                                        if !v && seen_source_from {
-                                            field_errors.add(
-                                                tokens.clone(), SOURCE_BOOL_FROM_INCOMPATIBLE,
-                                            );
-                                        }
-                                        if v {
-                                            source_attrs.add(None, tokens.clone());
-                                        } else if name == "source" {
-                                            source_opt_out = true;
-                                        } else {
-                                            field_errors.add(tokens.clone(), ATTR_SOURCE_FALSE);
-                                        }
-                                    }
-                                    Source::From(t, e) => {
-                                        if source_opt_out {
-                                            field_errors.add(
-                                                tokens.clone(), SOURCE_BOOL_FROM_INCOMPATIBLE ,
-                                            );
-                                        }
-                                        source_attrs.add(Some((t, e)), tokens.clone());
-                                    }
-                                }
-                            }
-                        }
-                        SnafuAttribute::Backtrace(tokens, v) => {
-                            if v {
-                                backtrace_attrs.add((), tokens);
-                            } else if name == "backtrace" {
-                                backtrace_opt_out = true;
-                            } else {
-                                field_errors.add(tokens, ATTR_BACKTRACE_FALSE);
-                            }
-                        }
-                        SnafuAttribute::Visibility(tokens, ..) => field_errors.add(tokens, ATTR_VISIBILITY),
-                        SnafuAttribute::Display(tokens, ..) => field_errors.add(tokens, ATTR_DISPLAY),
-                        SnafuAttribute::Context(tokens, ..) => field_errors.add(tokens, ATTR_CONTEXT),
-                        SnafuAttribute::CrateRoot(tokens, ..) => field_errors.add(tokens, ATTR_CRATE_ROOT),
-                        SnafuAttribute::DocComment(..) => { /* Just a regular doc comment. */ }
-                    }
-                }
-
-                // Add errors for any duplicated attributes on this field.
-                let (source_attr, errs) = source_attrs.finish_with_location();
-                errors.extend(errs);
-                let (backtrace_attr, errs) = backtrace_attrs.finish_with_location();
-                errors.extend(errs);
-
-                let source_attr = source_attr.or_else(|| {
-                    if field.name == "source" && !source_opt_out {
-                        Some((None, syn_field.clone().into_token_stream()))
-                    } else {
-                        None
-                    }
-                });
-
-                let backtrace_attr = backtrace_attr.or_else(|| {
-                    if field.name == "backtrace" && !backtrace_opt_out {
-                        Some(((), syn_field.clone().into_token_stream()))
-                    } else {
-                        None
-                    }
-                });
-
-                if let Some((maybe_transformation, location)) = source_attr {
-                    let Field { name, ty, .. } = field;
-                    let transformation = maybe_transformation
-                        .map(|(ty, expr)| Transformation::Transform { ty, expr })
-                        .unwrap_or_else(|| Transformation::None { ty });
-
-                    source_fields.add(
-                        SourceField {
-                            name,
-                            transformation,
-                            // Specifying `backtrace` on a source field is how you request
-                            // delegation of the backtrace to the source error type.
-                            backtrace_delegate: backtrace_attr.is_some(),
-                        },
-                        location,
-                    );
-                } else if let Some((_, location)) = backtrace_attr {
-                    backtrace_fields.add(field, location);
-                } else {
-                    user_fields.push(field);
-                }
-            }
-
-            let (source, errs) = source_fields.finish_with_location();
-            errors.extend(errs);
-
-            let (backtrace, errs) = backtrace_fields.finish_with_location();
-            errors.extend(errs);
-
-            match (&source, &backtrace) {
-                (Some(source), Some(backtrace)) if source.0.backtrace_delegate => {
-                    let source_location = source.1.clone();
-                    let backtrace_location = backtrace.1.clone();
-                    errors.add(
-                        source_location,
-                        "Cannot have `backtrace` field and `backtrace` attribute on a source field in the same variant",
-                    );
-                    errors.add(
-                        backtrace_location,
-                        "Cannot have `backtrace` field and `backtrace` attribute on a source field in the same variant",
-                    );
-                }
-                _ => {} // no conflict
-            }
-
-            let (display_format, errs) = display_formats.finish();
-            errors.extend(errs);
-
-            let (visibility, errs) = visibilities.finish();
-            errors.extend(errs);
-
-            let (is_context, errs) = contexts.finish();
-            errors.extend(errs);
-
-            let source_field = source.map(|(val, _tts)| val);
-
-            let selector_kind = if is_context.unwrap_or(true) {
-                ContextSelectorKind::Context {
-                    source_field,
-                    user_fields,
-                }
-            } else {
-                errors.extend(
-                    user_fields.into_iter().map(|Field { original, .. }| {
-                        syn::Error::new_spanned(
-                            original,
-                            "Context selectors without context must not have context fields",
-                        )
-                    })
-                );
-
-                let source_field = source_field.ok_or_else(|| {
-                        vec![syn::Error::new(
-                            variant_span,
-                            "Context selectors without context must have a source field",
-                        )]
-                    })?;
-
-                ContextSelectorKind::NoContext { source_field }
-            };
-
-            Ok(VariantInfo {
+            field_container(
                 name,
-                backtrace_field: backtrace.map(|(val, _tts)| val),
-                selector_kind,
-                display_format,
-                doc_comment,
-                visibility,
-            })
+                span,
+                variant.attrs,
+                fields,
+                &mut errors,
+                ErrorLocation::OnVariant,
+                ErrorLocation::InVariant,
+            )
         })
         .collect();
 
@@ -799,6 +573,248 @@ fn parse_snafu_enum(
         generics,
         variants,
         default_visibility,
+    })
+}
+
+fn field_container(
+    name: syn::Ident,
+    variant_span: proc_macro2::Span,
+    attrs: Vec<syn::Attribute>,
+    fields: Vec<syn::Field>,
+    errors: &mut SyntaxErrors,
+    outer_error_location: ErrorLocation,
+    inner_error_location: ErrorLocation,
+) -> MultiSynResult<FieldContainer> {
+    use quote::ToTokens;
+    use syn::spanned::Spanned;
+
+    let mut outer_errors = errors.scoped(outer_error_location);
+
+    let mut display_formats = AtMostOne::new("display", outer_error_location);
+    let mut visibilities = AtMostOne::new("visibility", outer_error_location);
+    let mut contexts = AtMostOne::new("context", outer_error_location);
+    let mut doc_comment = String::new();
+    let mut reached_end_of_doc_comment = false;
+
+    for attr in attributes_from_syn(attrs)? {
+        match attr {
+            SnafuAttribute::Display(tokens, d) => display_formats.add(d, tokens),
+            SnafuAttribute::Visibility(tokens, v) => visibilities.add(v, tokens),
+            SnafuAttribute::Context(tokens, c) => contexts.add(c, tokens),
+            SnafuAttribute::Source(tokens, ..) => outer_errors.add(tokens, ATTR_SOURCE),
+            SnafuAttribute::Backtrace(tokens, ..) => outer_errors.add(tokens, ATTR_BACKTRACE),
+            SnafuAttribute::CrateRoot(tokens, ..) => outer_errors.add(tokens, ATTR_CRATE_ROOT),
+            SnafuAttribute::DocComment(_tts, doc_comment_line) => {
+                // We join all the doc comment attributes with a space,
+                // but end once the summary of the doc comment is
+                // complete, which is indicated by an empty line.
+                if !reached_end_of_doc_comment {
+                    let trimmed = doc_comment_line.trim();
+                    if trimmed.is_empty() {
+                        reached_end_of_doc_comment = true;
+                    } else {
+                        if !doc_comment.is_empty() {
+                            doc_comment.push_str(" ");
+                        }
+                        doc_comment.push_str(trimmed);
+                    }
+                }
+            }
+        }
+    }
+
+    let mut user_fields = Vec::new();
+    let mut source_fields = AtMostOne::new("source", inner_error_location);
+    let mut backtrace_fields = AtMostOne::new("backtrace", inner_error_location);
+
+    for syn_field in fields {
+        let original = syn_field.clone();
+        let span = syn_field.span();
+        let name = syn_field
+            .ident
+            .as_ref()
+            .ok_or_else(|| vec![syn::Error::new(span, "Must have a named field")])?;
+        let field = Field {
+            name: name.clone(),
+            ty: syn_field.ty.clone(),
+            original,
+        };
+
+        // Check whether we have multiple source/backtrace attributes on this field.
+        // We can't just add to source_fields/backtrace_fields from inside the attribute
+        // loop because source and backtrace are connected and require a bit of special
+        // logic after the attribute loop.  For example, we need to know whether there's a
+        // source transformation before we record a source field, but it might be on a
+        // later attribute.  We use the data field of `source_attrs` to track any
+        // transformations in case it was a `source(from(...))`, but for backtraces we
+        // don't need any more data.
+        let mut source_attrs = AtMostOne::new("source", ErrorLocation::OnField);
+        let mut backtrace_attrs = AtMostOne::new("backtrace", ErrorLocation::OnField);
+
+        // Keep track of the negative markers so we can check for inconsistencies and
+        // exclude fields even if they have the "source" or "backtrace" name.
+        let mut source_opt_out = false;
+        let mut backtrace_opt_out = false;
+
+        let mut field_errors = errors.scoped(ErrorLocation::OnField);
+
+        for attr in attributes_from_syn(syn_field.attrs.clone())? {
+            match attr {
+                SnafuAttribute::Source(tokens, ss) => {
+                    for s in ss {
+                        match s {
+                            Source::Flag(v) => {
+                                // If we've seen a `source(from)` then there will be a
+                                // `Some` value in `source_attrs`.
+                                let seen_source_from = source_attrs
+                                    .iter()
+                                    .map(|(val, _location)| val)
+                                    .any(Option::is_some);
+                                if !v && seen_source_from {
+                                    field_errors.add(tokens.clone(), SOURCE_BOOL_FROM_INCOMPATIBLE);
+                                }
+                                if v {
+                                    source_attrs.add(None, tokens.clone());
+                                } else if name == "source" {
+                                    source_opt_out = true;
+                                } else {
+                                    field_errors.add(tokens.clone(), ATTR_SOURCE_FALSE);
+                                }
+                            }
+                            Source::From(t, e) => {
+                                if source_opt_out {
+                                    field_errors.add(tokens.clone(), SOURCE_BOOL_FROM_INCOMPATIBLE);
+                                }
+                                source_attrs.add(Some((t, e)), tokens.clone());
+                            }
+                        }
+                    }
+                }
+                SnafuAttribute::Backtrace(tokens, v) => {
+                    if v {
+                        backtrace_attrs.add((), tokens);
+                    } else if name == "backtrace" {
+                        backtrace_opt_out = true;
+                    } else {
+                        field_errors.add(tokens, ATTR_BACKTRACE_FALSE);
+                    }
+                }
+                SnafuAttribute::Visibility(tokens, ..) => field_errors.add(tokens, ATTR_VISIBILITY),
+                SnafuAttribute::Display(tokens, ..) => field_errors.add(tokens, ATTR_DISPLAY),
+                SnafuAttribute::Context(tokens, ..) => field_errors.add(tokens, ATTR_CONTEXT),
+                SnafuAttribute::CrateRoot(tokens, ..) => field_errors.add(tokens, ATTR_CRATE_ROOT),
+                SnafuAttribute::DocComment(..) => { /* Just a regular doc comment. */ }
+            }
+        }
+
+        // Add errors for any duplicated attributes on this field.
+        let (source_attr, errs) = source_attrs.finish_with_location();
+        errors.extend(errs);
+        let (backtrace_attr, errs) = backtrace_attrs.finish_with_location();
+        errors.extend(errs);
+
+        let source_attr = source_attr.or_else(|| {
+            if field.name == "source" && !source_opt_out {
+                Some((None, syn_field.clone().into_token_stream()))
+            } else {
+                None
+            }
+        });
+
+        let backtrace_attr = backtrace_attr.or_else(|| {
+            if field.name == "backtrace" && !backtrace_opt_out {
+                Some(((), syn_field.clone().into_token_stream()))
+            } else {
+                None
+            }
+        });
+
+        if let Some((maybe_transformation, location)) = source_attr {
+            let Field { name, ty, .. } = field;
+            let transformation = maybe_transformation
+                .map(|(ty, expr)| Transformation::Transform { ty, expr })
+                .unwrap_or_else(|| Transformation::None { ty });
+
+            source_fields.add(
+                SourceField {
+                    name,
+                    transformation,
+                    // Specifying `backtrace` on a source field is how you request
+                    // delegation of the backtrace to the source error type.
+                    backtrace_delegate: backtrace_attr.is_some(),
+                },
+                location,
+            );
+        } else if let Some((_, location)) = backtrace_attr {
+            backtrace_fields.add(field, location);
+        } else {
+            user_fields.push(field);
+        }
+    }
+
+    let (source, errs) = source_fields.finish_with_location();
+    errors.extend(errs);
+
+    let (backtrace, errs) = backtrace_fields.finish_with_location();
+    errors.extend(errs);
+
+    match (&source, &backtrace) {
+        (Some(source), Some(backtrace)) if source.0.backtrace_delegate => {
+            let source_location = source.1.clone();
+            let backtrace_location = backtrace.1.clone();
+            errors.add(
+                source_location,
+                "Cannot have `backtrace` field and `backtrace` attribute on a source field in the same variant",
+            );
+            errors.add(
+                backtrace_location,
+                "Cannot have `backtrace` field and `backtrace` attribute on a source field in the same variant",
+            );
+        }
+        _ => {} // no conflict
+    }
+
+    let (display_format, errs) = display_formats.finish();
+    errors.extend(errs);
+
+    let (visibility, errs) = visibilities.finish();
+    errors.extend(errs);
+
+    let (is_context, errs) = contexts.finish();
+    errors.extend(errs);
+
+    let source_field = source.map(|(val, _tts)| val);
+
+    let selector_kind = if is_context.unwrap_or(true) {
+        ContextSelectorKind::Context {
+            source_field,
+            user_fields,
+        }
+    } else {
+        errors.extend(user_fields.into_iter().map(|Field { original, .. }| {
+            syn::Error::new_spanned(
+                original,
+                "Context selectors without context must not have context fields",
+            )
+        }));
+
+        let source_field = source_field.ok_or_else(|| {
+            vec![syn::Error::new(
+                variant_span,
+                "Context selectors without context must have a source field",
+            )]
+        })?;
+
+        ContextSelectorKind::NoContext { source_field }
+    };
+
+    Ok(FieldContainer {
+        name,
+        backtrace_field: backtrace.map(|(val, _tts)| val),
+        selector_kind,
+        display_format,
+        doc_comment,
+        visibility,
     })
 }
 
@@ -1425,7 +1441,7 @@ impl<'a> quote::ToTokens for ContextSelectors<'a> {
     }
 }
 
-struct ContextSelector<'a>(&'a EnumInfo, &'a VariantInfo);
+struct ContextSelector<'a>(&'a EnumInfo, &'a FieldContainer);
 
 impl<'a> quote::ToTokens for ContextSelector<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
@@ -1438,7 +1454,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
 
         let parameterized_enum_name = &self.0.parameterized_name();
 
-        let VariantInfo {
+        let FieldContainer {
             name: variant_name,
             selector_kind,
             backtrace_field,
@@ -1644,7 +1660,7 @@ impl<'a> DisplayImpl<'a> {
             .variants
             .iter()
             .map(|variant| {
-                let VariantInfo {
+                let FieldContainer {
                     name: variant_name,
                     selector_kind,
                     backtrace_field,
@@ -1722,7 +1738,7 @@ impl<'a> ErrorImpl<'a> {
             .variants
             .iter()
             .map(|variant| {
-                let VariantInfo {
+                let FieldContainer {
                     name: variant_name, ..
                 } = variant;
                 quote! {
@@ -1738,7 +1754,7 @@ impl<'a> ErrorImpl<'a> {
             .variants
             .iter()
             .map(|variant| {
-                let VariantInfo {
+                let FieldContainer {
                     name: variant_name,
                     selector_kind,
                     ..
@@ -1840,7 +1856,7 @@ impl<'a> ErrorCompatImpl<'a> {
         let crate_root = &self.0.crate_root;
         let enum_name = &self.0.name;
         self.0.variants.iter().map(|variant| {
-            let VariantInfo {
+            let FieldContainer {
                 name: variant_name,
                 selector_kind,
                 backtrace_field,
