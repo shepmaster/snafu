@@ -3,6 +3,8 @@
 
 #[path = "structs/backtrace.rs"]
 mod backtrace;
+#[path = "structs/backtrace_attributes.rs"]
+mod backtrace_attributes;
 #[path = "structs/display.rs"]
 mod display;
 #[path = "structs/generics.rs"]
