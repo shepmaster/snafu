@@ -29,3 +29,44 @@ mod types {
         assert_eq!(e.key, key);
     }
 }
+
+mod bounds {
+    mod inline {
+        use snafu::Snafu;
+        use std::fmt::Display;
+
+        #[derive(Debug, Snafu)]
+        #[snafu(display("key: {}", key))]
+        struct Error<T: Display> {
+            key: T,
+        }
+
+        #[test]
+        fn are_preserved() {
+            let e: Error<bool> = Context { key: true }.build();
+            let display = e.to_string();
+            assert_eq!(display, "key: true");
+        }
+    }
+
+    mod where_clause {
+        use snafu::Snafu;
+        use std::fmt::Display;
+
+        #[derive(Debug, Snafu)]
+        #[snafu(display("key: {}", key))]
+        struct Error<T>
+        where
+            T: Display,
+        {
+            key: T,
+        }
+
+        #[test]
+        fn are_preserved() {
+            let e: Error<bool> = Context { key: true }.build();
+            let display = e.to_string();
+            assert_eq!(display, "key: true");
+        }
+    }
+}

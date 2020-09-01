@@ -1930,6 +1930,7 @@ impl NamedStructInfo {
         let parameterized_struct_name = self.parameterized_name();
         let selector_name = self.selector_name();
         let original_generics = self.provided_generics_without_defaults();
+        let where_clauses = self.provided_where_clauses();
 
         let Self {
             name,
@@ -1966,6 +1967,7 @@ impl NamedStructInfo {
                 impl <#(#original_generics,)*> #crate_root::Error for #parameterized_struct_name
                 where
                     Self: ::core::fmt::Debug + ::core::fmt::Display,
+                    #(#where_clauses,)*
                 {
                     fn cause(&self) -> ::core::option::Option<&dyn #crate_root::Error> {
                         #source_body
@@ -1992,7 +1994,10 @@ impl NamedStructInfo {
             };
 
             quote! {
-                impl <#(#original_generics,)*> #crate_root::ErrorCompat for #parameterized_struct_name {
+                impl <#(#original_generics,)*> #crate_root::ErrorCompat for #parameterized_struct_name
+                where
+                    #(#where_clauses,)*
+                {
                     #backtrace_fn
                 }
             }
@@ -2020,7 +2025,10 @@ impl NamedStructInfo {
             };
 
             quote! {
-                impl <#(#original_generics,)*> ::core::fmt::Display for #parameterized_struct_name {
+                impl <#(#original_generics,)*> ::core::fmt::Display for #parameterized_struct_name
+                where
+                    #(#where_clauses,)*
+                {
                     #[allow(unused_variables)]
                     fn fmt(&self, #FORMATTER_ARG: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                         let Self { #(#field_names,)* } = self;
@@ -2063,7 +2071,8 @@ impl NamedStructInfo {
                 let where_clauses = user_generics
                     .clone()
                     .zip(target_types)
-                    .map(|(gen, bound)| quote! { #gen: #bound });
+                    .map(|(gen, bound)| quote! { #gen: #bound })
+                    .chain(where_clauses);
                 let where_clauses: &Vec<_> = &where_clauses.collect();
 
                 // COPY PASTA
