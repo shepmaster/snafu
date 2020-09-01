@@ -2124,6 +2124,7 @@ impl NamedStructInfo {
         let into_error_impl = if let Some(source_field) = &source_field {
             let source_name = source_field.name();
             let source_type = source_field.transformation.ty();
+            let source_transformation = source_field.transformation.transformation();
 
             // COPY PASTA
             let user_generics = user_generics.clone();
@@ -2154,7 +2155,7 @@ impl NamedStructInfo {
                     fn into_error(self, source: Self::Source) -> #parameterized_struct_name {
                         let Self { #(#user_bindings,)* } = self;
                         #name {
-                            #source_name: source,
+                            #source_name: (#source_transformation)(source),
                             #(#user_conversions,)*
                         }
                     }

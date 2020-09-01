@@ -7,6 +7,8 @@ mod backtrace;
 mod display;
 #[path = "structs/generics.rs"]
 mod generics;
+#[path = "structs/source_attributes.rs"]
+mod source_attributes;
 #[path = "structs/visibility.rs"]
 mod visibility;
 #[path = "structs/with_source.rs"]
