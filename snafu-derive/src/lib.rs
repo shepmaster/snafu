@@ -1959,6 +1959,7 @@ impl NamedStructInfo {
             };
 
             quote! {
+                #[allow(single_use_lifetimes)]
                 impl <#(#original_generics,)*> #crate_root::Error for #parameterized_struct_name
                 where
                     Self: ::core::fmt::Debug + ::core::fmt::Display,
@@ -1989,6 +1990,7 @@ impl NamedStructInfo {
             };
 
             quote! {
+                #[allow(single_use_lifetimes)]
                 impl <#(#original_generics,)*> #crate_root::ErrorCompat for #parameterized_struct_name
                 where
                     #(#where_clauses,)*
@@ -2020,6 +2022,7 @@ impl NamedStructInfo {
             };
 
             quote! {
+                #[allow(single_use_lifetimes)]
                 impl <#(#original_generics,)*> ::core::fmt::Display for #parameterized_struct_name
                 where
                     #(#where_clauses,)*

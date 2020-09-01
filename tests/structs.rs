@@ -9,6 +9,8 @@ mod display;
 mod generics;
 #[path = "structs/no_context.rs"]
 mod no_context;
+#[path = "structs/single_use_lifetimes.rs"]
+mod single_use_lifetimes;
 #[path = "structs/source_attributes.rs"]
 mod source_attributes;
 #[path = "structs/visibility.rs"]
