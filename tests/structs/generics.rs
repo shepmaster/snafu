@@ -28,6 +28,30 @@ mod types {
         let e: Error<i32> = Context { key }.build();
         assert_eq!(e.key, key);
     }
+
+    mod with_defaults {
+        use snafu::{AsErrorSource, ResultExt, Snafu};
+        use std::{error::Error as StdError, fmt::Debug, io};
+
+        #[derive(Debug, Snafu)]
+        struct Error<S = io::Error, T = String>
+        where
+            S: StdError + AsErrorSource,
+            T: Debug,
+        {
+            source: S,
+            key: T,
+        }
+
+        #[test]
+        fn allows_non_default_types() {
+            #[derive(Debug, Snafu)]
+            struct AnotherError;
+
+            let r = AnotherContext.fail::<()>();
+            let _e: Error<_, u8> = r.context(Context { key: 42 }).unwrap_err();
+        }
+    }
 }
 
 mod bounds {

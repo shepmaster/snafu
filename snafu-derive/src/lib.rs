@@ -1958,7 +1958,10 @@ impl NamedStructInfo {
             let source_body = if let Some(source_field) = &source_field {
                 let name = &source_field.name;
 
-                quote! { ::core::option::Option::Some(&self.#name) }
+                quote! {
+                    use ::snafu::AsErrorSource;
+                    ::core::option::Option::Some(self.#name.as_error_source())
+                }
             } else {
                 quote! { ::core::option::Option::None }
             };
@@ -2072,7 +2075,7 @@ impl NamedStructInfo {
                     .clone()
                     .zip(target_types)
                     .map(|(gen, bound)| quote! { #gen: #bound })
-                    .chain(where_clauses);
+                    .chain(where_clauses.clone());
                 let where_clauses: &Vec<_> = &where_clauses.collect();
 
                 // COPY PASTA
@@ -2132,7 +2135,8 @@ impl NamedStructInfo {
             let where_clauses = user_generics
                 .clone()
                 .zip(target_types)
-                .map(|(gen, bound)| quote! { #gen: #bound });
+                .map(|(gen, bound)| quote! { #gen: #bound })
+                .chain(where_clauses.clone());
 
             // COPY PASTA
             let user_bindings = user_field_names.clone();
