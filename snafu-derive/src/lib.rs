@@ -200,6 +200,7 @@ enum ErrorLocation {
     InVariant,
     OnField,
     OnNamedStruct,
+    InNamedStruct,
     OnTupleStruct,
 }
 
@@ -213,6 +214,7 @@ impl fmt::Display for ErrorLocation {
             InVariant => "within an enum variant".fmt(f),
             OnField => "on a field".fmt(f),
             OnNamedStruct => "on a named struct".fmt(f),
+            InNamedStruct => "within a named struct".fmt(f),
             OnTupleStruct => "on a tuple struct".fmt(f),
         }
     }
@@ -846,50 +848,38 @@ fn parse_snafu_named_struct(
     name: syn::Ident,
     generics: syn::Generics,
     attrs: Vec<syn::Attribute>,
-    _span: proc_macro2::Span,
+    span: proc_macro2::Span,
 ) -> MultiSynResult<NamedStructInfo> {
     let mut errors = SyntaxErrors::default();
 
-    // TESTME
-    let mut display_formats = AtMostOne::new("display", ErrorLocation::OnNamedStruct);
+    let fields = fields.named.into_iter().collect();
 
-    for attr in attributes_from_syn(attrs)? {
-        match attr {
-            SnafuAttribute::Display(tokens, d) => display_formats.add(d, tokens),
-            _ => unimplemented!(),
-        }
-    }
-
-    let mut user_fields = Vec::new();
-    let mut source_field = None;
-
-    for syn_field in fields.named {
-        let original = syn_field.clone();
-
-        let name = syn_field.ident.expect("Field must be named");
-        let ty = syn_field.ty;
-
-        // TODO: duplicate errors
-        // TODO: attributes!
-        if name == "source" {
-            assert!(source_field.is_none(), "TODO: multiple attribute handling");
-            source_field = Some(SourceField {
-                name,
-                // TODO: Handle transform
-                transformation: Transformation::None { ty },
-                backtrace_delegate: false,
-            });
-        } else {
-            let field = Field { name, ty, original };
-
-            user_fields.push(field);
-        }
-    }
-
-    let (display_format, errs) = display_formats.finish();
-    errors.extend(errs);
+    let r = field_container(
+        name,
+        span,
+        attrs,
+        fields,
+        &mut errors,
+        ErrorLocation::OnNamedStruct,
+        ErrorLocation::InNamedStruct,
+    )?;
 
     errors.finish()?;
+
+    let FieldContainer {
+        name,
+        selector_kind,
+        display_format,
+        ..
+    } = r;
+
+    let (source_field, user_fields) = match selector_kind {
+        ContextSelectorKind::Context {
+            source_field,
+            user_fields,
+        } => (source_field, user_fields),
+        _ => unimplemented!(),
+    };
 
     Ok(NamedStructInfo {
         name,
