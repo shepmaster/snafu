@@ -5,6 +5,8 @@
 mod backtrace;
 #[path = "structs/display.rs"]
 mod display;
+#[path = "structs/generics.rs"]
+mod generics;
 #[path = "structs/visibility.rs"]
 mod visibility;
 #[path = "structs/with_source.rs"]

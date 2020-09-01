@@ -1929,6 +1929,7 @@ impl NamedStructInfo {
     fn generate_snafu(self) -> proc_macro2::TokenStream {
         let parameterized_struct_name = self.parameterized_name();
         let selector_name = self.selector_name();
+        let original_generics = self.provided_generics_without_defaults();
 
         let Self {
             name,
@@ -1962,7 +1963,7 @@ impl NamedStructInfo {
             };
 
             quote! {
-                impl #crate_root::Error for #parameterized_struct_name {
+                impl <#(#original_generics,)*> #crate_root::Error for #parameterized_struct_name {
                     fn cause(&self) -> ::core::option::Option<&dyn #crate_root::Error> {
                         #source_body
                     }
@@ -1988,7 +1989,7 @@ impl NamedStructInfo {
             };
 
             quote! {
-                impl #crate_root::ErrorCompat for #parameterized_struct_name {
+                impl <#(#original_generics,)*> #crate_root::ErrorCompat for #parameterized_struct_name {
                     #backtrace_fn
                 }
             }
@@ -2016,7 +2017,7 @@ impl NamedStructInfo {
             };
 
             quote! {
-                impl ::core::fmt::Display for #parameterized_struct_name {
+                impl <#(#original_generics,)*> ::core::fmt::Display for #parameterized_struct_name {
                     #[allow(unused_variables)]
                     fn fmt(&self, #FORMATTER_ARG: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                         let Self { #(#field_names,)* } = self;
@@ -2077,7 +2078,7 @@ impl NamedStructInfo {
                     .map(|n| quote! { #n: ::core::convert::Into::into(#n) });
 
                 quote! {
-                    impl <#(#user_generics,)*> #parameterized_selector_name
+                    impl <#(#original_generics,)* #(#user_generics,)*> #parameterized_selector_name
                     where
                         #(#where_clauses,)*
                     {
@@ -2123,7 +2124,7 @@ impl NamedStructInfo {
                 .map(|n| quote! { #n: ::core::convert::Into::into(#n) });
 
             quote! {
-                impl <#(#user_generics,)*> #crate_root::IntoError<#parameterized_struct_name> for #parameterized_selector_name
+                impl <#(#original_generics,)* #(#user_generics,)*> #crate_root::IntoError<#parameterized_struct_name> for #parameterized_selector_name
                 where
                     #(#where_clauses,)*
                 {
