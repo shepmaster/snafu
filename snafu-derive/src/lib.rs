@@ -77,9 +77,8 @@ impl ContextSelectorKind {
 struct NamedStructInfo {
     name: syn::Ident,
     generics: syn::Generics,
-    source_field: Option<SourceField>,
+    selector_kind: ContextSelectorKind,
     backtrace_field: Option<Field>,
-    user_fields: Vec<Field>,
     display_format: Option<UserInput>,
     doc_comment: String,
     visibility: Option<UserInput>,
@@ -875,20 +874,11 @@ fn parse_snafu_named_struct(
         visibility,
     } = r;
 
-    let (source_field, user_fields) = match selector_kind {
-        ContextSelectorKind::Context {
-            source_field,
-            user_fields,
-        } => (source_field, user_fields),
-        _ => unimplemented!(),
-    };
-
     Ok(NamedStructInfo {
         name,
         generics,
-        source_field,
+        selector_kind,
         backtrace_field,
-        user_fields,
         display_format,
         doc_comment,
         visibility,
@@ -1934,9 +1924,8 @@ impl NamedStructInfo {
 
         let Self {
             name,
-            source_field,
+            selector_kind,
             backtrace_field,
-            user_fields,
             display_format,
             doc_comment,
             visibility,
@@ -1944,6 +1933,9 @@ impl NamedStructInfo {
         } = self;
 
         let crate_root = quote! { snafu }; // TODO: read from attribute
+
+        let user_fields = selector_kind.user_fields();
+        let source_field = selector_kind.source_field();
 
         let user_generics = (0..user_fields.len()).map(|i| format_ident!("__T{}", i));
         let user_field_names = user_fields.iter().map(|Field { name, .. }| name);
@@ -2041,29 +2033,101 @@ impl NamedStructInfo {
             }
         };
 
-        let context_selector_type = {
-            let user_fields: Vec<_> = user_field_names
-                .clone()
-                .zip(user_generics.clone())
-                .map(|(name, ty)| quote! { #name: #ty })
-                .collect();
+        let context_selector_type = match &selector_kind {
+            ContextSelectorKind::Context { .. } => {
+                let user_fields: Vec<_> = user_field_names
+                    .clone()
+                    .zip(user_generics.clone())
+                    .map(|(name, ty)| quote! { #name: #ty })
+                    .collect();
 
-            // COPY PASTA
-            if user_fields.is_empty() {
-                quote! {
-                    #visibility struct #parameterized_selector_name;
-                }
-            } else {
-                quote! {
-                    #visibility struct #parameterized_selector_name {
-                        #(#user_fields,)*
+                // COPY PASTA
+                if user_fields.is_empty() {
+                    quote! {
+                        #visibility struct #parameterized_selector_name;
+                    }
+                } else {
+                    quote! {
+                        #visibility struct #parameterized_selector_name {
+                            #(#user_fields,)*
+                        }
                     }
                 }
             }
+            ContextSelectorKind::NoContext { .. } => quote! {},
         };
 
-        let context_selector_impl = {
-            if source_field.is_none() {
+        let context_selector_impl = match &selector_kind {
+            ContextSelectorKind::Context { .. } => {
+                if source_field.is_none() {
+                    // COPY PASTA
+                    let user_generics = user_generics.clone();
+
+                    // COPY PASTA
+                    let target_types = user_fields
+                        .iter()
+                        .map(|Field { ty, .. }| quote! { ::core::convert::Into<#ty>});
+                    let where_clauses = user_generics
+                        .clone()
+                        .zip(target_types)
+                        .map(|(gen, bound)| quote! { #gen: #bound })
+                        .chain(where_clauses.clone());
+                    let where_clauses: &Vec<_> = &where_clauses.collect();
+
+                    // COPY PASTA
+                    let backtrace_field = match &backtrace_field {
+                        Some(field) => {
+                            let name = &field.name;
+                            quote! { #name: #crate_root::GenerateBacktrace::generate(), }
+                        }
+                        None => quote! {},
+                    };
+
+                    // COPY PASTA
+                    let user_bindings = user_field_names.clone();
+                    let user_conversions = user_field_names
+                        .clone()
+                        .map(|n| quote! { #n: ::core::convert::Into::into(#n) });
+
+                    quote! {
+                        impl <#(#user_generics,)*> #parameterized_selector_name {
+                            #visibility fn build<#(#original_generics,)*>(self) -> #parameterized_struct_name
+                            where
+                                #(#where_clauses,)*
+                            {
+                                let Self { #(#user_bindings,)* } = self;
+                                #name {
+                                    #backtrace_field
+                                    #(#user_conversions,)*
+                                }
+                            }
+
+                            #visibility fn fail<#(#original_generics,)* __T>(self) -> ::core::result::Result<__T, #parameterized_struct_name>
+                            where
+                                #(#where_clauses,)*
+
+                            {
+                                ::core::result::Result::Err(self.build())
+                            }
+                        }
+
+                    }
+                } else {
+                    quote! {}
+                }
+            }
+            ContextSelectorKind::NoContext { .. } => quote! {},
+        };
+
+        let into_error_impl = match &selector_kind {
+            ContextSelectorKind::Context {
+                source_field: Some(source_field),
+                ..
+            } => {
+                let source_name = source_field.name();
+                let source_type = source_field.transformation.ty();
+                let source_transformation = source_field.transformation.transformation();
+
                 // COPY PASTA
                 let user_generics = user_generics.clone();
 
@@ -2076,16 +2140,6 @@ impl NamedStructInfo {
                     .zip(target_types)
                     .map(|(gen, bound)| quote! { #gen: #bound })
                     .chain(where_clauses.clone());
-                let where_clauses: &Vec<_> = &where_clauses.collect();
-
-                // COPY PASTA
-                let backtrace_field = match &backtrace_field {
-                    Some(field) => {
-                        let name = &field.name;
-                        quote! { #name: #crate_root::GenerateBacktrace::generate(), }
-                    }
-                    None => quote! {},
-                };
 
                 // COPY PASTA
                 let user_bindings = user_field_names.clone();
@@ -2094,75 +2148,42 @@ impl NamedStructInfo {
                     .map(|n| quote! { #n: ::core::convert::Into::into(#n) });
 
                 quote! {
-                    impl <#(#user_generics,)*> #parameterized_selector_name {
-                        #visibility fn build<#(#original_generics,)*>(self) -> #parameterized_struct_name
-                        where
-                            #(#where_clauses,)*
-                        {
+                    impl <#(#original_generics,)* #(#user_generics,)*> #crate_root::IntoError<#parameterized_struct_name> for #parameterized_selector_name
+                    where
+                        #(#where_clauses,)*
+                    {
+                        type Source = #source_type;
+
+                        fn into_error(self, source: Self::Source) -> #parameterized_struct_name {
                             let Self { #(#user_bindings,)* } = self;
                             #name {
-                                #backtrace_field
+                                #source_name: (#source_transformation)(source),
                                 #(#user_conversions,)*
                             }
                         }
-
-                        #visibility fn fail<#(#original_generics,)* __T>(self) -> ::core::result::Result<__T, #parameterized_struct_name>
-                        where
-                            #(#where_clauses,)*
-
-                        {
-                            ::core::result::Result::Err(self.build())
-                        }
                     }
-
                 }
-            } else {
-                quote! {}
             }
+            _ => quote! {},
         };
 
-        let into_error_impl = if let Some(source_field) = &source_field {
-            let source_name = source_field.name();
-            let source_type = source_field.transformation.ty();
-            let source_transformation = source_field.transformation.transformation();
+        let from_impl = match &selector_kind {
+            ContextSelectorKind::Context { .. } => quote! {},
+            ContextSelectorKind::NoContext { source_field } => {
+                let source_field_name = source_field.name();
+                let source_field_type = source_field.transformation.ty();
+                let source_transformation = source_field.transformation.transformation();
 
-            // COPY PASTA
-            let user_generics = user_generics.clone();
-
-            // COPY PASTA
-            let target_types = user_fields
-                .iter()
-                .map(|Field { ty, .. }| quote! { ::core::convert::Into<#ty>});
-            let where_clauses = user_generics
-                .clone()
-                .zip(target_types)
-                .map(|(gen, bound)| quote! { #gen: #bound })
-                .chain(where_clauses.clone());
-
-            // COPY PASTA
-            let user_bindings = user_field_names.clone();
-            let user_conversions = user_field_names
-                .clone()
-                .map(|n| quote! { #n: ::core::convert::Into::into(#n) });
-
-            quote! {
-                impl <#(#original_generics,)* #(#user_generics,)*> #crate_root::IntoError<#parameterized_struct_name> for #parameterized_selector_name
-                where
-                    #(#where_clauses,)*
-                {
-                    type Source = #source_type;
-
-                    fn into_error(self, source: Self::Source) -> #parameterized_struct_name {
-                        let Self { #(#user_bindings,)* } = self;
-                        #name {
-                            #source_name: (#source_transformation)(source),
-                            #(#user_conversions,)*
+                quote! {
+                    impl ::core::convert::From<#source_field_type> for #parameterized_struct_name {
+                        fn from(other: #source_field_type) -> Self {
+                            Self {
+                                #source_field_name: (#source_transformation)(other),
+                            }
                         }
                     }
                 }
             }
-        } else {
-            quote! {}
         };
 
         quote! {
@@ -2171,6 +2192,7 @@ impl NamedStructInfo {
             #display_impl
             #context_selector_type
             #context_selector_impl
+            #from_impl
             #into_error_impl
         }
     }
