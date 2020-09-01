@@ -78,6 +78,7 @@ struct NamedStructInfo {
     name: syn::Ident,
     generics: syn::Generics,
     source_field: Option<SourceField>,
+    backtrace_field: Option<Field>,
     user_fields: Vec<Field>,
     display_format: Option<UserInput>,
     doc_comment: String,
@@ -869,6 +870,7 @@ fn parse_snafu_named_struct(
         selector_kind,
         display_format,
         doc_comment,
+        backtrace_field,
         ..
     } = r;
 
@@ -884,6 +886,7 @@ fn parse_snafu_named_struct(
         name,
         generics,
         source_field,
+        backtrace_field,
         user_fields,
         display_format,
         doc_comment,
@@ -1928,6 +1931,7 @@ impl NamedStructInfo {
         let Self {
             name,
             source_field,
+            backtrace_field,
             user_fields,
             display_format,
             doc_comment,
@@ -1968,15 +1972,32 @@ impl NamedStructInfo {
         };
 
         // TODO: backtrace method
-        let error_compat_impl = quote! {
-            impl #crate_root::ErrorCompat for #parameterized_struct_name {}
+        let error_compat_impl = {
+            let backtrace_fn = if let Some(backtrace_field) = &backtrace_field {
+                let backtrace_field_name = &backtrace_field.name;
+                quote! {
+                    fn backtrace(&self) -> ::core::option::Option<&#crate_root::Backtrace> {
+                        ::core::option::Option::Some(&self.#backtrace_field_name)
+                    }
+                }
+            } else {
+                quote! {}
+            };
+
+            quote! {
+                impl #crate_root::ErrorCompat for #parameterized_struct_name {
+                    #backtrace_fn
+                }
+            }
         };
 
         let display_impl = {
             let user_field_names = user_field_names.clone();
             let source_field_name = source_field.as_ref().map(|f| &f.name);
-            // TODO: backtrace
-            let field_names = user_field_names.chain(source_field_name);
+            let backtrace_field_name = backtrace_field.as_ref().map(|f| &f.name);
+            let field_names = user_field_names
+                .chain(source_field_name)
+                .chain(backtrace_field_name);
 
             // COPY PASTA
             let display_format = match (&display_format, &source_field) {
@@ -2038,6 +2059,15 @@ impl NamedStructInfo {
                     .map(|(gen, bound)| quote! { #gen: #bound });
 
                 // COPY PASTA
+                let backtrace_field = match &backtrace_field {
+                    Some(field) => {
+                        let name = &field.name;
+                        quote! { #name: #crate_root::GenerateBacktrace::generate(), }
+                    }
+                    None => quote! {},
+                };
+
+                // COPY PASTA
                 let user_bindings = user_field_names.clone();
                 let user_conversions = user_field_names
                     .clone()
@@ -2051,6 +2081,7 @@ impl NamedStructInfo {
                         fn build(self) -> #parameterized_struct_name {
                             let Self { #(#user_bindings,)* } = self;
                             #name {
+                                #backtrace_field
                                 #(#user_conversions,)*
                             }
                         }
