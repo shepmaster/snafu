@@ -45,7 +45,7 @@ mod enabling {
             source: i32,
         }
 
-        Context { source: 42 }.build();
+        let _ = Context { source: 42 }.build();
     }
 }
 

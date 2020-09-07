@@ -6,9 +6,10 @@ use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use std::collections::VecDeque;
 use std::fmt;
-use std::iter;
 use syn::parenthesized;
 use syn::parse::Result as SynResult;
+
+mod shared;
 
 /// See the crate-level documentation for SNAFU which contains tested
 /// examples of this macro.
@@ -22,6 +23,7 @@ pub fn snafu_derive(input: TokenStream) -> TokenStream {
 
 type MultiSynResult<T> = std::result::Result<T, Vec<syn::Error>>;
 
+/// Some arbitrary tokens we treat as a black box
 type UserInput = Box<dyn quote::ToTokens>;
 
 enum SnafuInfo {
@@ -92,7 +94,7 @@ struct TupleStructInfo {
 }
 
 #[derive(Clone)]
-struct Field {
+pub(crate) struct Field {
     name: syn::Ident,
     ty: syn::Type,
     original: syn::Field,
@@ -1430,208 +1432,42 @@ struct ContextSelector<'a>(&'a EnumInfo, &'a FieldContainer);
 
 impl<'a> quote::ToTokens for ContextSelector<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        let crate_root = &self.0.crate_root;
-        let enum_name = &self.0.name;
-        let original_lifetimes = self.0.provided_generic_lifetimes();
-        let original_generic_types_without_defaults =
-            self.0.provided_generic_types_without_defaults();
-        let original_generics_without_defaults = self.0.provided_generics_without_defaults();
+        use crate::shared::ContextSelector;
 
-        let parameterized_enum_name = &self.0.parameterized_name();
+        let enum_name = &self.0.name;
 
         let FieldContainer {
             name: variant_name,
             selector_kind,
-            backtrace_field,
             ..
         } = self.1;
 
-        let backtrace_field = match backtrace_field {
-            Some(field) => {
-                let name = &field.name;
-                quote! { #name: #crate_root::GenerateBacktrace::generate(), }
-            }
-            None => quote! {},
+        let visibility = self
+            .1
+            .visibility
+            .as_ref()
+            .unwrap_or(&self.0.default_visibility);
+
+        let selector_doc_string = format!(
+            "SNAFU context selector for the `{}::{}` variant",
+            enum_name, variant_name,
+        );
+
+        let context_selector = ContextSelector {
+            backtrace_field: self.1.backtrace_field.as_ref(),
+            crate_root: &self.0.crate_root,
+            error_constructor_name: &quote! { #enum_name::#variant_name },
+            original_generics_without_defaults: &self.0.provided_generics_without_defaults(),
+            parameterized_error_name: &self.0.parameterized_name(),
+            selector_doc_string: &selector_doc_string,
+            selector_kind: &selector_kind,
+            selector_name: variant_name,
+            user_fields: &selector_kind.user_fields(),
+            visibility: Some(&visibility),
+            where_clauses: &self.0.provided_where_clauses(),
         };
 
-        match selector_kind {
-            ContextSelectorKind::Context {
-                user_fields,
-                source_field,
-            } => {
-                let generic_names: Vec<_> = (0..user_fields.len())
-                    .map(|i| format_ident!("__T{}", i))
-                    .collect();
-
-                let visibility = self
-                    .1
-                    .visibility
-                    .as_ref()
-                    .unwrap_or(&self.0.default_visibility);
-
-                let generics_list = quote! { <#(#original_lifetimes,)* #(#generic_names,)* #(#original_generic_types_without_defaults,)*> };
-                let selector_name = quote! { #variant_name<#(#generic_names,)*> };
-
-                let names: Vec<_> = user_fields.iter().map(|f| f.name.clone()).collect();
-                let selector_doc = format!(
-                    "SNAFU context selector for the `{}::{}` variant",
-                    enum_name, variant_name,
-                );
-
-                let variant_selector_struct = {
-                    if user_fields.is_empty() {
-                        quote! {
-                            #[derive(Debug, Copy, Clone)]
-                            #[doc = #selector_doc]
-                            #visibility struct #selector_name;
-                        }
-                    } else {
-                        let visibilities = iter::repeat(visibility);
-
-                        quote! {
-                            #[derive(Debug, Copy, Clone)]
-                            #[doc = #selector_doc]
-                            #visibility struct #selector_name {
-                                #(
-                                    #[allow(missing_docs)]
-                                    #visibilities #names: #generic_names
-                                ),*
-                            }
-                        }
-                    }
-                };
-
-                let where_clauses: Vec<_> = generic_names
-                    .iter()
-                    .zip(user_fields)
-                    .map(|(gen_ty, f)| {
-                        let Field { ty, .. } = f;
-                        quote! { #gen_ty: ::core::convert::Into<#ty> }
-                    })
-                    .chain(self.0.provided_where_clauses())
-                    .collect();
-
-                let inherent_impl = if source_field.is_none() {
-                    quote! {
-                        impl<#(#generic_names,)*> #selector_name {
-                            #[doc = "Consume the selector and return the associated error"]
-                            #[must_use]
-                            #visibility fn build<#(#original_generics_without_defaults,)*>(self) -> #parameterized_enum_name
-                            where
-                                #(#where_clauses),*
-                            {
-                                let Self { #(#names),* } = self;
-                                #enum_name::#variant_name {
-                                    #backtrace_field
-                                    #( #names: ::core::convert::Into::into(#names) ),*
-                                }
-                            }
-
-                            #[doc = "Consume the selector and return a `Result` with the associated error"]
-                            #visibility fn fail<#(#original_generics_without_defaults,)* __T>(self) -> ::core::result::Result<__T, #parameterized_enum_name>
-                            where
-                                #(#where_clauses),*
-                            {
-                                ::core::result::Result::Err(self.build())
-                            }
-                        }
-                    }
-                } else {
-                    quote! {}
-                };
-
-                let enum_from_variant_selector_impl = {
-                    let user_fields = user_fields.iter().map(|f| {
-                        let Field { name, .. } = f;
-                        quote! { #name: self.#name.into() }
-                    });
-
-                    let source_ty;
-                    let source_xfer_field;
-
-                    match source_field {
-                        Some(source_field) => {
-                            let SourceField {
-                                name: source_name,
-                                transformation: source_transformation,
-                                ..
-                            } = source_field;
-
-                            let source_ty2 = source_transformation.ty();
-                            let source_transformation = source_transformation.transformation();
-
-                            source_ty = quote! { #source_ty2 };
-                            source_xfer_field =
-                                quote! { #source_name: (#source_transformation)(error), };
-                        }
-                        None => {
-                            source_ty = quote! { #crate_root::NoneError };
-                            source_xfer_field = quote! {};
-                        }
-                    }
-
-                    quote! {
-                        impl#generics_list #crate_root::IntoError<#parameterized_enum_name> for #selector_name
-                        where
-                            #parameterized_enum_name: #crate_root::Error + #crate_root::ErrorCompat,
-                            #(#where_clauses),*
-                        {
-                            type Source = #source_ty;
-
-                            fn into_error(self, error: Self::Source) -> #parameterized_enum_name {
-                                #enum_name::#variant_name {
-                                    #source_xfer_field
-                                    #backtrace_field
-                                    #(#user_fields),*
-                                }
-                            }
-                        }
-                    }
-                };
-
-                stream.extend({
-                    quote! {
-                        #variant_selector_struct
-                        #inherent_impl
-                        #enum_from_variant_selector_impl
-                    }
-                })
-            }
-
-            ContextSelectorKind::NoContext { source_field } => {
-                let original_generics = self.0.provided_generics_without_defaults();
-                let generics_list = quote! { <#(#original_generics,)*> };
-                let wheres = self.0.provided_where_clauses();
-
-                let SourceField {
-                    name: source_name,
-                    transformation: source_transformation,
-                    ..
-                } = source_field;
-
-                let source_ty = source_transformation.ty();
-                let source_transformation = source_transformation.transformation();
-
-                let source_ty = quote! { #source_ty };
-                let source_xfer_field = quote! { #source_name: (#source_transformation)(other), };
-
-                stream.extend({
-                    quote! {
-                        impl#generics_list From<#source_ty> for #parameterized_enum_name
-                        where
-                            #(#wheres),*
-                        {
-                            fn from(other: #source_ty) -> Self {
-                                #enum_name::#variant_name {
-                                    #source_xfer_field
-                                    #backtrace_field
-                                }
-                            }
-                        }
-                    }
-                })
-            }
-        }
+        stream.extend(quote! { #context_selector });
     }
 }
 
@@ -1918,9 +1754,9 @@ impl NamedStructInfo {
 
     fn generate_snafu(self) -> proc_macro2::TokenStream {
         let parameterized_struct_name = self.parameterized_name();
-        let selector_name = self.selector_name();
         let original_generics = self.provided_generics_without_defaults();
         let where_clauses = self.provided_where_clauses();
+        let selector_name = self.selector_name();
 
         let Self {
             name,
@@ -1937,13 +1773,7 @@ impl NamedStructInfo {
         let user_fields = selector_kind.user_fields();
         let source_field = selector_kind.source_field();
 
-        let user_generics = (0..user_fields.len()).map(|i| format_ident!("__T{}", i));
         let user_field_names = user_fields.iter().map(|Field { name, .. }| name);
-
-        let parameterized_selector_name = {
-            let user_generics = user_generics.clone();
-            quote! { #selector_name<#(#user_generics,)*> }
-        };
 
         // TODO: Backtrace method
         let error_impl = {
@@ -2036,167 +1866,29 @@ impl NamedStructInfo {
             }
         };
 
-        let context_selector_type = match &selector_kind {
-            ContextSelectorKind::Context { .. } => {
-                let user_fields: Vec<_> = user_field_names
-                    .clone()
-                    .zip(user_generics.clone())
-                    .map(|(name, ty)| quote! { #name: #ty })
-                    .collect();
+        use crate::shared::ContextSelector;
 
-                // COPY PASTA
-                if user_fields.is_empty() {
-                    quote! {
-                        #visibility struct #parameterized_selector_name;
-                    }
-                } else {
-                    quote! {
-                        #visibility struct #parameterized_selector_name {
-                            #(#user_fields,)*
-                        }
-                    }
-                }
-            }
-            ContextSelectorKind::NoContext { .. } => quote! {},
-        };
+        let selector_doc_string = format!("SNAFU context selector for the `{}` error", name);
 
-        let context_selector_impl = match &selector_kind {
-            ContextSelectorKind::Context { .. } => {
-                if source_field.is_none() {
-                    // COPY PASTA
-                    let user_generics = user_generics.clone();
-
-                    // COPY PASTA
-                    let target_types = user_fields
-                        .iter()
-                        .map(|Field { ty, .. }| quote! { ::core::convert::Into<#ty>});
-                    let where_clauses = user_generics
-                        .clone()
-                        .zip(target_types)
-                        .map(|(gen, bound)| quote! { #gen: #bound })
-                        .chain(where_clauses.clone());
-                    let where_clauses: &Vec<_> = &where_clauses.collect();
-
-                    // COPY PASTA
-                    let backtrace_field = match &backtrace_field {
-                        Some(field) => {
-                            let name = &field.name;
-                            quote! { #name: #crate_root::GenerateBacktrace::generate(), }
-                        }
-                        None => quote! {},
-                    };
-
-                    // COPY PASTA
-                    let user_bindings = user_field_names.clone();
-                    let user_conversions = user_field_names
-                        .clone()
-                        .map(|n| quote! { #n: ::core::convert::Into::into(#n) });
-
-                    quote! {
-                        impl <#(#user_generics,)*> #parameterized_selector_name {
-                            #visibility fn build<#(#original_generics,)*>(self) -> #parameterized_struct_name
-                            where
-                                #(#where_clauses,)*
-                            {
-                                let Self { #(#user_bindings,)* } = self;
-                                #name {
-                                    #backtrace_field
-                                    #(#user_conversions,)*
-                                }
-                            }
-
-                            #visibility fn fail<#(#original_generics,)* __T>(self) -> ::core::result::Result<__T, #parameterized_struct_name>
-                            where
-                                #(#where_clauses,)*
-
-                            {
-                                ::core::result::Result::Err(self.build())
-                            }
-                        }
-
-                    }
-                } else {
-                    quote! {}
-                }
-            }
-            ContextSelectorKind::NoContext { .. } => quote! {},
-        };
-
-        let into_error_impl = match &selector_kind {
-            ContextSelectorKind::Context {
-                source_field: Some(source_field),
-                ..
-            } => {
-                let source_name = source_field.name();
-                let source_type = source_field.transformation.ty();
-                let source_transformation = source_field.transformation.transformation();
-
-                // COPY PASTA
-                let user_generics = user_generics.clone();
-
-                // COPY PASTA
-                let target_types = user_fields
-                    .iter()
-                    .map(|Field { ty, .. }| quote! { ::core::convert::Into<#ty>});
-                let where_clauses = user_generics
-                    .clone()
-                    .zip(target_types)
-                    .map(|(gen, bound)| quote! { #gen: #bound })
-                    .chain(where_clauses.clone());
-
-                // COPY PASTA
-                let user_bindings = user_field_names.clone();
-                let user_conversions = user_field_names
-                    .clone()
-                    .map(|n| quote! { #n: ::core::convert::Into::into(#n) });
-
-                quote! {
-                    impl <#(#original_generics,)* #(#user_generics,)*> #crate_root::IntoError<#parameterized_struct_name> for #parameterized_selector_name
-                    where
-                        #(#where_clauses,)*
-                    {
-                        type Source = #source_type;
-
-                        fn into_error(self, source: Self::Source) -> #parameterized_struct_name {
-                            let Self { #(#user_bindings,)* } = self;
-                            #name {
-                                #source_name: (#source_transformation)(source),
-                                #(#user_conversions,)*
-                            }
-                        }
-                    }
-                }
-            }
-            _ => quote! {},
-        };
-
-        let from_impl = match &selector_kind {
-            ContextSelectorKind::Context { .. } => quote! {},
-            ContextSelectorKind::NoContext { source_field } => {
-                let source_field_name = source_field.name();
-                let source_field_type = source_field.transformation.ty();
-                let source_transformation = source_field.transformation.transformation();
-
-                quote! {
-                    impl ::core::convert::From<#source_field_type> for #parameterized_struct_name {
-                        fn from(other: #source_field_type) -> Self {
-                            Self {
-                                #source_field_name: (#source_transformation)(other),
-                            }
-                        }
-                    }
-                }
-            }
+        let context_selector = ContextSelector {
+            backtrace_field: backtrace_field.as_ref(),
+            crate_root: &crate_root,
+            error_constructor_name: &name,
+            original_generics_without_defaults: &original_generics,
+            parameterized_error_name: &parameterized_struct_name,
+            selector_doc_string: &selector_doc_string,
+            selector_kind: &selector_kind,
+            selector_name: &selector_name,
+            user_fields: &user_fields,
+            visibility: visibility.as_ref().map(|x| &**x),
+            where_clauses: &where_clauses,
         };
 
         quote! {
             #error_impl
             #error_compat_impl
             #display_impl
-            #context_selector_type
-            #context_selector_impl
-            #from_impl
-            #into_error_impl
+            #context_selector
         }
     }
 }

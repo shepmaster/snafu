@@ -7,6 +7,8 @@ mod backtrace;
 mod backtrace_attributes;
 #[path = "structs/display.rs"]
 mod display;
+#[path = "structs/from_option.rs"]
+mod from_option;
 #[path = "structs/generics.rs"]
 mod generics;
 #[path = "structs/no_context.rs"]
