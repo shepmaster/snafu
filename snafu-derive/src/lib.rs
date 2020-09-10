@@ -1269,16 +1269,6 @@ fn private_visibility() -> UserInput {
     Box::new(quote! {})
 }
 
-struct StaticIdent(&'static str);
-
-impl quote::ToTokens for StaticIdent {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        proc_macro2::Ident::new(self.0, proc_macro2::Span::call_site()).to_tokens(tokens)
-    }
-}
-
-const FORMATTER_ARG: StaticIdent = StaticIdent("__snafu_display_formatter");
-
 impl From<SnafuInfo> for proc_macro::TokenStream {
     fn from(other: SnafuInfo) -> proc_macro::TokenStream {
         match other {
@@ -1473,80 +1463,49 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
 
 struct DisplayImpl<'a>(&'a EnumInfo);
 
-impl<'a> DisplayImpl<'a> {
-    fn variants_to_display(&self) -> Vec<proc_macro2::TokenStream> {
+impl<'a> quote::ToTokens for DisplayImpl<'a> {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        use self::shared::{Display, DisplayMatchArm};
+
         let enum_name = &self.0.name;
 
-        self.0
+        let arms: Vec<_> = self
+            .0
             .variants
             .iter()
             .map(|variant| {
                 let FieldContainer {
-                    name: variant_name,
-                    selector_kind,
                     backtrace_field,
                     display_format,
                     doc_comment,
+                    name: variant_name,
+                    selector_kind,
                     ..
                 } = variant;
 
-                let user_fields = selector_kind.user_fields();
-                let source_field = selector_kind.source_field();
-
-                let format = match (display_format, source_field) {
-                    (Some(v), _) => quote! { #v },
-                    (None, _) if !doc_comment.is_empty() => {
-                        quote! { #doc_comment }
-                    }
-                    (None, Some(f)) => {
-                        let field_name = &f.name;
-                        quote! { concat!(stringify!(#variant_name), ": {}"), #field_name }
-                    }
-                    (None, None) => quote! { stringify!(#variant_name)},
+                let arm = DisplayMatchArm {
+                    backtrace_field: backtrace_field.as_ref(),
+                    default_name: &variant_name,
+                    display_format: display_format.as_ref().map(|f| &**f),
+                    doc_comment,
+                    pattern_ident: &quote! { #enum_name::#variant_name },
+                    selector_kind,
                 };
 
-                let field_names = user_fields
-                    .iter()
-                    .chain(backtrace_field)
-                    .map(Field::name)
-                    .chain(source_field.map(SourceField::name));
-
-                let field_names = quote! { #(ref #field_names),* };
-
-                quote! {
-                    #enum_name::#variant_name { #field_names } => {
-                        write!(#FORMATTER_ARG, #format)
-                    }
-                }
+                quote! { #arm }
             })
-            .collect()
-    }
-}
+            .collect();
 
-impl<'a> quote::ToTokens for DisplayImpl<'a> {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        let original_generics = self.0.provided_generics_without_defaults();
-        let parameterized_enum_name = &self.0.parameterized_name();
-        let where_clauses = &self.0.provided_where_clauses();
+        let display = Display {
+            arms: &arms,
+            original_generics: &self.0.provided_generics_without_defaults(),
+            parameterized_error_name: &self.0.parameterized_name(),
+            where_clauses: &self.0.provided_where_clauses(),
+        };
 
-        let variants_to_display = &self.variants_to_display();
+        let display_impl = quote! { #display };
 
-        stream.extend({
-            quote! {
-                #[allow(single_use_lifetimes)]
-                impl<#(#original_generics),*> ::core::fmt::Display for #parameterized_enum_name
-                where
-                    #(#where_clauses),*
-                {
-                    fn fmt(&self, #FORMATTER_ARG: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-                        #[allow(unused_variables)]
-                        match *self {
-                            #(#variants_to_display)*
-                        }
-                    }
-                }
-            }
-        })
+        stream.extend(display_impl)
     }
 }
 
@@ -1773,8 +1732,6 @@ impl NamedStructInfo {
         let user_fields = selector_kind.user_fields();
         let source_field = selector_kind.source_field();
 
-        let user_field_names = user_fields.iter().map(|Field { name, .. }| name);
-
         // TODO: Backtrace method
         let error_impl = {
             let source_body = if let Some(source_field) = &source_field {
@@ -1830,40 +1787,23 @@ impl NamedStructInfo {
             }
         };
 
-        let display_impl = {
-            let user_field_names = user_field_names.clone();
-            let source_field_name = source_field.as_ref().map(|f| &f.name);
-            let backtrace_field_name = backtrace_field.as_ref().map(|f| &f.name);
-            let field_names = user_field_names
-                .chain(source_field_name)
-                .chain(backtrace_field_name);
+        use crate::shared::{Display, DisplayMatchArm};
 
-            // COPY PASTA
-            let display_format = match (&display_format, &source_field) {
-                (Some(v), _) => quote! { #v },
-                (None, _) if !doc_comment.is_empty() => {
-                    quote! { #doc_comment }
-                }
-                (None, Some(f)) => {
-                    let field_name = &f.name;
-                    quote! { concat!(stringify!(#name), ": {}"), #field_name }
-                }
-                (None, None) => quote! { stringify!(#name)},
-            };
+        let arm = DisplayMatchArm {
+            backtrace_field: backtrace_field.as_ref(),
+            default_name: &name,
+            display_format: display_format.as_ref().map(|f| &**f),
+            doc_comment: &doc_comment,
+            pattern_ident: &quote! { Self },
+            selector_kind: &selector_kind,
+        };
+        let arm = quote! { #arm };
 
-            quote! {
-                #[allow(single_use_lifetimes)]
-                impl <#(#original_generics,)*> ::core::fmt::Display for #parameterized_struct_name
-                where
-                    #(#where_clauses,)*
-                {
-                    #[allow(unused_variables)]
-                    fn fmt(&self, #FORMATTER_ARG: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-                        let Self { #(#field_names,)* } = self;
-                        write!(#FORMATTER_ARG, #display_format)
-                    }
-                }
-            }
+        let display_impl = Display {
+            arms: &[arm],
+            original_generics: &original_generics,
+            parameterized_error_name: &parameterized_struct_name,
+            where_clauses: &where_clauses,
         };
 
         use crate::shared::ContextSelector;

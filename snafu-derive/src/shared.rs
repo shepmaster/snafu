@@ -1,4 +1,5 @@
 pub(crate) use self::context_selector::ContextSelector;
+pub(crate) use self::display::{Display, DisplayMatchArm};
 
 pub mod context_selector {
     use crate::{ContextSelectorKind, Field};
@@ -238,5 +239,109 @@ pub mod context_selector {
             source_field_type,
             quote! { #source_field_name: (#source_transformation)(error), },
         )
+    }
+}
+
+pub mod display {
+    use crate::{Field, SourceField};
+    use proc_macro2::TokenStream;
+    use quote::{quote, ToTokens};
+
+    struct StaticIdent(&'static str);
+
+    impl quote::ToTokens for StaticIdent {
+        fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+            proc_macro2::Ident::new(self.0, proc_macro2::Span::call_site()).to_tokens(tokens)
+        }
+    }
+
+    const FORMATTER_ARG: StaticIdent = StaticIdent("__snafu_display_formatter");
+
+    pub(crate) struct Display<'a> {
+        pub(crate) arms: &'a [TokenStream],
+        pub(crate) original_generics: &'a [TokenStream],
+        pub(crate) parameterized_error_name: &'a dyn ToTokens,
+        pub(crate) where_clauses: &'a [TokenStream],
+    }
+
+    impl ToTokens for Display<'_> {
+        fn to_tokens(&self, stream: &mut TokenStream) {
+            let Self {
+                arms,
+                original_generics,
+                parameterized_error_name,
+                where_clauses,
+            } = *self;
+
+            let display_impl = quote! {
+                #[allow(single_use_lifetimes)]
+                impl<#(#original_generics),*> ::core::fmt::Display for #parameterized_error_name
+                where
+                    #(#where_clauses),*
+                {
+                    fn fmt(&self, #FORMATTER_ARG: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                        #[allow(unused_variables)]
+                        match *self {
+                            #(#arms),*
+                        }
+                    }
+                }
+            };
+
+            stream.extend(display_impl);
+        }
+    }
+
+    pub(crate) struct DisplayMatchArm<'a> {
+        pub(crate) backtrace_field: Option<&'a crate::Field>,
+        pub(crate) default_name: &'a dyn ToTokens,
+        pub(crate) display_format: Option<&'a dyn ToTokens>,
+        pub(crate) doc_comment: &'a str,
+        pub(crate) pattern_ident: &'a dyn ToTokens,
+        pub(crate) selector_kind: &'a crate::ContextSelectorKind,
+    }
+
+    impl ToTokens for DisplayMatchArm<'_> {
+        fn to_tokens(&self, stream: &mut TokenStream) {
+            let Self {
+                backtrace_field,
+                default_name,
+                display_format,
+                doc_comment,
+                pattern_ident,
+                selector_kind,
+            } = *self;
+
+            let user_fields = selector_kind.user_fields();
+            let source_field = selector_kind.source_field();
+
+            let format = match (display_format, source_field) {
+                (Some(v), _) => quote! { #v },
+                (None, _) if !doc_comment.is_empty() => {
+                    quote! { #doc_comment }
+                }
+                (None, Some(f)) => {
+                    let field_name = &f.name;
+                    quote! { concat!(stringify!(#default_name), ": {}"), #field_name }
+                }
+                (None, None) => quote! { stringify!(#default_name)},
+            };
+
+            let field_names = user_fields
+                .iter()
+                .chain(backtrace_field)
+                .map(Field::name)
+                .chain(source_field.map(SourceField::name));
+
+            let field_names = quote! { #(ref #field_names),* };
+
+            let match_arm = quote! {
+                #pattern_ident { #field_names } => {
+                    write!(#FORMATTER_ARG, #format)
+                }
+            };
+
+            stream.extend(match_arm);
+        }
     }
 }
