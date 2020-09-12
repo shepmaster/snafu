@@ -1,5 +1,6 @@
 pub(crate) use self::context_selector::ContextSelector;
 pub(crate) use self::display::{Display, DisplayMatchArm};
+pub(crate) use self::error::{Error, ErrorSourceMatchArm};
 
 pub mod context_selector {
     use crate::{ContextSelectorKind, Field};
@@ -342,6 +343,123 @@ pub mod display {
             };
 
             stream.extend(match_arm);
+        }
+    }
+}
+
+pub mod error {
+    use crate::{FieldContainer, SourceField};
+    use proc_macro2::TokenStream;
+    use quote::{quote, ToTokens};
+
+    pub(crate) struct Error<'a> {
+        pub(crate) crate_root: &'a dyn ToTokens,
+        pub(crate) parameterized_error_name: &'a dyn ToTokens,
+        pub(crate) description_arms: &'a [TokenStream],
+        pub(crate) source_arms: &'a [TokenStream],
+        pub(crate) original_generics: &'a [TokenStream],
+        pub(crate) where_clauses: &'a [TokenStream],
+    }
+
+    impl ToTokens for Error<'_> {
+        fn to_tokens(&self, stream: &mut TokenStream) {
+            let Self {
+                crate_root,
+                parameterized_error_name,
+                description_arms,
+                source_arms,
+                original_generics,
+                where_clauses,
+            } = *self;
+
+            let description_fn = quote! {
+                fn description(&self) -> &str {
+                    match *self {
+                        #(#description_arms)*
+                    }
+                }
+            };
+
+            let source_body = quote! {
+                use #crate_root::AsErrorSource;
+                match *self {
+                    #(#source_arms)*
+                }
+            };
+
+            let cause_fn = quote! {
+                fn cause(&self) -> ::core::option::Option<&dyn #crate_root::Error> {
+                    #source_body
+                }
+            };
+
+            let source_fn = quote! {
+                fn source(&self) -> ::core::option::Option<&(dyn #crate_root::Error + 'static)> {
+                    #source_body
+                }
+            };
+
+            let std_backtrace_fn = if cfg!(feature = "unstable-backtraces-impl-std") {
+                Some(quote! {
+                    fn backtrace(&self) -> ::core::option::Option<&::std::backtrace::Backtrace> {
+                        #crate_root::ErrorCompat::backtrace(self)
+                    }
+                })
+            } else {
+                None
+            };
+
+            let error = quote! {
+                #[allow(single_use_lifetimes)]
+                impl<#(#original_generics),*> #crate_root::Error for #parameterized_error_name
+                where
+                    Self: ::core::fmt::Debug + ::core::fmt::Display,
+                    #(#where_clauses),*
+                {
+                    #description_fn
+                    #cause_fn
+                    #source_fn
+                    #std_backtrace_fn
+                }
+            };
+
+            stream.extend(error);
+        }
+    }
+
+    pub(crate) struct ErrorSourceMatchArm<'a> {
+        pub(crate) field_container: &'a FieldContainer,
+        pub(crate) pattern_ident: &'a dyn ToTokens,
+    }
+
+    impl ToTokens for ErrorSourceMatchArm<'_> {
+        fn to_tokens(&self, stream: &mut TokenStream) {
+            let Self {
+                field_container: FieldContainer { selector_kind, .. },
+                pattern_ident,
+            } = *self;
+
+            let source_field = selector_kind.source_field();
+
+            let arm = match source_field {
+                Some(source_field) => {
+                    let SourceField {
+                        name: field_name, ..
+                    } = source_field;
+                    quote! {
+                        #pattern_ident { ref #field_name, .. } => {
+                            ::core::option::Option::Some(#field_name.as_error_source())
+                        }
+                    }
+                }
+                None => {
+                    quote! {
+                        #pattern_ident { .. } => { ::core::option::Option::None }
+                    }
+                }
+            };
+
+            stream.extend(arm);
         }
     }
 }

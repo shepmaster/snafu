@@ -77,13 +77,8 @@ impl ContextSelectorKind {
 }
 
 struct NamedStructInfo {
-    name: syn::Ident,
+    field_container: FieldContainer,
     generics: syn::Generics,
-    selector_kind: ContextSelectorKind,
-    backtrace_field: Option<Field>,
-    display_format: Option<UserInput>,
-    doc_comment: String,
-    visibility: Option<UserInput>,
 }
 
 struct TupleStructInfo {
@@ -855,7 +850,7 @@ fn parse_snafu_named_struct(
 ) -> MultiSynResult<NamedStructInfo> {
     let mut errors = SyntaxErrors::default();
 
-    let r = field_container(
+    let field_container = field_container(
         name,
         span,
         attrs,
@@ -867,23 +862,9 @@ fn parse_snafu_named_struct(
 
     errors.finish()?;
 
-    let FieldContainer {
-        name,
-        selector_kind,
-        display_format,
-        doc_comment,
-        backtrace_field,
-        visibility,
-    } = r;
-
     Ok(NamedStructInfo {
-        name,
+        field_container,
         generics,
-        selector_kind,
-        backtrace_field,
-        display_format,
-        doc_comment,
-        visibility,
     })
 }
 
@@ -1511,121 +1492,44 @@ impl<'a> quote::ToTokens for DisplayImpl<'a> {
 
 struct ErrorImpl<'a>(&'a EnumInfo);
 
-impl<'a> ErrorImpl<'a> {
-    fn variants_to_description(&self) -> Vec<proc_macro2::TokenStream> {
-        let enum_name = &self.0.name;
-        self.0
-            .variants
-            .iter()
-            .map(|variant| {
-                let FieldContainer {
-                    name: variant_name, ..
-                } = variant;
-                quote! {
-                    #enum_name::#variant_name { .. } => stringify!(#enum_name::#variant_name),
-                }
-            })
-            .collect()
-    }
-
-    fn variants_to_source(&self) -> Vec<proc_macro2::TokenStream> {
-        let enum_name = &self.0.name;
-        self.0
-            .variants
-            .iter()
-            .map(|variant| {
-                let FieldContainer {
-                    name: variant_name,
-                    selector_kind,
-                    ..
-                } = variant;
-
-                let source_field = selector_kind.source_field();
-
-                match source_field {
-                    Some(source_field) => {
-                        let SourceField {
-                            name: field_name, ..
-                        } = source_field;
-                        quote! {
-                            #enum_name::#variant_name { ref #field_name, .. } => {
-                                ::core::option::Option::Some(#field_name.as_error_source())
-                            }
-                        }
-                    }
-                    None => {
-                        quote! {
-                            #enum_name::#variant_name { .. } => { ::core::option::Option::None }
-                        }
-                    }
-                }
-            })
-            .collect()
-    }
-}
-
 impl<'a> quote::ToTokens for ErrorImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        let crate_root = &self.0.crate_root;
-        let original_generics = self.0.provided_generics_without_defaults();
-        let parameterized_enum_name = &self.0.parameterized_name();
-        let where_clauses: Vec<_> = self.0.provided_where_clauses();
+        use self::shared::{Error, ErrorSourceMatchArm};
 
-        let variants_to_description = &self.variants_to_description();
+        let (variants_to_description, variants_to_source): (Vec<_>, Vec<_>) = self
+            .0
+            .variants
+            .iter()
+            .map(|field_container| {
+                let enum_name = &self.0.name;
+                let variant_name = &field_container.name;
+                let pattern_ident = &quote! { #enum_name::#variant_name };
 
-        let description_fn = quote! {
-            fn description(&self) -> &str {
-                match *self {
-                    #(#variants_to_description)*
-                }
-            }
+                let error_description_match_arm = quote! {
+                    #pattern_ident { .. } => stringify!(#pattern_ident),
+                };
+
+                let error_source_match_arm = ErrorSourceMatchArm {
+                    field_container,
+                    pattern_ident,
+                };
+                let error_source_match_arm = quote! { #error_source_match_arm };
+
+                (error_description_match_arm, error_source_match_arm)
+            })
+            .unzip();
+
+        let error_impl = Error {
+            crate_root: &self.0.crate_root,
+            parameterized_error_name: &self.0.parameterized_name(),
+            description_arms: &variants_to_description,
+            source_arms: &variants_to_source,
+            original_generics: &self.0.provided_generics_without_defaults(),
+            where_clauses: &self.0.provided_where_clauses(),
         };
+        let error_impl = quote! { #error_impl };
 
-        let variants_to_source = &self.variants_to_source();
-
-        let cause_fn = quote! {
-            fn cause(&self) -> Option<&dyn #crate_root::Error> {
-                use #crate_root::AsErrorSource;
-                match *self {
-                    #(#variants_to_source)*
-                }
-            }
-        };
-
-        let source_fn = quote! {
-            fn source(&self) -> Option<&(dyn #crate_root::Error + 'static)> {
-                use #crate_root::AsErrorSource;
-                match *self {
-                    #(#variants_to_source)*
-                }
-            }
-        };
-
-        let std_backtrace_fn = if cfg!(feature = "unstable-backtraces-impl-std") {
-            quote! {
-                fn backtrace(&self) -> Option<&std::backtrace::Backtrace> {
-                    #crate_root::ErrorCompat::backtrace(self)
-                }
-            }
-        } else {
-            quote! {}
-        };
-
-        stream.extend({
-            quote! {
-                #[allow(single_use_lifetimes)]
-                impl<#(#original_generics),*> #crate_root::Error for #parameterized_enum_name
-                where
-                    Self: ::core::fmt::Debug + ::core::fmt::Display,
-                    #(#where_clauses),*
-                {
-                    #description_fn
-                    #cause_fn
-                    #source_fn
-                    #std_backtrace_fn
-                }
-            }
-        })
+        stream.extend(error_impl);
     }
 }
 
@@ -1705,10 +1609,14 @@ impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
 impl NamedStructInfo {
     // TODO: document this behavior!
     fn selector_name(&self) -> syn::Ident {
-        let selector_name = self.name.to_string();
+        let selector_name = self.field_container.name.to_string();
         let selector_name = selector_name.trim_end_matches("Error");
         // TODO: Should we really keep the span?
-        format_ident!("{}Context", selector_name, span = self.name.span())
+        format_ident!(
+            "{}Context",
+            selector_name,
+            span = self.field_container.name.span()
+        )
     }
 
     fn generate_snafu(self) -> proc_macro2::TokenStream {
@@ -1718,50 +1626,46 @@ impl NamedStructInfo {
         let selector_name = self.selector_name();
 
         let Self {
-            name,
-            selector_kind,
-            backtrace_field,
-            display_format,
-            doc_comment,
-            visibility,
+            field_container:
+                FieldContainer {
+                    name,
+                    selector_kind,
+                    backtrace_field,
+                    display_format,
+                    doc_comment,
+                    visibility,
+                },
             ..
-        } = self;
+        } = &self;
+        let field_container = &self.field_container;
 
         let crate_root = quote! { snafu }; // TODO: read from attribute
 
         let user_fields = selector_kind.user_fields();
-        let source_field = selector_kind.source_field();
 
-        // TODO: Backtrace method
-        let error_impl = {
-            let source_body = if let Some(source_field) = &source_field {
-                let name = &source_field.name;
+        use crate::shared::{Error, ErrorSourceMatchArm};
 
-                quote! {
-                    use ::snafu::AsErrorSource;
-                    ::core::option::Option::Some(self.#name.as_error_source())
-                }
-            } else {
-                quote! { ::core::option::Option::None }
-            };
+        let pattern_ident = &quote! { Self };
 
-            quote! {
-                #[allow(single_use_lifetimes)]
-                impl <#(#original_generics,)*> #crate_root::Error for #parameterized_struct_name
-                where
-                    Self: ::core::fmt::Debug + ::core::fmt::Display,
-                    #(#where_clauses,)*
-                {
-                    fn cause(&self) -> ::core::option::Option<&dyn #crate_root::Error> {
-                        #source_body
-                    }
-
-                    fn source(&self) -> ::core::option::Option<&(dyn #crate_root::Error + 'static)> {
-                        #source_body
-                    }
-                }
-            }
+        let error_description_match_arm = quote! {
+            #pattern_ident { .. } => stringify!(#name),
         };
+
+        let error_source_match_arm = ErrorSourceMatchArm {
+            field_container: &field_container,
+            pattern_ident,
+        };
+        let error_source_match_arm = quote! { #error_source_match_arm };
+
+        let error_impl = Error {
+            crate_root: &crate_root,
+            parameterized_error_name: &parameterized_struct_name,
+            description_arms: &[error_description_match_arm],
+            source_arms: &[error_source_match_arm],
+            original_generics: &original_generics,
+            where_clauses: &where_clauses,
+        };
+        let error_impl = quote! { #error_impl };
 
         // TODO: backtrace method
         let error_compat_impl = {
@@ -1835,7 +1739,7 @@ impl NamedStructInfo {
 
 impl GenericAwareNames for NamedStructInfo {
     fn name(&self) -> &syn::Ident {
-        &self.name
+        &self.field_container.name
     }
 
     fn generics(&self) -> &syn::Generics {
