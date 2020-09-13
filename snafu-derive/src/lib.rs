@@ -77,6 +77,7 @@ impl ContextSelectorKind {
 }
 
 struct NamedStructInfo {
+    crate_root: UserInput,
     field_container: FieldContainer,
     generics: syn::Generics,
 }
@@ -554,10 +555,12 @@ fn parse_snafu_enum(
             let name = variant.ident;
             let span = name.span();
 
+            let attrs = attributes_from_syn(variant.attrs)?;
+
             field_container(
                 name,
                 span,
-                variant.attrs,
+                attrs,
                 fields,
                 &mut errors,
                 ErrorLocation::OnVariant,
@@ -580,7 +583,7 @@ fn parse_snafu_enum(
 fn field_container(
     name: syn::Ident,
     variant_span: proc_macro2::Span,
-    attrs: Vec<syn::Attribute>,
+    attrs: Vec<SnafuAttribute>,
     fields: Vec<syn::Field>,
     errors: &mut SyntaxErrors,
     outer_error_location: ErrorLocation,
@@ -597,7 +600,7 @@ fn field_container(
     let mut doc_comment = String::new();
     let mut reached_end_of_doc_comment = false;
 
-    for attr in attributes_from_syn(attrs)? {
+    for attr in attrs {
         match attr {
             SnafuAttribute::Display(tokens, d) => display_formats.add(d, tokens),
             SnafuAttribute::Visibility(tokens, v) => visibilities.add(v, tokens),
@@ -850,6 +853,21 @@ fn parse_snafu_named_struct(
 ) -> MultiSynResult<NamedStructInfo> {
     let mut errors = SyntaxErrors::default();
 
+    let attrs = attributes_from_syn(attrs)?;
+
+    let mut crate_roots = AtMostOne::new("crate_root", ErrorLocation::OnNamedStruct);
+
+    let attrs = attrs
+        .into_iter()
+        .flat_map(|attr| match attr {
+            SnafuAttribute::CrateRoot(tokens, root) => {
+                crate_roots.add(root, tokens);
+                None
+            }
+            other => Some(other),
+        })
+        .collect();
+
     let field_container = field_container(
         name,
         span,
@@ -860,9 +878,14 @@ fn parse_snafu_named_struct(
         ErrorLocation::InNamedStruct,
     )?;
 
+    let (maybe_crate_root, errs) = crate_roots.finish();
+    let crate_root = maybe_crate_root.unwrap_or_else(default_crate_root);
+    errors.extend(errs);
+
     errors.finish()?;
 
     Ok(NamedStructInfo {
+        crate_root,
         field_container,
         generics,
     })
@@ -1592,6 +1615,7 @@ impl NamedStructInfo {
         let selector_name = self.selector_name();
 
         let Self {
+            crate_root,
             field_container:
                 FieldContainer {
                     name,
@@ -1604,8 +1628,6 @@ impl NamedStructInfo {
             ..
         } = &self;
         let field_container = &self.field_container;
-
-        let crate_root = quote! { snafu }; // TODO: read from attribute
 
         let user_fields = selector_kind.user_fields();
 
