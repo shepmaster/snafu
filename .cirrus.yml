@@ -66,7 +66,7 @@ doc_tests_task:
   container:
     image: rustlang/rust:nightly
     cpu: 1
-    memory: 2Gi
+    memory: 4Gi
   cargo_cache:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
