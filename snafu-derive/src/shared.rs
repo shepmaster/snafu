@@ -1,6 +1,7 @@
 pub(crate) use self::context_selector::ContextSelector;
 pub(crate) use self::display::{Display, DisplayMatchArm};
 pub(crate) use self::error::{Error, ErrorSourceMatchArm};
+pub(crate) use self::error_compat::{ErrorCompat, ErrorCompatBacktraceMatchArm};
 
 pub mod context_selector {
     use crate::{ContextSelectorKind, Field};
@@ -460,6 +461,99 @@ pub mod error {
             };
 
             stream.extend(arm);
+        }
+    }
+}
+
+pub mod error_compat {
+    use crate::{Field, FieldContainer, SourceField};
+    use proc_macro2::TokenStream;
+    use quote::{quote, ToTokens};
+
+    pub(crate) struct ErrorCompat<'a> {
+        pub(crate) crate_root: &'a dyn ToTokens,
+        pub(crate) parameterized_error_name: &'a dyn ToTokens,
+        pub(crate) backtrace_arms: &'a [TokenStream],
+        pub(crate) original_generics: &'a [TokenStream],
+        pub(crate) where_clauses: &'a [TokenStream],
+    }
+
+    impl ToTokens for ErrorCompat<'_> {
+        fn to_tokens(&self, stream: &mut TokenStream) {
+            let Self {
+                crate_root,
+                parameterized_error_name,
+                backtrace_arms,
+                original_generics,
+                where_clauses,
+            } = *self;
+
+            let backtrace_fn = quote! {
+                fn backtrace(&self) -> ::core::option::Option<&#crate_root::Backtrace> {
+                    match *self {
+                        #(#backtrace_arms),*
+                    }
+                }
+            };
+
+            let error_compat_impl = quote! {
+                #[allow(single_use_lifetimes)]
+                impl<#(#original_generics),*> #crate_root::ErrorCompat for #parameterized_error_name
+                where
+                    #(#where_clauses),*
+                {
+                    #backtrace_fn
+                }
+            };
+
+            stream.extend(error_compat_impl);
+        }
+    }
+
+    pub(crate) struct ErrorCompatBacktraceMatchArm<'a> {
+        pub(crate) crate_root: &'a dyn ToTokens,
+        pub(crate) field_container: &'a FieldContainer,
+        pub(crate) pattern_ident: &'a dyn ToTokens,
+    }
+
+    impl ToTokens for ErrorCompatBacktraceMatchArm<'_> {
+        fn to_tokens(&self, stream: &mut TokenStream) {
+            let Self {
+                crate_root,
+                field_container:
+                    FieldContainer {
+                        backtrace_field,
+                        selector_kind,
+                        ..
+                    },
+                pattern_ident,
+            } = *self;
+
+            let match_arm = match (selector_kind.source_field(), backtrace_field) {
+                (Some(source_field), _) if source_field.backtrace_delegate => {
+                    let SourceField {
+                        name: field_name, ..
+                    } = source_field;
+                    quote! {
+                        #pattern_ident { ref #field_name, .. } => { #crate_root::ErrorCompat::backtrace(#field_name) }
+                    }
+                }
+                (_, Some(backtrace_field)) => {
+                    let Field {
+                        name: field_name, ..
+                    } = backtrace_field;
+                    quote! {
+                        #pattern_ident { ref #field_name, .. } => { #crate_root::GenerateBacktrace::as_backtrace(#field_name) }
+                    }
+                }
+                _ => {
+                    quote! {
+                        #pattern_ident { .. } => { ::core::option::Option::None }
+                    }
+                }
+            };
+
+            stream.extend(match_arm);
         }
     }
 }

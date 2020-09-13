@@ -1535,74 +1535,40 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
 
 struct ErrorCompatImpl<'a>(&'a EnumInfo);
 
-impl<'a> ErrorCompatImpl<'a> {
-    fn variants_to_backtrace(&self) -> Vec<proc_macro2::TokenStream> {
-        let crate_root = &self.0.crate_root;
-        let enum_name = &self.0.name;
-        self.0.variants.iter().map(|variant| {
-            let FieldContainer {
-                name: variant_name,
-                selector_kind,
-                backtrace_field,
-                ..
-            } = variant;
-
-            match (selector_kind.source_field(), backtrace_field) {
-                (Some(source_field), _) if source_field.backtrace_delegate => {
-                    let SourceField {
-                        name: field_name,
-                        ..
-                    } = source_field;
-                    quote! {
-                        #enum_name::#variant_name { ref #field_name, .. } => { #crate_root::ErrorCompat::backtrace(#field_name) }
-                    }
-                },
-                (_, Some(backtrace_field)) => {
-                    let Field {
-                        name: field_name,
-                        ..
-                    } = backtrace_field;
-                    quote! {
-                        #enum_name::#variant_name { ref #field_name, .. } => { #crate_root::GenerateBacktrace::as_backtrace(#field_name) }
-                    }
-                }
-                _ => {
-                    quote! {
-                        #enum_name::#variant_name { .. } => { ::core::option::Option::None }
-                    }
-                }
-            }
-        }).collect()
-    }
-}
-
 impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        let crate_root = &self.0.crate_root;
-        let original_generics = self.0.provided_generics_without_defaults();
-        let parameterized_enum_name = &self.0.parameterized_name();
-        let where_clauses = &self.0.provided_where_clauses();
-        let variants = &self.variants_to_backtrace();
+        use self::shared::{ErrorCompat, ErrorCompatBacktraceMatchArm};
 
-        let backtrace_fn = quote! {
-            fn backtrace(&self) -> Option<&#crate_root::Backtrace> {
-                match *self {
-                    #(#variants),*
-                }
-            }
+        let variants_to_backtrace: Vec<_> = self
+            .0
+            .variants
+            .iter()
+            .map(|field_container| {
+                let crate_root = &self.0.crate_root;
+                let enum_name = &self.0.name;
+                let variant_name = &field_container.name;
+
+                let match_arm = ErrorCompatBacktraceMatchArm {
+                    field_container,
+                    crate_root,
+                    pattern_ident: &quote! { #enum_name::#variant_name },
+                };
+
+                quote! { #match_arm }
+            })
+            .collect();
+
+        let error_compat_impl = ErrorCompat {
+            crate_root: &self.0.crate_root,
+            parameterized_error_name: &self.0.parameterized_name(),
+            backtrace_arms: &variants_to_backtrace,
+            original_generics: &self.0.provided_generics_without_defaults(),
+            where_clauses: &self.0.provided_where_clauses(),
         };
 
-        stream.extend({
-            quote! {
-                #[allow(single_use_lifetimes)]
-                impl<#(#original_generics),*> #crate_root::ErrorCompat for #parameterized_enum_name
-                where
-                    #(#where_clauses),*
-                {
-                    #backtrace_fn
-                }
-            }
-        })
+        let error_compat_impl = quote! { #error_compat_impl };
+
+        stream.extend(error_compat_impl);
     }
 }
 
@@ -1667,28 +1633,21 @@ impl NamedStructInfo {
         };
         let error_impl = quote! { #error_impl };
 
-        // TODO: backtrace method
-        let error_compat_impl = {
-            let backtrace_fn = if let Some(backtrace_field) = &backtrace_field {
-                let backtrace_field_name = &backtrace_field.name;
-                quote! {
-                    fn backtrace(&self) -> ::core::option::Option<&#crate_root::Backtrace> {
-                        ::core::option::Option::Some(&self.#backtrace_field_name)
-                    }
-                }
-            } else {
-                quote! {}
-            };
+        use self::shared::{ErrorCompat, ErrorCompatBacktraceMatchArm};
 
-            quote! {
-                #[allow(single_use_lifetimes)]
-                impl <#(#original_generics,)*> #crate_root::ErrorCompat for #parameterized_struct_name
-                where
-                    #(#where_clauses,)*
-                {
-                    #backtrace_fn
-                }
-            }
+        let match_arm = ErrorCompatBacktraceMatchArm {
+            field_container,
+            crate_root: &crate_root,
+            pattern_ident: &quote! { Self },
+        };
+        let match_arm = quote! { #match_arm };
+
+        let error_compat_impl = ErrorCompat {
+            crate_root: &crate_root,
+            parameterized_error_name: &parameterized_struct_name,
+            backtrace_arms: &[match_arm],
+            original_generics: &original_generics,
+            where_clauses: &where_clauses,
         };
 
         use crate::shared::{Display, DisplayMatchArm};
