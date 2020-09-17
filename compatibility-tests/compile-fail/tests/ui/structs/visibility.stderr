@@ -1,0 +1,18 @@
+error[E0603]: unit struct `Context` is private
+  --> $DIR/visibility.rs:11:20
+   |
+11 |     let _ = inner::Context.build();
+   |                    ^^^^^^^ private unit struct
+   |
+note: the unit struct `Context` is defined here
+  --> $DIR/visibility.rs:6:21
+   |
+6  |     #[derive(Debug, Snafu)]
+   |                     ^^^^^
+   = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0624]: associated function `build` is private
+  --> $DIR/visibility.rs:11:28
+   |
+11 |     let _ = inner::Context.build();
+   |                            ^^^^^ private associated function

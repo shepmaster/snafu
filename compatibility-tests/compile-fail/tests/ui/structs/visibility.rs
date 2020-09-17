@@ -1,14 +1,14 @@
-// There are also sad-path tests
+// There are also happy-path tests
 
 pub mod inner {
     use snafu::Snafu;
 
     #[derive(Debug, Snafu)]
-    #[snafu(visibility(pub(crate)))]
     pub(crate) struct Error;
 }
 
-#[test]
-fn can_set_visibility() {
+fn private_is_default() {
     let _ = inner::Context.build();
 }
+
+fn main() {}
