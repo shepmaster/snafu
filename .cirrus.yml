@@ -29,7 +29,12 @@ stable_test_task:
   compile_fail_test_script:
     - cargo test --manifest-path compatibility-tests/compile-fail/Cargo.toml
   lint_script:
-    - cargo fmt --all -- --check
+    - >
+      for i in $(find . -name 'Cargo.toml'); do
+        pushd $(dirname $i);
+        cargo +stable fmt --all -- --check;
+        popd;
+      done
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
 doc_test_task:
