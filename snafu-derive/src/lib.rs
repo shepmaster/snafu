@@ -1596,11 +1596,9 @@ impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
 }
 
 impl NamedStructInfo {
-    // TODO: document this behavior!
     fn selector_name(&self) -> syn::Ident {
         let selector_name = self.field_container.name.to_string();
         let selector_name = selector_name.trim_end_matches("Error");
-        // TODO: Should we really keep the span?
         format_ident!(
             "{}Context",
             selector_name,

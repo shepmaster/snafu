@@ -157,6 +157,7 @@ generate_guide! {
         pub mod generics;
         pub mod opaque;
         pub mod philosophy;
+        pub mod structs;
         pub mod the_macro;
         pub mod upgrading;
 
