@@ -26,6 +26,7 @@ type UserInput = Box<dyn quote::ToTokens>;
 
 enum SnafuInfo {
     Enum(EnumInfo),
+    NamedStruct(NamedStructInfo),
     TupleStruct(TupleStructInfo),
 }
 
@@ -71,6 +72,14 @@ impl ContextSelectorKind {
             ContextSelectorKind::NoContext { source_field } => Some(source_field),
         }
     }
+}
+
+struct NamedStructInfo {
+    name: syn::Ident,
+    generics: syn::Generics,
+    source_field: Option<SourceField>,
+    user_fields: Vec<Field>,
+    display_format: Option<UserInput>,
 }
 
 struct TupleStructInfo {
@@ -190,6 +199,7 @@ enum ErrorLocation {
     OnVariant,
     InVariant,
     OnField,
+    OnNamedStruct,
     OnTupleStruct,
 }
 
@@ -202,6 +212,7 @@ impl fmt::Display for ErrorLocation {
             OnVariant => "on an enum variant".fmt(f),
             InVariant => "within an enum variant".fmt(f),
             OnField => "on a field".fmt(f),
+            OnNamedStruct => "on a named struct".fmt(f),
             OnTupleStruct => "on a tuple struct".fmt(f),
         }
     }
@@ -417,9 +428,7 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> MultiSynResult<SnafuInfo> {
 
     match data {
         Data::Enum(enum_) => parse_snafu_enum(enum_, ident, generics, attrs).map(SnafuInfo::Enum),
-        Data::Struct(struct_) => {
-            parse_snafu_struct(struct_, ident, generics, attrs, span).map(SnafuInfo::TupleStruct)
-        }
+        Data::Struct(struct_) => parse_snafu_struct(struct_, ident, generics, attrs, span),
         _ => Err(vec![syn::Error::new(
             span,
             "Can only derive `Snafu` for an enum or a newtype",
@@ -799,16 +808,80 @@ fn parse_snafu_struct(
     generics: syn::Generics,
     attrs: Vec<syn::Attribute>,
     span: proc_macro2::Span,
-) -> MultiSynResult<TupleStructInfo> {
+) -> MultiSynResult<SnafuInfo> {
     use syn::Fields;
 
     match struct_.fields {
-        Fields::Unnamed(f) => parse_snafu_tuple_struct(f, name, generics, attrs, span),
-        _ => Err(vec![syn::Error::new(
+        Fields::Named(f) => {
+            parse_snafu_named_struct(f, name, generics, attrs, span).map(SnafuInfo::NamedStruct)
+        }
+        Fields::Unnamed(f) => {
+            parse_snafu_tuple_struct(f, name, generics, attrs, span).map(SnafuInfo::TupleStruct)
+        }
+        Fields::Unit => Err(vec![syn::Error::new(
             span,
-            "Can only derive `Snafu` for tuple structs",
+            "Cannot derive `Snafu` for unit structs",
         )]),
     }
+}
+
+fn parse_snafu_named_struct(
+    fields: syn::FieldsNamed,
+    name: syn::Ident,
+    generics: syn::Generics,
+    attrs: Vec<syn::Attribute>,
+    _span: proc_macro2::Span,
+) -> MultiSynResult<NamedStructInfo> {
+    let mut errors = SyntaxErrors::default();
+
+    // TESTME
+    let mut display_formats = AtMostOne::new("display", ErrorLocation::OnNamedStruct);
+
+    for attr in attributes_from_syn(attrs)? {
+        match attr {
+            SnafuAttribute::Display(tokens, d) => display_formats.add(d, tokens),
+            _ => unimplemented!(),
+        }
+    }
+
+    let mut user_fields = Vec::new();
+    let mut source_field = None;
+
+    for syn_field in fields.named {
+        let original = syn_field.clone();
+
+        let name = syn_field.ident.expect("Field must be named");
+        let ty = syn_field.ty;
+
+        // TODO: duplicate errors
+        // TODO: attributes!
+        if name == "source" {
+            assert!(source_field.is_none(), "TODO: multiple attribute handling");
+            source_field = Some(SourceField {
+                name,
+                // TODO: Handle transform
+                transformation: Transformation::None { ty },
+                backtrace_delegate: false,
+            });
+        } else {
+            let field = Field { name, ty, original };
+
+            user_fields.push(field);
+        }
+    }
+
+    let (display_format, errs) = display_formats.finish();
+    errors.extend(errs);
+
+    errors.finish()?;
+
+    Ok(NamedStructInfo {
+        name,
+        generics,
+        source_field,
+        user_fields,
+        display_format,
+    })
 }
 
 fn parse_snafu_tuple_struct(
@@ -1207,6 +1280,7 @@ impl From<SnafuInfo> for proc_macro::TokenStream {
     fn from(other: SnafuInfo) -> proc_macro::TokenStream {
         match other {
             SnafuInfo::Enum(e) => e.into(),
+            SnafuInfo::NamedStruct(s) => s.into(),
             SnafuInfo::TupleStruct(s) => s.into(),
         }
     }
@@ -1214,6 +1288,12 @@ impl From<SnafuInfo> for proc_macro::TokenStream {
 
 impl From<EnumInfo> for proc_macro::TokenStream {
     fn from(other: EnumInfo) -> proc_macro::TokenStream {
+        other.generate_snafu().into()
+    }
+}
+
+impl From<NamedStructInfo> for proc_macro::TokenStream {
+    fn from(other: NamedStructInfo) -> proc_macro::TokenStream {
         other.generate_snafu().into()
     }
 }
@@ -1823,6 +1903,159 @@ impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
                 }
             }
         })
+    }
+}
+
+impl NamedStructInfo {
+    // TODO: document this behavior!
+    fn selector_name(&self) -> syn::Ident {
+        let selector_name = self.name.to_string();
+        let selector_name = selector_name.trim_end_matches("Error");
+        // TODO: Should we really keep the span?
+        format_ident!("{}Context", selector_name, span = self.name.span())
+    }
+
+    fn generate_snafu(self) -> proc_macro2::TokenStream {
+        let parameterized_struct_name = self.parameterized_name();
+        let selector_name = self.selector_name();
+
+        let Self {
+            name,
+            source_field,
+            user_fields,
+            display_format,
+            ..
+        } = self;
+
+        let crate_root = quote! { snafu }; // TODO: read from attribute
+
+        let user_generics = (0..user_fields.len()).map(|i| format_ident!("__T{}", i));
+        let user_field_names = user_fields.iter().map(|Field { name, .. }| name);
+
+        let parameterized_selector_name = {
+            let user_generics = user_generics.clone();
+            quote! { #selector_name<#(#user_generics,)*> }
+        };
+
+        // TODO: Backtrace method
+        let error_impl = {
+            let source_body = if let Some(source_field) = &source_field {
+                let name = &source_field.name;
+
+                quote! { ::core::option::Option::Some(&self.#name) }
+            } else {
+                quote! { ::core::option::Option::None }
+            };
+
+            quote! {
+                impl #crate_root::Error for #parameterized_struct_name {
+                    fn cause(&self) -> ::core::option::Option<&dyn #crate_root::Error> {
+                        #source_body
+                    }
+
+                    fn source(&self) -> ::core::option::Option<&(dyn #crate_root::Error + 'static)> {
+                        #source_body
+                    }
+                }
+            }
+        };
+
+        // TODO: backtrace method
+        let error_compat_impl = quote! {
+            impl #crate_root::ErrorCompat for #parameterized_struct_name {}
+        };
+
+        let display_impl = {
+            let user_field_names = user_field_names.clone();
+            let source_field_name = source_field.as_ref().map(|f| &f.name);
+            // TODO: backtrace
+            let field_names = user_field_names.chain(source_field_name);
+
+            let display_format = display_format.unwrap_or_else(|| unimplemented!());
+
+            quote! {
+                impl ::core::fmt::Display for #parameterized_struct_name {
+                    #[allow(unused_variables)]
+                    fn fmt(&self, #FORMATTER_ARG: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                        let Self { #(#field_names,)* } = self;
+                        write!(#FORMATTER_ARG, #display_format)
+                    }
+                }
+            }
+        };
+
+        let context_selector_type = {
+            let user_fields = user_field_names
+                .clone()
+                .zip(user_generics.clone())
+                .map(|(name, ty)| quote! { #name: #ty });
+
+            quote! {
+                struct #parameterized_selector_name {
+                    #(#user_fields,)*
+                }
+            }
+        };
+
+        let into_error_impl = if let Some(source_field) = &source_field {
+            let source_name = source_field.name();
+            let source_type = source_field.transformation.ty();
+
+            // COPY PASTA
+            let user_generics = user_generics.clone();
+
+            // COPY PASTA
+            let target_types = user_fields
+                .iter()
+                .map(|Field { ty, .. }| quote! { ::core::convert::Into<#ty>});
+            let where_clauses = user_generics
+                .clone()
+                .zip(target_types)
+                .map(|(gen, bound)| quote! { #gen: #bound });
+
+            // COPY PASTA
+            let user_bindings = user_field_names.clone();
+            let user_conversions = user_field_names
+                .clone()
+                .map(|n| quote! { #n: ::core::convert::Into::into(#n) });
+
+            quote! {
+                impl <#(#user_generics,)*> #crate_root::IntoError<#parameterized_struct_name> for #parameterized_selector_name
+                where
+                    #(#where_clauses,)*
+                {
+                    type Source = #source_type;
+
+                    fn into_error(self, source: Self::Source) -> #parameterized_struct_name {
+                        let Self { #(#user_bindings,)* } = self;
+                        #name {
+                            #source_name: source,
+                            #(#user_conversions,)*
+                        }
+                    }
+                }
+            }
+        } else {
+            quote! {}
+        };
+
+        quote! {
+            #error_impl
+            #error_compat_impl
+            #display_impl
+            #context_selector_type
+            #into_error_impl
+        }
+    }
+}
+
+impl GenericAwareNames for NamedStructInfo {
+    fn name(&self) -> &syn::Ident {
+        &self.name
+    }
+
+    fn generics(&self) -> &syn::Generics {
+        &self.generics
     }
 }
 

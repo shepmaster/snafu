@@ -44,17 +44,19 @@ help: you might be missing a string literal to format with
 42 |         #[snafu(display = "{}", "42")]
    |                           ^^^^^
 
-error: Can only derive `Snafu` for tuple structs
+error: Cannot derive `Snafu` for unit structs
   --> $DIR/error-reporting.rs:51:5
    |
 51 |     struct UnitStruct;
    |     ^^^^^^
 
-error: Can only derive `Snafu` for tuple structs
-  --> $DIR/error-reporting.rs:54:5
+error: proc-macro derive panicked
+  --> $DIR/error-reporting.rs:53:21
    |
-54 |     struct NamedFieldStruct {
-   |     ^^^^^^
+53 |     #[derive(Debug, Snafu)]
+   |                     ^^^^^
+   |
+   = help: message: not implemented
 
 error: Can only derive `Snafu` for tuple structs with exactly one field
   --> $DIR/error-reporting.rs:59:5
