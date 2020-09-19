@@ -13,5 +13,5 @@ error: Context selectors without context must not have context fields
 error: Context selectors without context must have a source field
   --> $DIR/no_context.rs:10:5
    |
-10 |     MissingSource { },
+10 |     MissingSource {},
    |     ^^^^^^^^^^^^^

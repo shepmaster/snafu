@@ -2,7 +2,9 @@ mod wrong_error_types {
     use snafu::Snafu;
 
     #[derive(Snafu)]
-    union AUnion { _a: i32 }
+    union AUnion {
+        _a: i32,
+    }
 
     #[derive(Snafu)]
     enum TupleEnumVariant {
@@ -49,7 +51,9 @@ mod opaque {
     struct UnitStruct;
 
     #[derive(Debug, Snafu)]
-    struct NamedFieldStruct { some_field: i32 }
+    struct NamedFieldStruct {
+        some_field: i32,
+    }
 
     #[derive(Debug, Snafu)]
     struct ShortTupleStruct();

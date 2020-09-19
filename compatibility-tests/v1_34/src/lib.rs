@@ -1,7 +1,10 @@
 #![cfg(test)]
 
-use snafu::{Snafu, ResultExt};
-use std::{fs, io, path::{Path, PathBuf}};
+use snafu::{ResultExt, Snafu};
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+};
 
 #[derive(Debug, Snafu)]
 struct PublicError(Error);
@@ -10,7 +13,10 @@ struct PublicError(Error);
 #[snafu(visibility(pub(crate)))]
 enum Error {
     #[snafu(display("Could not open config file at {}: {}", filename.display(), source))]
-    OpenConfig { filename: PathBuf, source: io::Error },
+    OpenConfig {
+        filename: PathBuf,
+        source: io::Error,
+    },
     #[snafu(display("Could not open config file at {}", source))]
     SaveConfig { source: io::Error },
     #[snafu(display("No user available"))]
