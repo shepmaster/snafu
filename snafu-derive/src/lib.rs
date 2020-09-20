@@ -440,17 +440,17 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> MultiSynResult<SnafuInfo> {
 
 const ATTR_DISPLAY: OnlyValidOn = OnlyValidOn {
     attribute: "display",
-    valid_on: "enum variants",
+    valid_on: "enum variants or structs with named fields",
 };
 
 const ATTR_SOURCE: OnlyValidOn = OnlyValidOn {
     attribute: "source",
-    valid_on: "enum variant fields",
+    valid_on: "enum variant or struct fields with a name",
 };
 
 const ATTR_SOURCE_BOOL: OnlyValidOn = OnlyValidOn {
     attribute: "source(bool)",
-    valid_on: "enum variant fields",
+    valid_on: "enum variant or struct fields with a name",
 };
 
 const ATTR_SOURCE_FALSE: WrongField = WrongField {
@@ -460,27 +460,27 @@ const ATTR_SOURCE_FALSE: WrongField = WrongField {
 
 const ATTR_SOURCE_FROM: OnlyValidOn = OnlyValidOn {
     attribute: "source(from)",
-    valid_on: "enum variant fields",
+    valid_on: "enum variant or struct fields with a name",
 };
 
 const ATTR_BACKTRACE: OnlyValidOn = OnlyValidOn {
     attribute: "backtrace",
-    valid_on: "enum variant fields",
+    valid_on: "enum variant or struct fields with a name",
 };
 
 const ATTR_BACKTRACE_FALSE: WrongField = WrongField {
     attribute: "backtrace(false)",
-    valid_field: r"backtrace",
+    valid_field: "backtrace",
 };
 
 const ATTR_VISIBILITY: OnlyValidOn = OnlyValidOn {
     attribute: "visibility",
-    valid_on: "an enum and its variants",
+    valid_on: "an enum, enum variants, or a struct with named fields",
 };
 
 const ATTR_CONTEXT: OnlyValidOn = OnlyValidOn {
     attribute: "context",
-    valid_on: "enum variants",
+    valid_on: "enum variants or structs with named fields",
 };
 
 const ATTR_CRATE_ROOT: OnlyValidOn = OnlyValidOn {
