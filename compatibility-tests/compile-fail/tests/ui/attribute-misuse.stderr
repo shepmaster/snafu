@@ -1,46 +1,46 @@
-error: `display` attribute is only valid on enum variants, not on an enum
+error: `display` attribute is only valid on enum variants or structs with named fields, not on an enum
  --> $DIR/attribute-misuse.rs:5:13
   |
 5 |     #[snafu(display("display should not work here"))]
   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error: `source(from)` attribute is only valid on enum variant fields, not on an enum
+error: `source(from)` attribute is only valid on enum variant or struct fields with a name, not on an enum
  --> $DIR/attribute-misuse.rs:6:13
   |
 6 |     #[snafu(source(from(XXXX, Box::new)))]
   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error: `source(bool)` attribute is only valid on enum variant fields, not on an enum
+error: `source(bool)` attribute is only valid on enum variant or struct fields with a name, not on an enum
  --> $DIR/attribute-misuse.rs:7:13
   |
 7 |     #[snafu(source(true))]
   |             ^^^^^^^^^^^^
 
-error: `backtrace` attribute is only valid on enum variant fields, not on an enum
+error: `backtrace` attribute is only valid on enum variant or struct fields with a name, not on an enum
  --> $DIR/attribute-misuse.rs:8:13
   |
 8 |     #[snafu(backtrace)]
   |             ^^^^^^^^^
 
-error: `context` attribute is only valid on enum variants, not on an enum
+error: `context` attribute is only valid on enum variants or structs with named fields, not on an enum
  --> $DIR/attribute-misuse.rs:9:13
   |
 9 |     #[snafu(context)]
   |             ^^^^^^^
 
-error: `source` attribute is only valid on enum variant fields, not on an enum variant
+error: `source` attribute is only valid on enum variant or struct fields with a name, not on an enum variant
   --> $DIR/attribute-misuse.rs:21:46
    |
 21 |         #[snafu(display("an error variant"), source(from(XXXX, Box::new)))]
    |                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error: `source` attribute is only valid on enum variant fields, not on an enum variant
+error: `source` attribute is only valid on enum variant or struct fields with a name, not on an enum variant
   --> $DIR/attribute-misuse.rs:22:17
    |
 22 |         #[snafu(source)]
    |                 ^^^^^^
 
-error: `backtrace` attribute is only valid on enum variant fields, not on an enum variant
+error: `backtrace` attribute is only valid on enum variant or struct fields with a name, not on an enum variant
   --> $DIR/attribute-misuse.rs:23:17
    |
 23 |         #[snafu(backtrace)]
@@ -52,13 +52,13 @@ error: `crate_root` attribute is only valid on an enum or a struct, not on an en
 24 |         #[snafu(crate_root(XXXX))]
    |                 ^^^^^^^^^^^^^^^^
 
-error: `display` attribute is only valid on enum variants, not on a field
+error: `display` attribute is only valid on enum variants or structs with named fields, not on a field
   --> $DIR/attribute-misuse.rs:35:21
    |
 35 |             #[snafu(display("display should not work here"))]
    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error: `visibility` attribute is only valid on an enum and its variants, not on a field
+error: `visibility` attribute is only valid on an enum, enum variants, or a struct with named fields, not on a field
   --> $DIR/attribute-misuse.rs:36:21
    |
 36 |             #[snafu(visibility(pub))]
@@ -70,7 +70,7 @@ error: Incompatible attributes [`source(false)`, `source(from)`] specified on a 
 38 |             #[snafu(source(from(XXXX, Box::new)))]
    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error: `context` attribute is only valid on enum variants, not on a field
+error: `context` attribute is only valid on enum variants or structs with named fields, not on a field
   --> $DIR/attribute-misuse.rs:39:21
    |
 39 |             #[snafu(context)]
@@ -82,31 +82,31 @@ error: `crate_root` attribute is only valid on an enum or a struct, not on a fie
 40 |             #[snafu(crate_root(XXXX))]
    |                     ^^^^^^^^^^^^^^^^
 
-error: `display` attribute is only valid on enum variants, not on a struct
+error: `display` attribute is only valid on enum variants or structs with named fields, not on a tuple struct
   --> $DIR/attribute-misuse.rs:53:13
    |
 53 |     #[snafu(display("display should not work here"))]
    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error: `visibility` attribute is only valid on an enum and its variants, not on a struct
+error: `visibility` attribute is only valid on an enum, enum variants, or a struct with named fields, not on a tuple struct
   --> $DIR/attribute-misuse.rs:55:13
    |
 55 |     #[snafu(visibility(pub))]
    |             ^^^^^^^^^^^^^^^
 
-error: `source(bool)` attribute is only valid on enum variant fields, not on a struct
+error: `source(bool)` attribute is only valid on enum variant or struct fields with a name, not on a tuple struct
   --> $DIR/attribute-misuse.rs:56:13
    |
 56 |     #[snafu(source(true))]
    |             ^^^^^^^^^^^^
 
-error: `backtrace` attribute is only valid on enum variant fields, not on a struct
+error: `backtrace` attribute is only valid on enum variant or struct fields with a name, not on a tuple struct
   --> $DIR/attribute-misuse.rs:57:13
    |
 57 |     #[snafu(backtrace)]
    |             ^^^^^^^^^
 
-error: `context` attribute is only valid on enum variants, not on a struct
+error: `context` attribute is only valid on enum variants or structs with named fields, not on a tuple struct
   --> $DIR/attribute-misuse.rs:58:13
    |
 58 |     #[snafu(context)]

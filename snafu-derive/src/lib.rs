@@ -6,9 +6,10 @@ use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use std::collections::VecDeque;
 use std::fmt;
-use std::iter;
 use syn::parenthesized;
 use syn::parse::Result as SynResult;
+
+mod shared;
 
 /// See the crate-level documentation for SNAFU which contains tested
 /// examples of this macro.
@@ -22,22 +23,24 @@ pub fn snafu_derive(input: TokenStream) -> TokenStream {
 
 type MultiSynResult<T> = std::result::Result<T, Vec<syn::Error>>;
 
+/// Some arbitrary tokens we treat as a black box
 type UserInput = Box<dyn quote::ToTokens>;
 
 enum SnafuInfo {
     Enum(EnumInfo),
-    Struct(StructInfo),
+    NamedStruct(NamedStructInfo),
+    TupleStruct(TupleStructInfo),
 }
 
 struct EnumInfo {
     crate_root: UserInput,
     name: syn::Ident,
     generics: syn::Generics,
-    variants: Vec<VariantInfo>,
+    variants: Vec<FieldContainer>,
     default_visibility: UserInput,
 }
 
-struct VariantInfo {
+struct FieldContainer {
     name: syn::Ident,
     backtrace_field: Option<Field>,
     selector_kind: ContextSelectorKind,
@@ -73,7 +76,13 @@ impl ContextSelectorKind {
     }
 }
 
-struct StructInfo {
+struct NamedStructInfo {
+    crate_root: UserInput,
+    field_container: FieldContainer,
+    generics: syn::Generics,
+}
+
+struct TupleStructInfo {
     crate_root: UserInput,
     name: syn::Ident,
     generics: syn::Generics,
@@ -81,7 +90,7 @@ struct StructInfo {
 }
 
 #[derive(Clone)]
-struct Field {
+pub(crate) struct Field {
     name: syn::Ident,
     ty: syn::Type,
     original: syn::Field,
@@ -190,7 +199,9 @@ enum ErrorLocation {
     OnVariant,
     InVariant,
     OnField,
-    OnStruct,
+    OnNamedStruct,
+    InNamedStruct,
+    OnTupleStruct,
 }
 
 impl fmt::Display for ErrorLocation {
@@ -202,7 +213,9 @@ impl fmt::Display for ErrorLocation {
             OnVariant => "on an enum variant".fmt(f),
             InVariant => "within an enum variant".fmt(f),
             OnField => "on a field".fmt(f),
-            OnStruct => "on a struct".fmt(f),
+            OnNamedStruct => "on a named struct".fmt(f),
+            InNamedStruct => "within a named struct".fmt(f),
+            OnTupleStruct => "on a tuple struct".fmt(f),
         }
     }
 }
@@ -417,9 +430,7 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> MultiSynResult<SnafuInfo> {
 
     match data {
         Data::Enum(enum_) => parse_snafu_enum(enum_, ident, generics, attrs).map(SnafuInfo::Enum),
-        Data::Struct(struct_) => {
-            parse_snafu_struct(struct_, ident, generics, attrs, span).map(SnafuInfo::Struct)
-        }
+        Data::Struct(struct_) => parse_snafu_struct(struct_, ident, generics, attrs, span),
         _ => Err(vec![syn::Error::new(
             span,
             "Can only derive `Snafu` for an enum or a newtype",
@@ -429,17 +440,17 @@ fn parse_snafu_information(ty: syn::DeriveInput) -> MultiSynResult<SnafuInfo> {
 
 const ATTR_DISPLAY: OnlyValidOn = OnlyValidOn {
     attribute: "display",
-    valid_on: "enum variants",
+    valid_on: "enum variants or structs with named fields",
 };
 
 const ATTR_SOURCE: OnlyValidOn = OnlyValidOn {
     attribute: "source",
-    valid_on: "enum variant fields",
+    valid_on: "enum variant or struct fields with a name",
 };
 
 const ATTR_SOURCE_BOOL: OnlyValidOn = OnlyValidOn {
     attribute: "source(bool)",
-    valid_on: "enum variant fields",
+    valid_on: "enum variant or struct fields with a name",
 };
 
 const ATTR_SOURCE_FALSE: WrongField = WrongField {
@@ -449,27 +460,27 @@ const ATTR_SOURCE_FALSE: WrongField = WrongField {
 
 const ATTR_SOURCE_FROM: OnlyValidOn = OnlyValidOn {
     attribute: "source(from)",
-    valid_on: "enum variant fields",
+    valid_on: "enum variant or struct fields with a name",
 };
 
 const ATTR_BACKTRACE: OnlyValidOn = OnlyValidOn {
     attribute: "backtrace",
-    valid_on: "enum variant fields",
+    valid_on: "enum variant or struct fields with a name",
 };
 
 const ATTR_BACKTRACE_FALSE: WrongField = WrongField {
     attribute: "backtrace(false)",
-    valid_field: r"backtrace",
+    valid_field: "backtrace",
 };
 
 const ATTR_VISIBILITY: OnlyValidOn = OnlyValidOn {
     attribute: "visibility",
-    valid_on: "an enum and its variants",
+    valid_on: "an enum, enum variants, or a struct with named fields",
 };
 
 const ATTR_CONTEXT: OnlyValidOn = OnlyValidOn {
     attribute: "context",
-    valid_on: "enum variants",
+    valid_on: "enum variants or structs with named fields",
 };
 
 const ATTR_CRATE_ROOT: OnlyValidOn = OnlyValidOn {
@@ -486,7 +497,6 @@ fn parse_snafu_enum(
     generics: syn::Generics,
     attrs: Vec<syn::Attribute>,
 ) -> MultiSynResult<EnumInfo> {
-    use quote::ToTokens;
     use syn::spanned::Spanned;
     use syn::Fields;
 
@@ -531,44 +541,6 @@ fn parse_snafu_enum(
         .variants
         .into_iter()
         .map(|variant| {
-            let mut variant_errors = errors.scoped(ErrorLocation::OnVariant);
-
-            let name = variant.ident;
-            let variant_span = name.span();
-
-            let mut display_formats = AtMostOne::new("display", ErrorLocation::OnVariant);
-            let mut visibilities = AtMostOne::new("visibility", ErrorLocation::OnVariant);
-            let mut contexts = AtMostOne::new("context", ErrorLocation::OnVariant);
-            let mut doc_comment = String::new();
-            let mut reached_end_of_doc_comment = false;
-
-            for attr in attributes_from_syn(variant.attrs)? {
-                match attr {
-                    SnafuAttribute::Display(tokens, d) => display_formats.add(d, tokens),
-                    SnafuAttribute::Visibility(tokens, v) => visibilities.add(v, tokens),
-                    SnafuAttribute::Context(tokens, c) => contexts.add(c, tokens),
-                    SnafuAttribute::Source(tokens, ..) => variant_errors.add(tokens, ATTR_SOURCE),
-                    SnafuAttribute::Backtrace(tokens, ..) => variant_errors.add(tokens, ATTR_BACKTRACE),
-                    SnafuAttribute::CrateRoot(tokens, ..) => variant_errors.add(tokens, ATTR_CRATE_ROOT),
-                    SnafuAttribute::DocComment(_tts, doc_comment_line) => {
-                        // We join all the doc comment attributes with a space,
-                        // but end once the summary of the doc comment is
-                        // complete, which is indicated by an empty line.
-                        if !reached_end_of_doc_comment {
-                            let trimmed = doc_comment_line.trim();
-                            if trimmed.is_empty() {
-                                reached_end_of_doc_comment = true;
-                            } else {
-                                if !doc_comment.is_empty() {
-                                    doc_comment.push_str(" ");
-                                }
-                                doc_comment.push_str(trimmed);
-                            }
-                        }
-                    }
-                }
-            }
-
             let fields = match variant.fields {
                 Fields::Named(f) => f.named.into_iter().collect(),
                 Fields::Unnamed(_) => {
@@ -580,205 +552,20 @@ fn parse_snafu_enum(
                 Fields::Unit => vec![],
             };
 
-            let mut user_fields = Vec::new();
-            let mut source_fields = AtMostOne::new("source", ErrorLocation::InVariant);
-            let mut backtrace_fields = AtMostOne::new("backtrace", ErrorLocation::InVariant);
+            let name = variant.ident;
+            let span = name.span();
 
-            for syn_field in fields {
-                let original = syn_field.clone();
-                let span = syn_field.span();
-                let name = syn_field
-                    .ident
-                    .as_ref()
-                    .ok_or_else(|| vec![syn::Error::new(span, "Must have a named field")])?;
-                let field = Field {
-                    name: name.clone(),
-                    ty: syn_field.ty.clone(),
-                    original,
-                };
+            let attrs = attributes_from_syn(variant.attrs)?;
 
-                // Check whether we have multiple source/backtrace attributes on this field.
-                // We can't just add to source_fields/backtrace_fields from inside the attribute
-                // loop because source and backtrace are connected and require a bit of special
-                // logic after the attribute loop.  For example, we need to know whether there's a
-                // source transformation before we record a source field, but it might be on a
-                // later attribute.  We use the data field of `source_attrs` to track any
-                // transformations in case it was a `source(from(...))`, but for backtraces we
-                // don't need any more data.
-                let mut source_attrs = AtMostOne::new("source", ErrorLocation::OnField);
-                let mut backtrace_attrs = AtMostOne::new("backtrace", ErrorLocation::OnField);
-
-                // Keep track of the negative markers so we can check for inconsistencies and
-                // exclude fields even if they have the "source" or "backtrace" name.
-                let mut source_opt_out = false;
-                let mut backtrace_opt_out = false;
-
-                let mut field_errors = errors.scoped(ErrorLocation::OnField);
-
-                for attr in attributes_from_syn(syn_field.attrs.clone())? {
-                    match attr {
-                        SnafuAttribute::Source(tokens, ss) => {
-                            for s in ss {
-                                match s {
-                                    Source::Flag(v) => {
-                                        // If we've seen a `source(from)` then there will be a
-                                        // `Some` value in `source_attrs`.
-                                        let seen_source_from = source_attrs
-                                            .iter()
-                                            .map(|(val, _location)| val)
-                                            .any(Option::is_some);
-                                        if !v && seen_source_from {
-                                            field_errors.add(
-                                                tokens.clone(), SOURCE_BOOL_FROM_INCOMPATIBLE,
-                                            );
-                                        }
-                                        if v {
-                                            source_attrs.add(None, tokens.clone());
-                                        } else if name == "source" {
-                                            source_opt_out = true;
-                                        } else {
-                                            field_errors.add(tokens.clone(), ATTR_SOURCE_FALSE);
-                                        }
-                                    }
-                                    Source::From(t, e) => {
-                                        if source_opt_out {
-                                            field_errors.add(
-                                                tokens.clone(), SOURCE_BOOL_FROM_INCOMPATIBLE ,
-                                            );
-                                        }
-                                        source_attrs.add(Some((t, e)), tokens.clone());
-                                    }
-                                }
-                            }
-                        }
-                        SnafuAttribute::Backtrace(tokens, v) => {
-                            if v {
-                                backtrace_attrs.add((), tokens);
-                            } else if name == "backtrace" {
-                                backtrace_opt_out = true;
-                            } else {
-                                field_errors.add(tokens, ATTR_BACKTRACE_FALSE);
-                            }
-                        }
-                        SnafuAttribute::Visibility(tokens, ..) => field_errors.add(tokens, ATTR_VISIBILITY),
-                        SnafuAttribute::Display(tokens, ..) => field_errors.add(tokens, ATTR_DISPLAY),
-                        SnafuAttribute::Context(tokens, ..) => field_errors.add(tokens, ATTR_CONTEXT),
-                        SnafuAttribute::CrateRoot(tokens, ..) => field_errors.add(tokens, ATTR_CRATE_ROOT),
-                        SnafuAttribute::DocComment(..) => { /* Just a regular doc comment. */ }
-                    }
-                }
-
-                // Add errors for any duplicated attributes on this field.
-                let (source_attr, errs) = source_attrs.finish_with_location();
-                errors.extend(errs);
-                let (backtrace_attr, errs) = backtrace_attrs.finish_with_location();
-                errors.extend(errs);
-
-                let source_attr = source_attr.or_else(|| {
-                    if field.name == "source" && !source_opt_out {
-                        Some((None, syn_field.clone().into_token_stream()))
-                    } else {
-                        None
-                    }
-                });
-
-                let backtrace_attr = backtrace_attr.or_else(|| {
-                    if field.name == "backtrace" && !backtrace_opt_out {
-                        Some(((), syn_field.clone().into_token_stream()))
-                    } else {
-                        None
-                    }
-                });
-
-                if let Some((maybe_transformation, location)) = source_attr {
-                    let Field { name, ty, .. } = field;
-                    let transformation = maybe_transformation
-                        .map(|(ty, expr)| Transformation::Transform { ty, expr })
-                        .unwrap_or_else(|| Transformation::None { ty });
-
-                    source_fields.add(
-                        SourceField {
-                            name,
-                            transformation,
-                            // Specifying `backtrace` on a source field is how you request
-                            // delegation of the backtrace to the source error type.
-                            backtrace_delegate: backtrace_attr.is_some(),
-                        },
-                        location,
-                    );
-                } else if let Some((_, location)) = backtrace_attr {
-                    backtrace_fields.add(field, location);
-                } else {
-                    user_fields.push(field);
-                }
-            }
-
-            let (source, errs) = source_fields.finish_with_location();
-            errors.extend(errs);
-
-            let (backtrace, errs) = backtrace_fields.finish_with_location();
-            errors.extend(errs);
-
-            match (&source, &backtrace) {
-                (Some(source), Some(backtrace)) if source.0.backtrace_delegate => {
-                    let source_location = source.1.clone();
-                    let backtrace_location = backtrace.1.clone();
-                    errors.add(
-                        source_location,
-                        "Cannot have `backtrace` field and `backtrace` attribute on a source field in the same variant",
-                    );
-                    errors.add(
-                        backtrace_location,
-                        "Cannot have `backtrace` field and `backtrace` attribute on a source field in the same variant",
-                    );
-                }
-                _ => {} // no conflict
-            }
-
-            let (display_format, errs) = display_formats.finish();
-            errors.extend(errs);
-
-            let (visibility, errs) = visibilities.finish();
-            errors.extend(errs);
-
-            let (is_context, errs) = contexts.finish();
-            errors.extend(errs);
-
-            let source_field = source.map(|(val, _tts)| val);
-
-            let selector_kind = if is_context.unwrap_or(true) {
-                ContextSelectorKind::Context {
-                    source_field,
-                    user_fields,
-                }
-            } else {
-                errors.extend(
-                    user_fields.into_iter().map(|Field { original, .. }| {
-                        syn::Error::new_spanned(
-                            original,
-                            "Context selectors without context must not have context fields",
-                        )
-                    })
-                );
-
-                let source_field = source_field.ok_or_else(|| {
-                        vec![syn::Error::new(
-                            variant_span,
-                            "Context selectors without context must have a source field",
-                        )]
-                    })?;
-
-                ContextSelectorKind::NoContext { source_field }
-            };
-
-            Ok(VariantInfo {
+            field_container(
                 name,
-                backtrace_field: backtrace.map(|(val, _tts)| val),
-                selector_kind,
-                display_format,
-                doc_comment,
-                visibility,
-            })
+                span,
+                attrs,
+                fields,
+                &mut errors,
+                ErrorLocation::OnVariant,
+                ErrorLocation::InVariant,
+            )
         })
         .collect();
 
@@ -793,20 +580,329 @@ fn parse_snafu_enum(
     })
 }
 
+fn field_container(
+    name: syn::Ident,
+    variant_span: proc_macro2::Span,
+    attrs: Vec<SnafuAttribute>,
+    fields: Vec<syn::Field>,
+    errors: &mut SyntaxErrors,
+    outer_error_location: ErrorLocation,
+    inner_error_location: ErrorLocation,
+) -> MultiSynResult<FieldContainer> {
+    use quote::ToTokens;
+    use syn::spanned::Spanned;
+
+    let mut outer_errors = errors.scoped(outer_error_location);
+
+    let mut display_formats = AtMostOne::new("display", outer_error_location);
+    let mut visibilities = AtMostOne::new("visibility", outer_error_location);
+    let mut contexts = AtMostOne::new("context", outer_error_location);
+    let mut doc_comment = String::new();
+    let mut reached_end_of_doc_comment = false;
+
+    for attr in attrs {
+        match attr {
+            SnafuAttribute::Display(tokens, d) => display_formats.add(d, tokens),
+            SnafuAttribute::Visibility(tokens, v) => visibilities.add(v, tokens),
+            SnafuAttribute::Context(tokens, c) => contexts.add(c, tokens),
+            SnafuAttribute::Source(tokens, ..) => outer_errors.add(tokens, ATTR_SOURCE),
+            SnafuAttribute::Backtrace(tokens, ..) => outer_errors.add(tokens, ATTR_BACKTRACE),
+            SnafuAttribute::CrateRoot(tokens, ..) => outer_errors.add(tokens, ATTR_CRATE_ROOT),
+            SnafuAttribute::DocComment(_tts, doc_comment_line) => {
+                // We join all the doc comment attributes with a space,
+                // but end once the summary of the doc comment is
+                // complete, which is indicated by an empty line.
+                if !reached_end_of_doc_comment {
+                    let trimmed = doc_comment_line.trim();
+                    if trimmed.is_empty() {
+                        reached_end_of_doc_comment = true;
+                    } else {
+                        if !doc_comment.is_empty() {
+                            doc_comment.push_str(" ");
+                        }
+                        doc_comment.push_str(trimmed);
+                    }
+                }
+            }
+        }
+    }
+
+    let mut user_fields = Vec::new();
+    let mut source_fields = AtMostOne::new("source", inner_error_location);
+    let mut backtrace_fields = AtMostOne::new("backtrace", inner_error_location);
+
+    for syn_field in fields {
+        let original = syn_field.clone();
+        let span = syn_field.span();
+        let name = syn_field
+            .ident
+            .as_ref()
+            .ok_or_else(|| vec![syn::Error::new(span, "Must have a named field")])?;
+        let field = Field {
+            name: name.clone(),
+            ty: syn_field.ty.clone(),
+            original,
+        };
+
+        // Check whether we have multiple source/backtrace attributes on this field.
+        // We can't just add to source_fields/backtrace_fields from inside the attribute
+        // loop because source and backtrace are connected and require a bit of special
+        // logic after the attribute loop.  For example, we need to know whether there's a
+        // source transformation before we record a source field, but it might be on a
+        // later attribute.  We use the data field of `source_attrs` to track any
+        // transformations in case it was a `source(from(...))`, but for backtraces we
+        // don't need any more data.
+        let mut source_attrs = AtMostOne::new("source", ErrorLocation::OnField);
+        let mut backtrace_attrs = AtMostOne::new("backtrace", ErrorLocation::OnField);
+
+        // Keep track of the negative markers so we can check for inconsistencies and
+        // exclude fields even if they have the "source" or "backtrace" name.
+        let mut source_opt_out = false;
+        let mut backtrace_opt_out = false;
+
+        let mut field_errors = errors.scoped(ErrorLocation::OnField);
+
+        for attr in attributes_from_syn(syn_field.attrs.clone())? {
+            match attr {
+                SnafuAttribute::Source(tokens, ss) => {
+                    for s in ss {
+                        match s {
+                            Source::Flag(v) => {
+                                // If we've seen a `source(from)` then there will be a
+                                // `Some` value in `source_attrs`.
+                                let seen_source_from = source_attrs
+                                    .iter()
+                                    .map(|(val, _location)| val)
+                                    .any(Option::is_some);
+                                if !v && seen_source_from {
+                                    field_errors.add(tokens.clone(), SOURCE_BOOL_FROM_INCOMPATIBLE);
+                                }
+                                if v {
+                                    source_attrs.add(None, tokens.clone());
+                                } else if name == "source" {
+                                    source_opt_out = true;
+                                } else {
+                                    field_errors.add(tokens.clone(), ATTR_SOURCE_FALSE);
+                                }
+                            }
+                            Source::From(t, e) => {
+                                if source_opt_out {
+                                    field_errors.add(tokens.clone(), SOURCE_BOOL_FROM_INCOMPATIBLE);
+                                }
+                                source_attrs.add(Some((t, e)), tokens.clone());
+                            }
+                        }
+                    }
+                }
+                SnafuAttribute::Backtrace(tokens, v) => {
+                    if v {
+                        backtrace_attrs.add((), tokens);
+                    } else if name == "backtrace" {
+                        backtrace_opt_out = true;
+                    } else {
+                        field_errors.add(tokens, ATTR_BACKTRACE_FALSE);
+                    }
+                }
+                SnafuAttribute::Visibility(tokens, ..) => field_errors.add(tokens, ATTR_VISIBILITY),
+                SnafuAttribute::Display(tokens, ..) => field_errors.add(tokens, ATTR_DISPLAY),
+                SnafuAttribute::Context(tokens, ..) => field_errors.add(tokens, ATTR_CONTEXT),
+                SnafuAttribute::CrateRoot(tokens, ..) => field_errors.add(tokens, ATTR_CRATE_ROOT),
+                SnafuAttribute::DocComment(..) => { /* Just a regular doc comment. */ }
+            }
+        }
+
+        // Add errors for any duplicated attributes on this field.
+        let (source_attr, errs) = source_attrs.finish_with_location();
+        errors.extend(errs);
+        let (backtrace_attr, errs) = backtrace_attrs.finish_with_location();
+        errors.extend(errs);
+
+        let source_attr = source_attr.or_else(|| {
+            if field.name == "source" && !source_opt_out {
+                Some((None, syn_field.clone().into_token_stream()))
+            } else {
+                None
+            }
+        });
+
+        let backtrace_attr = backtrace_attr.or_else(|| {
+            if field.name == "backtrace" && !backtrace_opt_out {
+                Some(((), syn_field.clone().into_token_stream()))
+            } else {
+                None
+            }
+        });
+
+        if let Some((maybe_transformation, location)) = source_attr {
+            let Field { name, ty, .. } = field;
+            let transformation = maybe_transformation
+                .map(|(ty, expr)| Transformation::Transform { ty, expr })
+                .unwrap_or_else(|| Transformation::None { ty });
+
+            source_fields.add(
+                SourceField {
+                    name,
+                    transformation,
+                    // Specifying `backtrace` on a source field is how you request
+                    // delegation of the backtrace to the source error type.
+                    backtrace_delegate: backtrace_attr.is_some(),
+                },
+                location,
+            );
+        } else if let Some((_, location)) = backtrace_attr {
+            backtrace_fields.add(field, location);
+        } else {
+            user_fields.push(field);
+        }
+    }
+
+    let (source, errs) = source_fields.finish_with_location();
+    errors.extend(errs);
+
+    let (backtrace, errs) = backtrace_fields.finish_with_location();
+    errors.extend(errs);
+
+    match (&source, &backtrace) {
+        (Some(source), Some(backtrace)) if source.0.backtrace_delegate => {
+            let source_location = source.1.clone();
+            let backtrace_location = backtrace.1.clone();
+            errors.add(
+                source_location,
+                "Cannot have `backtrace` field and `backtrace` attribute on a source field in the same variant",
+            );
+            errors.add(
+                backtrace_location,
+                "Cannot have `backtrace` field and `backtrace` attribute on a source field in the same variant",
+            );
+        }
+        _ => {} // no conflict
+    }
+
+    let (display_format, errs) = display_formats.finish();
+    errors.extend(errs);
+
+    let (visibility, errs) = visibilities.finish();
+    errors.extend(errs);
+
+    let (is_context, errs) = contexts.finish();
+    errors.extend(errs);
+
+    let source_field = source.map(|(val, _tts)| val);
+
+    let selector_kind = if is_context.unwrap_or(true) {
+        ContextSelectorKind::Context {
+            source_field,
+            user_fields,
+        }
+    } else {
+        errors.extend(user_fields.into_iter().map(|Field { original, .. }| {
+            syn::Error::new_spanned(
+                original,
+                "Context selectors without context must not have context fields",
+            )
+        }));
+
+        let source_field = source_field.ok_or_else(|| {
+            vec![syn::Error::new(
+                variant_span,
+                "Context selectors without context must have a source field",
+            )]
+        })?;
+
+        ContextSelectorKind::NoContext { source_field }
+    };
+
+    Ok(FieldContainer {
+        name,
+        backtrace_field: backtrace.map(|(val, _tts)| val),
+        selector_kind,
+        display_format,
+        doc_comment,
+        visibility,
+    })
+}
+
 fn parse_snafu_struct(
     struct_: syn::DataStruct,
     name: syn::Ident,
     generics: syn::Generics,
     attrs: Vec<syn::Attribute>,
     span: proc_macro2::Span,
-) -> MultiSynResult<StructInfo> {
+) -> MultiSynResult<SnafuInfo> {
     use syn::Fields;
 
-    let mut transformations = AtMostOne::new("source(from)", ErrorLocation::OnStruct);
-    let mut crate_roots = AtMostOne::new("crate_root", ErrorLocation::OnStruct);
+    match struct_.fields {
+        Fields::Named(f) => {
+            let f = f.named.into_iter().collect();
+            parse_snafu_named_struct(f, name, generics, attrs, span).map(SnafuInfo::NamedStruct)
+        }
+        Fields::Unnamed(f) => {
+            parse_snafu_tuple_struct(f, name, generics, attrs, span).map(SnafuInfo::TupleStruct)
+        }
+        Fields::Unit => parse_snafu_named_struct(vec![], name, generics, attrs, span)
+            .map(SnafuInfo::NamedStruct),
+    }
+}
+
+fn parse_snafu_named_struct(
+    fields: Vec<syn::Field>,
+    name: syn::Ident,
+    generics: syn::Generics,
+    attrs: Vec<syn::Attribute>,
+    span: proc_macro2::Span,
+) -> MultiSynResult<NamedStructInfo> {
+    let mut errors = SyntaxErrors::default();
+
+    let attrs = attributes_from_syn(attrs)?;
+
+    let mut crate_roots = AtMostOne::new("crate_root", ErrorLocation::OnNamedStruct);
+
+    let attrs = attrs
+        .into_iter()
+        .flat_map(|attr| match attr {
+            SnafuAttribute::CrateRoot(tokens, root) => {
+                crate_roots.add(root, tokens);
+                None
+            }
+            other => Some(other),
+        })
+        .collect();
+
+    let field_container = field_container(
+        name,
+        span,
+        attrs,
+        fields,
+        &mut errors,
+        ErrorLocation::OnNamedStruct,
+        ErrorLocation::InNamedStruct,
+    )?;
+
+    let (maybe_crate_root, errs) = crate_roots.finish();
+    let crate_root = maybe_crate_root.unwrap_or_else(default_crate_root);
+    errors.extend(errs);
+
+    errors.finish()?;
+
+    Ok(NamedStructInfo {
+        crate_root,
+        field_container,
+        generics,
+    })
+}
+
+fn parse_snafu_tuple_struct(
+    mut fields: syn::FieldsUnnamed,
+    name: syn::Ident,
+    generics: syn::Generics,
+    attrs: Vec<syn::Attribute>,
+    span: proc_macro2::Span,
+) -> MultiSynResult<TupleStructInfo> {
+    let mut transformations = AtMostOne::new("source(from)", ErrorLocation::OnTupleStruct);
+    let mut crate_roots = AtMostOne::new("crate_root", ErrorLocation::OnTupleStruct);
 
     let mut errors = SyntaxErrors::default();
-    let mut struct_errors = errors.scoped(ErrorLocation::OnStruct);
+    let mut struct_errors = errors.scoped(ErrorLocation::OnTupleStruct);
 
     for attr in attributes_from_syn(attrs)? {
         match attr {
@@ -826,16 +922,6 @@ fn parse_snafu_struct(
             SnafuAttribute::DocComment(..) => { /* Just a regular doc comment. */ }
         }
     }
-
-    let mut fields = match struct_.fields {
-        Fields::Unnamed(f) => f,
-        _ => {
-            return Err(vec![syn::Error::new(
-                span,
-                "Can only derive `Snafu` for tuple structs",
-            )]);
-        }
-    };
 
     fn one_field_error(span: proc_macro2::Span) -> syn::Error {
         syn::Error::new(
@@ -866,7 +952,7 @@ fn parse_snafu_struct(
 
     errors.finish()?;
 
-    Ok(StructInfo {
+    Ok(TupleStructInfo {
         crate_root,
         name,
         generics,
@@ -1187,21 +1273,12 @@ fn private_visibility() -> UserInput {
     Box::new(quote! {})
 }
 
-struct StaticIdent(&'static str);
-
-impl quote::ToTokens for StaticIdent {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        proc_macro2::Ident::new(self.0, proc_macro2::Span::call_site()).to_tokens(tokens)
-    }
-}
-
-const FORMATTER_ARG: StaticIdent = StaticIdent("__snafu_display_formatter");
-
 impl From<SnafuInfo> for proc_macro::TokenStream {
     fn from(other: SnafuInfo) -> proc_macro::TokenStream {
         match other {
             SnafuInfo::Enum(e) => e.into(),
-            SnafuInfo::Struct(s) => s.into(),
+            SnafuInfo::NamedStruct(s) => s.into(),
+            SnafuInfo::TupleStruct(s) => s.into(),
         }
     }
 }
@@ -1212,8 +1289,14 @@ impl From<EnumInfo> for proc_macro::TokenStream {
     }
 }
 
-impl From<StructInfo> for proc_macro::TokenStream {
-    fn from(other: StructInfo) -> proc_macro::TokenStream {
+impl From<NamedStructInfo> for proc_macro::TokenStream {
+    fn from(other: NamedStructInfo) -> proc_macro::TokenStream {
+        other.generate_snafu().into()
+    }
+}
+
+impl From<TupleStructInfo> for proc_macro::TokenStream {
+    fn from(other: TupleStructInfo) -> proc_macro::TokenStream {
         other.generate_snafu().into()
     }
 }
@@ -1339,492 +1422,315 @@ impl<'a> quote::ToTokens for ContextSelectors<'a> {
     }
 }
 
-struct ContextSelector<'a>(&'a EnumInfo, &'a VariantInfo);
+struct ContextSelector<'a>(&'a EnumInfo, &'a FieldContainer);
 
 impl<'a> quote::ToTokens for ContextSelector<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        let crate_root = &self.0.crate_root;
+        use crate::shared::ContextSelector;
+
         let enum_name = &self.0.name;
-        let original_lifetimes = self.0.provided_generic_lifetimes();
-        let original_generic_types_without_defaults =
-            self.0.provided_generic_types_without_defaults();
-        let original_generics_without_defaults = self.0.provided_generics_without_defaults();
 
-        let parameterized_enum_name = &self.0.parameterized_name();
-
-        let VariantInfo {
+        let FieldContainer {
             name: variant_name,
             selector_kind,
-            backtrace_field,
             ..
         } = self.1;
 
-        let backtrace_field = match backtrace_field {
-            Some(field) => {
-                let name = &field.name;
-                quote! { #name: #crate_root::GenerateBacktrace::generate(), }
-            }
-            None => quote! {},
+        let visibility = self
+            .1
+            .visibility
+            .as_ref()
+            .unwrap_or(&self.0.default_visibility);
+
+        let selector_doc_string = format!(
+            "SNAFU context selector for the `{}::{}` variant",
+            enum_name, variant_name,
+        );
+
+        let context_selector = ContextSelector {
+            backtrace_field: self.1.backtrace_field.as_ref(),
+            crate_root: &self.0.crate_root,
+            error_constructor_name: &quote! { #enum_name::#variant_name },
+            original_generics_without_defaults: &self.0.provided_generics_without_defaults(),
+            parameterized_error_name: &self.0.parameterized_name(),
+            selector_doc_string: &selector_doc_string,
+            selector_kind: &selector_kind,
+            selector_name: variant_name,
+            user_fields: &selector_kind.user_fields(),
+            visibility: Some(&visibility),
+            where_clauses: &self.0.provided_where_clauses(),
         };
 
-        match selector_kind {
-            ContextSelectorKind::Context {
-                user_fields,
-                source_field,
-            } => {
-                let generic_names: Vec<_> = (0..user_fields.len())
-                    .map(|i| format_ident!("__T{}", i))
-                    .collect();
-
-                let visibility = self
-                    .1
-                    .visibility
-                    .as_ref()
-                    .unwrap_or(&self.0.default_visibility);
-
-                let generics_list = quote! { <#(#original_lifetimes,)* #(#generic_names,)* #(#original_generic_types_without_defaults,)*> };
-                let selector_name = quote! { #variant_name<#(#generic_names,)*> };
-
-                let names: Vec<_> = user_fields.iter().map(|f| f.name.clone()).collect();
-                let selector_doc = format!(
-                    "SNAFU context selector for the `{}::{}` variant",
-                    enum_name, variant_name,
-                );
-
-                let variant_selector_struct = {
-                    if user_fields.is_empty() {
-                        quote! {
-                            #[derive(Debug, Copy, Clone)]
-                            #[doc = #selector_doc]
-                            #visibility struct #selector_name;
-                        }
-                    } else {
-                        let visibilities = iter::repeat(visibility);
-
-                        quote! {
-                            #[derive(Debug, Copy, Clone)]
-                            #[doc = #selector_doc]
-                            #visibility struct #selector_name {
-                                #(
-                                    #[allow(missing_docs)]
-                                    #visibilities #names: #generic_names
-                                ),*
-                            }
-                        }
-                    }
-                };
-
-                let where_clauses: Vec<_> = generic_names
-                    .iter()
-                    .zip(user_fields)
-                    .map(|(gen_ty, f)| {
-                        let Field { ty, .. } = f;
-                        quote! { #gen_ty: ::core::convert::Into<#ty> }
-                    })
-                    .chain(self.0.provided_where_clauses())
-                    .collect();
-
-                let inherent_impl = if source_field.is_none() {
-                    quote! {
-                        impl<#(#generic_names,)*> #selector_name {
-                            #[doc = "Consume the selector and return the associated error"]
-                            #[must_use]
-                            #visibility fn build<#(#original_generics_without_defaults,)*>(self) -> #parameterized_enum_name
-                            where
-                                #(#where_clauses),*
-                            {
-                                let Self { #(#names),* } = self;
-                                #enum_name::#variant_name {
-                                    #backtrace_field
-                                    #( #names: ::core::convert::Into::into(#names) ),*
-                                }
-                            }
-
-                            #[doc = "Consume the selector and return a `Result` with the associated error"]
-                            #visibility fn fail<#(#original_generics_without_defaults,)* __T>(self) -> ::core::result::Result<__T, #parameterized_enum_name>
-                            where
-                                #(#where_clauses),*
-                            {
-                                ::core::result::Result::Err(self.build())
-                            }
-                        }
-                    }
-                } else {
-                    quote! {}
-                };
-
-                let enum_from_variant_selector_impl = {
-                    let user_fields = user_fields.iter().map(|f| {
-                        let Field { name, .. } = f;
-                        quote! { #name: self.#name.into() }
-                    });
-
-                    let source_ty;
-                    let source_xfer_field;
-
-                    match source_field {
-                        Some(source_field) => {
-                            let SourceField {
-                                name: source_name,
-                                transformation: source_transformation,
-                                ..
-                            } = source_field;
-
-                            let source_ty2 = source_transformation.ty();
-                            let source_transformation = source_transformation.transformation();
-
-                            source_ty = quote! { #source_ty2 };
-                            source_xfer_field =
-                                quote! { #source_name: (#source_transformation)(error), };
-                        }
-                        None => {
-                            source_ty = quote! { #crate_root::NoneError };
-                            source_xfer_field = quote! {};
-                        }
-                    }
-
-                    quote! {
-                        impl#generics_list #crate_root::IntoError<#parameterized_enum_name> for #selector_name
-                        where
-                            #parameterized_enum_name: #crate_root::Error + #crate_root::ErrorCompat,
-                            #(#where_clauses),*
-                        {
-                            type Source = #source_ty;
-
-                            fn into_error(self, error: Self::Source) -> #parameterized_enum_name {
-                                #enum_name::#variant_name {
-                                    #source_xfer_field
-                                    #backtrace_field
-                                    #(#user_fields),*
-                                }
-                            }
-                        }
-                    }
-                };
-
-                stream.extend({
-                    quote! {
-                        #variant_selector_struct
-                        #inherent_impl
-                        #enum_from_variant_selector_impl
-                    }
-                })
-            }
-
-            ContextSelectorKind::NoContext { source_field } => {
-                let original_generics = self.0.provided_generics_without_defaults();
-                let generics_list = quote! { <#(#original_generics,)*> };
-                let wheres = self.0.provided_where_clauses();
-
-                let SourceField {
-                    name: source_name,
-                    transformation: source_transformation,
-                    ..
-                } = source_field;
-
-                let source_ty = source_transformation.ty();
-                let source_transformation = source_transformation.transformation();
-
-                let source_ty = quote! { #source_ty };
-                let source_xfer_field = quote! { #source_name: (#source_transformation)(other), };
-
-                stream.extend({
-                    quote! {
-                        impl#generics_list From<#source_ty> for #parameterized_enum_name
-                        where
-                            #(#wheres),*
-                        {
-                            fn from(other: #source_ty) -> Self {
-                                #enum_name::#variant_name {
-                                    #source_xfer_field
-                                    #backtrace_field
-                                }
-                            }
-                        }
-                    }
-                })
-            }
-        }
+        stream.extend(quote! { #context_selector });
     }
 }
 
 struct DisplayImpl<'a>(&'a EnumInfo);
 
-impl<'a> DisplayImpl<'a> {
-    fn variants_to_display(&self) -> Vec<proc_macro2::TokenStream> {
+impl<'a> quote::ToTokens for DisplayImpl<'a> {
+    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
+        use self::shared::{Display, DisplayMatchArm};
+
         let enum_name = &self.0.name;
 
-        self.0
+        let arms: Vec<_> = self
+            .0
             .variants
             .iter()
             .map(|variant| {
-                let VariantInfo {
-                    name: variant_name,
-                    selector_kind,
+                let FieldContainer {
                     backtrace_field,
                     display_format,
                     doc_comment,
+                    name: variant_name,
+                    selector_kind,
                     ..
                 } = variant;
 
-                let user_fields = selector_kind.user_fields();
-                let source_field = selector_kind.source_field();
-
-                let format = match (display_format, source_field) {
-                    (Some(v), _) => quote! { #v },
-                    (None, _) if !doc_comment.is_empty() => {
-                        quote! { #doc_comment }
-                    }
-                    (None, Some(f)) => {
-                        let field_name = &f.name;
-                        quote! { concat!(stringify!(#variant_name), ": {}"), #field_name }
-                    }
-                    (None, None) => quote! { stringify!(#variant_name)},
+                let arm = DisplayMatchArm {
+                    backtrace_field: backtrace_field.as_ref(),
+                    default_name: &variant_name,
+                    display_format: display_format.as_ref().map(|f| &**f),
+                    doc_comment,
+                    pattern_ident: &quote! { #enum_name::#variant_name },
+                    selector_kind,
                 };
 
-                let field_names = user_fields
-                    .iter()
-                    .chain(backtrace_field)
-                    .map(Field::name)
-                    .chain(source_field.map(SourceField::name));
-
-                let field_names = quote! { #(ref #field_names),* };
-
-                quote! {
-                    #enum_name::#variant_name { #field_names } => {
-                        write!(#FORMATTER_ARG, #format)
-                    }
-                }
+                quote! { #arm }
             })
-            .collect()
-    }
-}
+            .collect();
 
-impl<'a> quote::ToTokens for DisplayImpl<'a> {
-    fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        let original_generics = self.0.provided_generics_without_defaults();
-        let parameterized_enum_name = &self.0.parameterized_name();
-        let where_clauses = &self.0.provided_where_clauses();
+        let display = Display {
+            arms: &arms,
+            original_generics: &self.0.provided_generics_without_defaults(),
+            parameterized_error_name: &self.0.parameterized_name(),
+            where_clauses: &self.0.provided_where_clauses(),
+        };
 
-        let variants_to_display = &self.variants_to_display();
+        let display_impl = quote! { #display };
 
-        stream.extend({
-            quote! {
-                #[allow(single_use_lifetimes)]
-                impl<#(#original_generics),*> ::core::fmt::Display for #parameterized_enum_name
-                where
-                    #(#where_clauses),*
-                {
-                    fn fmt(&self, #FORMATTER_ARG: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-                        #[allow(unused_variables)]
-                        match *self {
-                            #(#variants_to_display)*
-                        }
-                    }
-                }
-            }
-        })
+        stream.extend(display_impl)
     }
 }
 
 struct ErrorImpl<'a>(&'a EnumInfo);
 
-impl<'a> ErrorImpl<'a> {
-    fn variants_to_description(&self) -> Vec<proc_macro2::TokenStream> {
-        let enum_name = &self.0.name;
-        self.0
-            .variants
-            .iter()
-            .map(|variant| {
-                let VariantInfo {
-                    name: variant_name, ..
-                } = variant;
-                quote! {
-                    #enum_name::#variant_name { .. } => stringify!(#enum_name::#variant_name),
-                }
-            })
-            .collect()
-    }
-
-    fn variants_to_source(&self) -> Vec<proc_macro2::TokenStream> {
-        let enum_name = &self.0.name;
-        self.0
-            .variants
-            .iter()
-            .map(|variant| {
-                let VariantInfo {
-                    name: variant_name,
-                    selector_kind,
-                    ..
-                } = variant;
-
-                let source_field = selector_kind.source_field();
-
-                match source_field {
-                    Some(source_field) => {
-                        let SourceField {
-                            name: field_name, ..
-                        } = source_field;
-                        quote! {
-                            #enum_name::#variant_name { ref #field_name, .. } => {
-                                ::core::option::Option::Some(#field_name.as_error_source())
-                            }
-                        }
-                    }
-                    None => {
-                        quote! {
-                            #enum_name::#variant_name { .. } => { ::core::option::Option::None }
-                        }
-                    }
-                }
-            })
-            .collect()
-    }
-}
-
 impl<'a> quote::ToTokens for ErrorImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        let crate_root = &self.0.crate_root;
-        let original_generics = self.0.provided_generics_without_defaults();
-        let parameterized_enum_name = &self.0.parameterized_name();
-        let where_clauses: Vec<_> = self.0.provided_where_clauses();
+        use self::shared::{Error, ErrorSourceMatchArm};
 
-        let variants_to_description = &self.variants_to_description();
+        let (variants_to_description, variants_to_source): (Vec<_>, Vec<_>) = self
+            .0
+            .variants
+            .iter()
+            .map(|field_container| {
+                let enum_name = &self.0.name;
+                let variant_name = &field_container.name;
+                let pattern_ident = &quote! { #enum_name::#variant_name };
 
-        let description_fn = quote! {
-            fn description(&self) -> &str {
-                match *self {
-                    #(#variants_to_description)*
-                }
-            }
+                let error_description_match_arm = quote! {
+                    #pattern_ident { .. } => stringify!(#pattern_ident),
+                };
+
+                let error_source_match_arm = ErrorSourceMatchArm {
+                    field_container,
+                    pattern_ident,
+                };
+                let error_source_match_arm = quote! { #error_source_match_arm };
+
+                (error_description_match_arm, error_source_match_arm)
+            })
+            .unzip();
+
+        let error_impl = Error {
+            crate_root: &self.0.crate_root,
+            parameterized_error_name: &self.0.parameterized_name(),
+            description_arms: &variants_to_description,
+            source_arms: &variants_to_source,
+            original_generics: &self.0.provided_generics_without_defaults(),
+            where_clauses: &self.0.provided_where_clauses(),
         };
+        let error_impl = quote! { #error_impl };
 
-        let variants_to_source = &self.variants_to_source();
-
-        let cause_fn = quote! {
-            fn cause(&self) -> Option<&dyn #crate_root::Error> {
-                use #crate_root::AsErrorSource;
-                match *self {
-                    #(#variants_to_source)*
-                }
-            }
-        };
-
-        let source_fn = quote! {
-            fn source(&self) -> Option<&(dyn #crate_root::Error + 'static)> {
-                use #crate_root::AsErrorSource;
-                match *self {
-                    #(#variants_to_source)*
-                }
-            }
-        };
-
-        let std_backtrace_fn = if cfg!(feature = "unstable-backtraces-impl-std") {
-            quote! {
-                fn backtrace(&self) -> Option<&std::backtrace::Backtrace> {
-                    #crate_root::ErrorCompat::backtrace(self)
-                }
-            }
-        } else {
-            quote! {}
-        };
-
-        stream.extend({
-            quote! {
-                #[allow(single_use_lifetimes)]
-                impl<#(#original_generics),*> #crate_root::Error for #parameterized_enum_name
-                where
-                    Self: ::core::fmt::Debug + ::core::fmt::Display,
-                    #(#where_clauses),*
-                {
-                    #description_fn
-                    #cause_fn
-                    #source_fn
-                    #std_backtrace_fn
-                }
-            }
-        })
+        stream.extend(error_impl);
     }
 }
 
 struct ErrorCompatImpl<'a>(&'a EnumInfo);
 
-impl<'a> ErrorCompatImpl<'a> {
-    fn variants_to_backtrace(&self) -> Vec<proc_macro2::TokenStream> {
-        let crate_root = &self.0.crate_root;
-        let enum_name = &self.0.name;
-        self.0.variants.iter().map(|variant| {
-            let VariantInfo {
-                name: variant_name,
-                selector_kind,
-                backtrace_field,
-                ..
-            } = variant;
-
-            match (selector_kind.source_field(), backtrace_field) {
-                (Some(source_field), _) if source_field.backtrace_delegate => {
-                    let SourceField {
-                        name: field_name,
-                        ..
-                    } = source_field;
-                    quote! {
-                        #enum_name::#variant_name { ref #field_name, .. } => { #crate_root::ErrorCompat::backtrace(#field_name) }
-                    }
-                },
-                (_, Some(backtrace_field)) => {
-                    let Field {
-                        name: field_name,
-                        ..
-                    } = backtrace_field;
-                    quote! {
-                        #enum_name::#variant_name { ref #field_name, .. } => { #crate_root::GenerateBacktrace::as_backtrace(#field_name) }
-                    }
-                }
-                _ => {
-                    quote! {
-                        #enum_name::#variant_name { .. } => { ::core::option::Option::None }
-                    }
-                }
-            }
-        }).collect()
-    }
-}
-
 impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        let crate_root = &self.0.crate_root;
-        let original_generics = self.0.provided_generics_without_defaults();
-        let parameterized_enum_name = &self.0.parameterized_name();
-        let where_clauses = &self.0.provided_where_clauses();
-        let variants = &self.variants_to_backtrace();
+        use self::shared::{ErrorCompat, ErrorCompatBacktraceMatchArm};
 
-        let backtrace_fn = quote! {
-            fn backtrace(&self) -> Option<&#crate_root::Backtrace> {
-                match *self {
-                    #(#variants),*
-                }
-            }
+        let variants_to_backtrace: Vec<_> = self
+            .0
+            .variants
+            .iter()
+            .map(|field_container| {
+                let crate_root = &self.0.crate_root;
+                let enum_name = &self.0.name;
+                let variant_name = &field_container.name;
+
+                let match_arm = ErrorCompatBacktraceMatchArm {
+                    field_container,
+                    crate_root,
+                    pattern_ident: &quote! { #enum_name::#variant_name },
+                };
+
+                quote! { #match_arm }
+            })
+            .collect();
+
+        let error_compat_impl = ErrorCompat {
+            crate_root: &self.0.crate_root,
+            parameterized_error_name: &self.0.parameterized_name(),
+            backtrace_arms: &variants_to_backtrace,
+            original_generics: &self.0.provided_generics_without_defaults(),
+            where_clauses: &self.0.provided_where_clauses(),
         };
 
-        stream.extend({
-            quote! {
-                #[allow(single_use_lifetimes)]
-                impl<#(#original_generics),*> #crate_root::ErrorCompat for #parameterized_enum_name
-                where
-                    #(#where_clauses),*
-                {
-                    #backtrace_fn
-                }
-            }
-        })
+        let error_compat_impl = quote! { #error_compat_impl };
+
+        stream.extend(error_compat_impl);
     }
 }
 
-impl StructInfo {
+impl NamedStructInfo {
+    fn selector_name(&self) -> syn::Ident {
+        let selector_name = self.field_container.name.to_string();
+        let selector_name = selector_name.trim_end_matches("Error");
+        format_ident!(
+            "{}Context",
+            selector_name,
+            span = self.field_container.name.span()
+        )
+    }
+
+    fn generate_snafu(self) -> proc_macro2::TokenStream {
+        let parameterized_struct_name = self.parameterized_name();
+        let original_generics = self.provided_generics_without_defaults();
+        let where_clauses = self.provided_where_clauses();
+        let selector_name = self.selector_name();
+
+        let Self {
+            crate_root,
+            field_container:
+                FieldContainer {
+                    name,
+                    selector_kind,
+                    backtrace_field,
+                    display_format,
+                    doc_comment,
+                    visibility,
+                },
+            ..
+        } = &self;
+        let field_container = &self.field_container;
+
+        let user_fields = selector_kind.user_fields();
+
+        use crate::shared::{Error, ErrorSourceMatchArm};
+
+        let pattern_ident = &quote! { Self };
+
+        let error_description_match_arm = quote! {
+            #pattern_ident { .. } => stringify!(#name),
+        };
+
+        let error_source_match_arm = ErrorSourceMatchArm {
+            field_container: &field_container,
+            pattern_ident,
+        };
+        let error_source_match_arm = quote! { #error_source_match_arm };
+
+        let error_impl = Error {
+            crate_root: &crate_root,
+            parameterized_error_name: &parameterized_struct_name,
+            description_arms: &[error_description_match_arm],
+            source_arms: &[error_source_match_arm],
+            original_generics: &original_generics,
+            where_clauses: &where_clauses,
+        };
+        let error_impl = quote! { #error_impl };
+
+        use self::shared::{ErrorCompat, ErrorCompatBacktraceMatchArm};
+
+        let match_arm = ErrorCompatBacktraceMatchArm {
+            field_container,
+            crate_root: &crate_root,
+            pattern_ident: &quote! { Self },
+        };
+        let match_arm = quote! { #match_arm };
+
+        let error_compat_impl = ErrorCompat {
+            crate_root: &crate_root,
+            parameterized_error_name: &parameterized_struct_name,
+            backtrace_arms: &[match_arm],
+            original_generics: &original_generics,
+            where_clauses: &where_clauses,
+        };
+
+        use crate::shared::{Display, DisplayMatchArm};
+
+        let arm = DisplayMatchArm {
+            backtrace_field: backtrace_field.as_ref(),
+            default_name: &name,
+            display_format: display_format.as_ref().map(|f| &**f),
+            doc_comment: &doc_comment,
+            pattern_ident: &quote! { Self },
+            selector_kind: &selector_kind,
+        };
+        let arm = quote! { #arm };
+
+        let display_impl = Display {
+            arms: &[arm],
+            original_generics: &original_generics,
+            parameterized_error_name: &parameterized_struct_name,
+            where_clauses: &where_clauses,
+        };
+
+        use crate::shared::ContextSelector;
+
+        let selector_doc_string = format!("SNAFU context selector for the `{}` error", name);
+
+        let context_selector = ContextSelector {
+            backtrace_field: backtrace_field.as_ref(),
+            crate_root: &crate_root,
+            error_constructor_name: &name,
+            original_generics_without_defaults: &original_generics,
+            parameterized_error_name: &parameterized_struct_name,
+            selector_doc_string: &selector_doc_string,
+            selector_kind: &selector_kind,
+            selector_name: &selector_name,
+            user_fields: &user_fields,
+            visibility: visibility.as_ref().map(|x| &**x),
+            where_clauses: &where_clauses,
+        };
+
+        quote! {
+            #error_impl
+            #error_compat_impl
+            #display_impl
+            #context_selector
+        }
+    }
+}
+
+impl GenericAwareNames for NamedStructInfo {
+    fn name(&self) -> &syn::Ident {
+        &self.field_container.name
+    }
+
+    fn generics(&self) -> &syn::Generics {
+        &self.generics
+    }
+}
+
+impl TupleStructInfo {
     fn generate_snafu(self) -> proc_macro2::TokenStream {
         let parameterized_struct_name = self.parameterized_name();
 
-        let StructInfo {
+        let TupleStructInfo {
             crate_root,
             generics,
             name,
@@ -1929,7 +1835,7 @@ impl StructInfo {
     }
 }
 
-impl GenericAwareNames for StructInfo {
+impl GenericAwareNames for TupleStructInfo {
     fn name(&self) -> &syn::Ident {
         &self.name
     }

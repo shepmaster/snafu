@@ -44,18 +44,6 @@ help: you might be missing a string literal to format with
 42 |         #[snafu(display = "{}", "42")]
    |                           ^^^^^
 
-error: Can only derive `Snafu` for tuple structs
-  --> $DIR/error-reporting.rs:51:5
-   |
-51 |     struct UnitStruct;
-   |     ^^^^^^
-
-error: Can only derive `Snafu` for tuple structs
-  --> $DIR/error-reporting.rs:54:5
-   |
-54 |     struct NamedFieldStruct {
-   |     ^^^^^^
-
 error: Can only derive `Snafu` for tuple structs with exactly one field
   --> $DIR/error-reporting.rs:59:5
    |
