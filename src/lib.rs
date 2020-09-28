@@ -157,6 +157,7 @@ generate_guide! {
         pub mod generics;
         pub mod opaque;
         pub mod philosophy;
+        pub mod structs;
         pub mod the_macro;
         pub mod upgrading;
 
@@ -196,7 +197,7 @@ pub use no_std_error::Error;
 /// ```
 #[macro_export]
 macro_rules! ensure {
-    ($predicate:expr, $context_selector:expr) => {
+    ($predicate:expr, $context_selector:expr $(,)*) => {
         if !$predicate {
             return $context_selector.fail().map_err(core::convert::Into::into);
         }

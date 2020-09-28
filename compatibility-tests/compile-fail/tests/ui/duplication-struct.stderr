@@ -1,4 +1,4 @@
-error: Multiple `source(from)` attributes are not supported on a struct
+error: Multiple `source(from)` attributes are not supported on a tuple struct
  --> $DIR/duplication-struct.rs:8:9
   |
 8 | #[snafu(source(from(UsableError, Box::new)))]

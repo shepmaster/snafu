@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.9] - 2020-09-21
+
+### Added
+
+- `#[derive(Snafu)]` is now supported on unit structs and structs with fields.
+- `ensure!` now supports trailing commas.
+
+### Fixed
+
+- The error text for a misuse of `#[snafu(context)]` was corrected.
+- More usages of `Option` in the generated code are now fully qualified.
+
+[0.6.9]: https://github.com/shepmaster/snafu/releases/tag/0.6.9
+
 ## [0.6.8] - 2020-05-11
 
 ### Fixed

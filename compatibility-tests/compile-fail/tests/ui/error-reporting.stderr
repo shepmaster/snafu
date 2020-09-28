@@ -1,75 +1,63 @@
 error: Can only derive `Snafu` for an enum or a newtype
  --> $DIR/error-reporting.rs:5:5
   |
-5 |     union AUnion { _a: i32 }
+5 |     union AUnion {
   |     ^^^^^
 
 error: Only struct-like and unit enum variants are supported
- --> $DIR/error-reporting.rs:9:14
-  |
-9 |         Alpha(i32),
-  |              ^^^^^
+  --> $DIR/error-reporting.rs:11:14
+   |
+11 |         Alpha(i32),
+   |              ^^^^^
 
 error: `snafu(display)` requires an argument
-  --> $DIR/error-reporting.rs:28:17
+  --> $DIR/error-reporting.rs:30:17
    |
-28 |         #[snafu(display)]
+30 |         #[snafu(display)]
    |                 ^^^^^^^
 
 error: expected string literal
-  --> $DIR/error-reporting.rs:31:27
+  --> $DIR/error-reporting.rs:33:27
    |
-31 |         #[snafu(display = 42)]
+33 |         #[snafu(display = 42)]
    |                           ^^
 
 error: format argument must be a string literal
-  --> $DIR/error-reporting.rs:37:25
+  --> $DIR/error-reporting.rs:39:25
    |
-37 |         #[snafu(display(foo()))]
+39 |         #[snafu(display(foo()))]
    |                         ^^^^^
    |
 help: you might be missing a string literal to format with
    |
-37 |         #[snafu(display("{}", foo()))]
+39 |         #[snafu(display("{}", foo()))]
    |                         ^^^^^
 
 error: format argument must be a string literal
-  --> $DIR/error-reporting.rs:40:27
+  --> $DIR/error-reporting.rs:42:27
    |
-40 |         #[snafu(display = "42")]
+42 |         #[snafu(display = "42")]
    |                           ^^^^
    |
 help: you might be missing a string literal to format with
    |
-40 |         #[snafu(display = "{}", "42")]
+42 |         #[snafu(display = "{}", "42")]
    |                           ^^^^^
 
-error: Can only derive `Snafu` for tuple structs
-  --> $DIR/error-reporting.rs:49:5
+error: Can only derive `Snafu` for tuple structs with exactly one field
+  --> $DIR/error-reporting.rs:59:5
    |
-49 |     struct UnitStruct;
-   |     ^^^^^^
-
-error: Can only derive `Snafu` for tuple structs
-  --> $DIR/error-reporting.rs:52:5
-   |
-52 |     struct NamedFieldStruct { some_field: i32 }
+59 |     struct ShortTupleStruct();
    |     ^^^^^^
 
 error: Can only derive `Snafu` for tuple structs with exactly one field
-  --> $DIR/error-reporting.rs:55:5
+  --> $DIR/error-reporting.rs:62:5
    |
-55 |     struct ShortTupleStruct();
-   |     ^^^^^^
-
-error: Can only derive `Snafu` for tuple structs with exactly one field
-  --> $DIR/error-reporting.rs:58:5
-   |
-58 |     struct LongTupleStruct(i32, i32);
+62 |     struct LongTupleStruct(i32, i32);
    |     ^^^^^^
 
 error: cannot find attribute `serde` in this scope
-  --> $DIR/error-reporting.rs:18:11
+  --> $DIR/error-reporting.rs:20:11
    |
-18 |         #[serde]
+20 |         #[serde]
    |           ^^^^^
