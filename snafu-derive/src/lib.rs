@@ -1172,11 +1172,14 @@ impl syn::parse::Parse for SnafuAttribute {
                 Err(lookahead.error())
             }
         } else if name == "context" {
-            if input.is_empty() {
+            let lookahead = input.lookahead1();
+            if input.is_empty() || lookahead.peek(Comma) {
                 Ok(SnafuAttribute::Context(input_tts, true))
-            } else {
+            } else if lookahead.peek(Paren) {
                 let v: MyParens<LitBool> = input.parse()?;
                 Ok(SnafuAttribute::Context(input_tts, v.0.value))
+            } else {
+                Err(lookahead.error())
             }
         } else if name == "crate_root" {
             let m: MyMeta<Path> = input.parse()?;
