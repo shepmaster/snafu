@@ -10,11 +10,11 @@ error: Only struct-like and unit enum variants are supported
 11 |         Alpha(i32),
    |              ^^^^^
 
-error: `snafu(display)` requires an argument
-  --> $DIR/error-reporting.rs:30:17
+error: unexpected end of input, expected parentheses or `=`
+  --> $DIR/error-reporting.rs:30:16
    |
 30 |         #[snafu(display)]
-   |                 ^^^^^^^
+   |                ^^^^^^^^^
 
 error: expected string literal
   --> $DIR/error-reporting.rs:33:27
