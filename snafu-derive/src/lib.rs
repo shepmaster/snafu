@@ -1130,6 +1130,10 @@ enum SnafuAttribute {
     DocComment(proc_macro2::TokenStream, String),
 }
 
+// FIXME: The usage of `input_tts` here is incorrect. For example, if
+// we are parsing `snafu(a, b, c)`, then `input_tts` for `a` will
+// actually be `a, b, c`! We need to find a way to only care about the
+// tokens within what we parse.
 impl syn::parse::Parse for SnafuAttribute {
     fn parse(input: syn::parse::ParseStream) -> SynResult<Self> {
         use syn::token::{Comma, Paren};
