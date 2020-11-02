@@ -113,7 +113,7 @@ There are a number of forms of the attribute:
 # use snafu::Snafu;
 #[derive(Debug, Snafu)]
 #[snafu(visibility = "pub(crate)")] // Sets the default visibility for these context selectors
-enum Error {
+pub(crate) enum Error {
     IsPubCrate, // Uses the default
     #[snafu(visibility)]
     IsPrivate, // Will be private
