@@ -1,53 +1,97 @@
 #![cfg(test)]
 
-use snafu::{ResultExt, Snafu};
-use std::{
-    fs, io,
-    path::{Path, PathBuf},
-};
+// There are not yet any feature differences that require testing for Rust 1.34 compatibility.
 
-#[derive(Debug, Snafu)]
-struct PublicError(Error);
+use std::io;
 
-#[derive(Debug, Snafu)]
-#[snafu(visibility(pub(crate)))]
-enum Error {
-    #[snafu(display("Could not open config file at {}: {}", filename.display(), source))]
-    OpenConfig {
-        filename: PathBuf,
-        source: io::Error,
-    },
-    #[snafu(display("Could not open config file at {}", source))]
-    SaveConfig { source: io::Error },
-    #[snafu(display("No user available"))]
-    #[snafu(visibility)]
-    MissingUser,
+fn io_failure() -> io::Result<()> {
+    Err(io::Error::new(io::ErrorKind::Other, "arbitrary failure"))
 }
 
-type Result<T, E = Error> = std::result::Result<T, E>;
+fn implements_error<T: std::error::Error>() {}
 
-const CONFIG_FILENAME: &str = "/tmp/config";
+mod enum_style {
+    use super::*;
+    use snafu::{ResultExt, Snafu};
 
-fn example(root: impl AsRef<Path>, username: &str) -> Result<()> {
-    let root = root.as_ref();
-    let filename = &root.join(CONFIG_FILENAME);
+    #[derive(Debug, Snafu)]
+    enum Error {
+        #[snafu(display("Without a source: {}", id))]
+        WithoutSource { id: i32 },
 
-    let config = fs::read(filename).context(OpenConfig { filename })?;
-
-    if username.is_empty() {
-        MissingUser.fail()?;
+        #[snafu(display("With a source: {}", source))]
+        WithSource { id: i32, source: io::Error },
     }
 
-    fs::write(filename, config).context(SaveConfig)?;
+    type Result<T, E = Error> = std::result::Result<T, E>;
 
-    Ok(())
+    fn create_without_source() -> Result<()> {
+        WithoutSource { id: 42 }.fail()
+    }
+
+    fn create_with_source() -> Result<()> {
+        io_failure().context(WithSource { id: 42 })
+    }
+
+    #[test]
+    fn it_works() {
+        implements_error::<Error>();
+        let _ = create_without_source();
+        let _ = create_with_source();
+    }
 }
 
-#[test]
-fn implements_error() {
-    fn check<T: std::error::Error>() {}
-    check::<Error>();
-    check::<PublicError>();
+mod struct_style {
+    use super::*;
+    use snafu::{ResultExt, Snafu};
 
-    example("/some/directory/that/does/not/exist", "").unwrap_err();
+    #[derive(Debug, Snafu)]
+    #[snafu(display("Without a source: {}", id))]
+    struct WithoutSource {
+        id: i32,
+    }
+
+    #[derive(Debug, Snafu)]
+    #[snafu(display("With a source: {}", source))]
+    struct WithSource {
+        id: i32,
+        source: io::Error,
+    }
+
+    fn create_without_source() -> Result<(), WithoutSource> {
+        WithoutSourceContext { id: 42 }.fail()
+    }
+
+    fn create_with_source() -> Result<(), WithSource> {
+        io_failure().context(WithSourceContext { id: 42 })
+    }
+
+    #[test]
+    fn it_works() {
+        implements_error::<WithoutSource>();
+        implements_error::<WithSource>();
+        let _ = create_without_source();
+        let _ = create_with_source();
+    }
+}
+
+mod opaque_style {
+    use super::*;
+    use snafu::Snafu;
+
+    #[derive(Debug, Snafu)]
+    struct Dummy;
+
+    #[derive(Debug, Snafu)]
+    struct Opaque(Dummy);
+
+    fn create() -> Result<(), Opaque> {
+        Ok(DummyContext.fail()?)
+    }
+
+    #[test]
+    fn it_works() {
+        implements_error::<Opaque>();
+        let _ = create();
+    }
 }

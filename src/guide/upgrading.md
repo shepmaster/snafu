@@ -1,10 +1,20 @@
 # Upgrading from previous releases
 
+- [Version 0.6 → 0.7](#version-06--07)
 - [Version 0.5 → 0.6](#version-05--06)
 - [Version 0.4 → 0.5](#version-04--05)
 - [Version 0.3 → 0.4](#version-03--04)
 - [Version 0.2 → 0.3](#version-02--03)
 - [Version 0.1 → 0.2](#version-01--02)
+
+## Version 0.6 → 0.7
+
+### Minimum supported version of Rust is now 1.34
+
+If you are writing a library, you will need to increase your minimum
+supported version of Rust to 1.34 or better. If you are writing an
+application, you should be able to upgrade your installed compiler by
+the same mechanism that you installed it.
 
 ## Version 0.5 → 0.6
 
