@@ -55,15 +55,28 @@ enum ContextSelectorKind {
         user_fields: Vec<Field>,
     },
 
+    Whatever {
+        source_field: Option<SourceField>,
+        message_field: Field,
+    },
+
     NoContext {
         source_field: SourceField,
     },
 }
 
 impl ContextSelectorKind {
+    fn is_whatever(&self) -> bool {
+        match self {
+            ContextSelectorKind::Whatever { .. } => true,
+            _ => false,
+        }
+    }
+
     fn user_fields(&self) -> &[Field] {
         match self {
             ContextSelectorKind::Context { user_fields, .. } => user_fields,
+            ContextSelectorKind::Whatever { .. } => &[],
             ContextSelectorKind::NoContext { .. } => &[],
         }
     }
@@ -71,7 +84,16 @@ impl ContextSelectorKind {
     fn source_field(&self) -> Option<&SourceField> {
         match self {
             ContextSelectorKind::Context { source_field, .. } => source_field.as_ref(),
+            ContextSelectorKind::Whatever { source_field, .. } => source_field.as_ref(),
             ContextSelectorKind::NoContext { source_field } => Some(source_field),
+        }
+    }
+
+    fn message_field(&self) -> Option<&Field> {
+        match self {
+            ContextSelectorKind::Context { .. } => None,
+            ContextSelectorKind::Whatever { message_field, .. } => Some(message_field),
+            ContextSelectorKind::NoContext { .. } => None,
         }
     }
 }
@@ -483,6 +505,11 @@ const ATTR_CONTEXT: OnlyValidOn = OnlyValidOn {
     valid_on: "enum variants or structs with named fields",
 };
 
+const ATTR_WHATEVER: OnlyValidOn = OnlyValidOn {
+    attribute: "whatever",
+    valid_on: "enum variants or structs with named fields",
+};
+
 const ATTR_CRATE_ROOT: OnlyValidOn = OnlyValidOn {
     attribute: "crate_root",
     valid_on: "an enum or a struct",
@@ -525,6 +552,7 @@ fn parse_snafu_enum(
             }
             SnafuAttribute::Backtrace(tokens, ..) => enum_errors.add(tokens, ATTR_BACKTRACE),
             SnafuAttribute::Context(tokens, ..) => enum_errors.add(tokens, ATTR_CONTEXT),
+            SnafuAttribute::Whatever(tokens) => enum_errors.add(tokens, ATTR_WHATEVER),
             SnafuAttribute::DocComment(..) => { /* Just a regular doc comment. */ }
         }
     }
@@ -597,6 +625,7 @@ fn field_container(
     let mut display_formats = AtMostOne::new("display", outer_error_location);
     let mut visibilities = AtMostOne::new("visibility", outer_error_location);
     let mut contexts = AtMostOne::new("context", outer_error_location);
+    let mut whatevers = AtMostOne::new("whatever", outer_error_location);
     let mut doc_comment = String::new();
     let mut reached_end_of_doc_comment = false;
 
@@ -605,6 +634,7 @@ fn field_container(
             SnafuAttribute::Display(tokens, d) => display_formats.add(d, tokens),
             SnafuAttribute::Visibility(tokens, v) => visibilities.add(v, tokens),
             SnafuAttribute::Context(tokens, c) => contexts.add(c, tokens),
+            SnafuAttribute::Whatever(tokens) => whatevers.add((), tokens),
             SnafuAttribute::Source(tokens, ..) => outer_errors.add(tokens, ATTR_SOURCE),
             SnafuAttribute::Backtrace(tokens, ..) => outer_errors.add(tokens, ATTR_BACKTRACE),
             SnafuAttribute::CrateRoot(tokens, ..) => outer_errors.add(tokens, ATTR_CRATE_ROOT),
@@ -706,6 +736,7 @@ fn field_container(
                 SnafuAttribute::Visibility(tokens, ..) => field_errors.add(tokens, ATTR_VISIBILITY),
                 SnafuAttribute::Display(tokens, ..) => field_errors.add(tokens, ATTR_DISPLAY),
                 SnafuAttribute::Context(tokens, ..) => field_errors.add(tokens, ATTR_CONTEXT),
+                SnafuAttribute::Whatever(tokens) => field_errors.add(tokens, ATTR_WHATEVER),
                 SnafuAttribute::CrateRoot(tokens, ..) => field_errors.add(tokens, ATTR_CRATE_ROOT),
                 SnafuAttribute::DocComment(..) => { /* Just a regular doc comment. */ }
             }
@@ -784,32 +815,77 @@ fn field_container(
     let (visibility, errs) = visibilities.finish();
     errors.extend(errs);
 
-    let (is_context, errs) = contexts.finish();
+    let (is_context, errs) = contexts.finish_with_location();
+    errors.extend(errs);
+
+    let (is_whatever, errs) = whatevers.finish_with_location();
     errors.extend(errs);
 
     let source_field = source.map(|(val, _tts)| val);
 
-    let selector_kind = if is_context.unwrap_or(true) {
-        ContextSelectorKind::Context {
+    let selector_kind = match (is_context, is_whatever) {
+        (Some((true, c_tt)), Some(((), o_tt))) => {
+            let txt = "Cannot be both a `context` and `whatever` error";
+            return Err(vec![
+                syn::Error::new_spanned(c_tt, txt),
+                syn::Error::new_spanned(o_tt, txt),
+            ]);
+        }
+
+        (Some((true, _)), None) | (None, None) => ContextSelectorKind::Context {
             source_field,
             user_fields,
+        },
+
+        (Some((false, _)), Some(_)) | (None, Some(_)) => {
+            let mut messages = AtMostOne::new("message", outer_error_location);
+
+            for f in user_fields {
+                if f.name == "message" {
+                    let l = f.original.clone();
+                    messages.add(f, l);
+                } else {
+                    errors.add(
+                        f.original,
+                        "Whatever selectors must not have context fields",
+                    );
+                    // todo: phrasing?
+                }
+            }
+
+            let (message_field, errs) = messages.finish();
+            errors.extend(errs);
+
+            let message_field = message_field.ok_or_else(|| {
+                vec![syn::Error::new(
+                    variant_span,
+                    "Whatever selectors must have a message field",
+                )]
+            })?;
+
+            ContextSelectorKind::Whatever {
+                source_field,
+                message_field,
+            }
         }
-    } else {
-        errors.extend(user_fields.into_iter().map(|Field { original, .. }| {
-            syn::Error::new_spanned(
-                original,
-                "Context selectors without context must not have context fields",
-            )
-        }));
 
-        let source_field = source_field.ok_or_else(|| {
-            vec![syn::Error::new(
-                variant_span,
-                "Context selectors without context must have a source field",
-            )]
-        })?;
+        (Some((false, _)), None) => {
+            errors.extend(user_fields.into_iter().map(|Field { original, .. }| {
+                syn::Error::new_spanned(
+                    original,
+                    "Context selectors without context must not have context fields",
+                )
+            }));
 
-        ContextSelectorKind::NoContext { source_field }
+            let source_field = source_field.ok_or_else(|| {
+                vec![syn::Error::new(
+                    variant_span,
+                    "Context selectors without context must have a source field",
+                )]
+            })?;
+
+            ContextSelectorKind::NoContext { source_field }
+        }
     };
 
     Ok(FieldContainer {
@@ -918,6 +994,7 @@ fn parse_snafu_tuple_struct(
             }
             SnafuAttribute::Backtrace(tokens, ..) => struct_errors.add(tokens, ATTR_BACKTRACE),
             SnafuAttribute::Context(tokens, ..) => struct_errors.add(tokens, ATTR_CONTEXT),
+            SnafuAttribute::Whatever(tokens) => struct_errors.add(tokens, ATTR_CONTEXT),
             SnafuAttribute::CrateRoot(tokens, root) => crate_roots.add(root, tokens),
             SnafuAttribute::DocComment(..) => { /* Just a regular doc comment. */ }
         }
@@ -978,6 +1055,7 @@ enum SnafuAttribute {
     Source(proc_macro2::TokenStream, Vec<Source>),
     Backtrace(proc_macro2::TokenStream, bool),
     Context(proc_macro2::TokenStream, bool),
+    Whatever(proc_macro2::TokenStream),
     CrateRoot(proc_macro2::TokenStream, UserInput),
     DocComment(proc_macro2::TokenStream, String),
 }

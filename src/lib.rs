@@ -206,6 +206,89 @@ macro_rules! ensure {
     };
 }
 
+/// Instantiate and return a stringly-typed error message.
+///
+/// # Without an underlying error
+///
+/// Provide a format string and any optional arguments. The macro will
+/// unconditionally exit the calling function with an error.
+///
+/// ```rust
+/// use snafu::{Snafu, whatever};
+///
+/// #[derive(Debug, Snafu)]
+/// #[snafu(whatever, display("Error was: {}", message))]
+/// struct Error {
+///     message: String,
+/// }
+/// type Result<T, E = Error> = std::result::Result<T, E>;
+///
+/// fn get_bank_account_balance(account_id: &str) -> Result<u8> {
+/// # fn moon_is_rising() -> bool { false }
+///     if moon_is_rising() {
+///         whatever!("We are recalibrating the dynamos for account {}, sorry", account_id);
+///     }
+///
+///     Ok(100)
+/// }
+/// ```
+///
+/// # With an underlying error
+///
+/// Provide a `Result` as the first argument, followed by a format
+/// string and any optional arguments. If the `Result` is an error,
+/// the formatted string will be appended to the error and the macro
+/// will exist the calling function with an error. If the `Result` is
+/// not an error, the macro will evaluate to the `Ok` value of the
+/// `Result`.
+///
+/// ```rust
+/// use snafu::{Snafu, whatever};
+///
+/// #[derive(Debug, Snafu)]
+/// #[snafu(whatever, display("Error was: {}", message))]
+/// struct Error {
+///     message: String,
+///     #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
+///     source: Option<Box<dyn std::error::Error>>,
+/// }
+/// type Result<T, E = Error> = std::result::Result<T, E>;
+///
+/// fn calculate_brightness_factor() -> Result<u8> {
+///     let angle = calculate_angle_of_refraction();
+///     let angle = whatever!(angle, "There was no angle");
+///     Ok(angle * 2)
+/// }
+///
+/// fn calculate_angle_of_refraction() -> Result<u8> {
+///     whatever!("The programmer forgot to implement this...");
+/// }
+/// ```
+#[macro_export]
+#[cfg(any(feature = "std", test))]
+macro_rules! whatever {
+    ($fmt:literal$(, $($arg:expr),* $(,)?)?) => {
+        return core::result::Result::Err({
+            $crate::FromString::without_source(
+                format!($fmt$(, $($arg),*)*),
+            )
+        });
+    };
+    ($source:expr, $fmt:literal$(, $($arg:expr),* $(,)?)*) => {
+        match $source {
+            core::result::Result::Ok(v) => v,
+            core::result::Result::Err(e) => {
+                return core::result::Result::Err({
+                    $crate::FromString::with_source(
+                        core::convert::Into::into(e),
+                        format!($fmt$(, $($arg),*)*),
+                    )
+                });
+            }
+        }
+    };
+}
+
 /// Additions to [`Result`](std::result::Result).
 pub trait ResultExt<T, E>: Sized {
     /// Extend a [`Result`]'s error with additional context-sensitive information.
@@ -287,6 +370,23 @@ pub trait ResultExt<T, E>: Sized {
         C: IntoError<E2, Source = E>,
         E2: Error + ErrorCompat;
 
+    #[allow(missing_docs)] // Waiting for premade type
+    #[cfg(any(feature = "std", test))]
+    fn whatever_context<S, E2>(self, context: S) -> Result<T, E2>
+    where
+        S: Into<String>,
+        E2: FromString,
+        E: Into<E2::Source>;
+
+    #[allow(missing_docs)] // Waiting for premade type
+    #[cfg(any(feature = "std", test))]
+    fn with_whatever_context<F, S, E2>(self, context: F) -> Result<T, E2>
+    where
+        F: FnOnce(&E) -> S,
+        S: Into<String>,
+        E2: FromString,
+        E: Into<E2::Source>;
+
     #[doc(hidden)]
     #[deprecated(since = "0.4.0", note = "use ResultExt::context instead")]
     fn eager_context<C, E2>(self, context: C) -> Result<T, E2>
@@ -327,6 +427,30 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
         self.map_err(|error| {
             let context = context();
             context.into_error(error)
+        })
+    }
+
+    #[cfg(any(feature = "std", test))]
+    fn whatever_context<S, E2>(self, context: S) -> Result<T, E2>
+    where
+        S: Into<String>,
+        E2: FromString,
+        E: Into<E2::Source>,
+    {
+        self.map_err(|e| FromString::with_source(e.into(), context.into()))
+    }
+
+    #[cfg(any(feature = "std", test))]
+    fn with_whatever_context<F, S, E2>(self, context: F) -> Result<T, E2>
+    where
+        F: FnOnce(&E) -> S,
+        S: Into<String>,
+        E2: FromString,
+        E: Into<E2::Source>,
+    {
+        self.map_err(|e| {
+            let context = context(&e);
+            FromString::with_source(e.into(), context.into())
         })
     }
 }
@@ -415,6 +539,21 @@ pub trait OptionExt<T>: Sized {
         C: IntoError<E, Source = NoneError>,
         E: Error + ErrorCompat;
 
+    #[allow(missing_docs)] // Waiting for premade type
+    #[cfg(any(feature = "std", test))]
+    fn whatever_context<S, E>(self, context: S) -> Result<T, E>
+    where
+        S: Into<String>,
+        E: FromString;
+
+    #[allow(missing_docs)] // Waiting for premade type
+    #[cfg(any(feature = "std", test))]
+    fn with_whatever_context<F, S, E>(self, context: F) -> Result<T, E>
+    where
+        F: FnOnce() -> S,
+        S: Into<String>,
+        E: FromString;
+
     #[doc(hidden)]
     #[deprecated(since = "0.4.0", note = "use OptionExt::context instead")]
     fn eager_context<C, E>(self, context: C) -> Result<T, E>
@@ -453,6 +592,28 @@ impl<T> OptionExt<T> for Option<T> {
         E: Error + ErrorCompat,
     {
         self.ok_or_else(|| context().into_error(NoneError))
+    }
+
+    #[cfg(any(feature = "std", test))]
+    fn whatever_context<S, E>(self, context: S) -> Result<T, E>
+    where
+        S: Into<String>,
+        E: FromString,
+    {
+        self.ok_or_else(|| FromString::without_source(context.into()))
+    }
+
+    #[cfg(any(feature = "std", test))]
+    fn with_whatever_context<F, S, E>(self, context: F) -> Result<T, E>
+    where
+        F: FnOnce() -> S,
+        S: Into<String>,
+        E: FromString,
+    {
+        self.ok_or_else(|| {
+            let context = context();
+            FromString::without_source(context.into())
+        })
     }
 }
 
@@ -593,6 +754,22 @@ where
 
     /// Combine the information to produce the error
     fn into_error(self, source: Self::Source) -> E;
+}
+
+/// Takes a string message and builds the corresponding error.
+///
+/// It is expected that most users of SNAFU will not directly interact
+/// with this trait.
+#[cfg(any(feature = "std", test))]
+pub trait FromString {
+    /// The underlying error
+    type Source;
+
+    /// Create a brand new error from the given string
+    fn without_source(message: String) -> Self;
+
+    /// Wrap an existing error with the given string
+    fn with_source(source: Self::Source, message: String) -> Self;
 }
 
 /// Construct a backtrace, allowing it to be optional.
