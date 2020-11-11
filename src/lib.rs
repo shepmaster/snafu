@@ -159,6 +159,9 @@ generate_guide! {
         pub mod philosophy;
         pub mod structs;
         pub mod the_macro;
+        pub mod troubleshooting {
+            pub mod missing_field_source;
+        }
         pub mod upgrading;
 
         @code pub mod examples;
