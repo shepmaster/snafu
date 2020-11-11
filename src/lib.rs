@@ -77,38 +77,6 @@
 //!     }
 //! }
 //! ```
-//! ## Multi-file example
-//! Some new users are quite stumped on how to put the error into a
-//! diferent module than where it's used. Below is an example of reading a 
-//! configuration file. 
-//! ```rust
-//! // example_error/mod.rs
-//! #[derive(Debug, Snafu)]
-//! pub enum ExampleError {
-//!     #[snafu(display("Unable to read configuration from {}", path))]
-//!     IOConfigError {
-//!         #[snafu(source(from(io::Error, Box::new)))]
-//!         source: Box<io::Error>,
-//!         path: &'static str,
-//!     },
-//! }
-//!
-//! // main.rs
-//! pub mod example_error;
-//!
-//! use example_error::ExampleError;
-//! use std::io;
-//!
-//! pub fn read_config_file() -> Result<String, ExampleError> {
-//!     // This is *slightly* counter intuitive. Instead of using the ExampleError::IOConfigError type,
-//!     // the example_error::IOConfigError type is used instead. This stumped me for about 4 hours.
-//!     io::read_to_string("/etc/example.conf").context(example_error::IOConfigError { path: "/etc/example.conf" })?
-//! }
-//!
-//! pub fn main() {
-//!     println!("{}", read_config_file().unwrap());
-//! }
-//! ```
 
 #[cfg(all(
     not(feature = "backtraces"),
