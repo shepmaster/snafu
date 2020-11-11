@@ -22,4 +22,4 @@ guide](guide::upgrading).
 For comparisons and migration tips from another error library,
 see the [comparison list](guide::comparison).
 
-If you have any question you fear might be common, please see the [commonly asked questions](guide::common) page.
+If you have a question you fear might be common, please see the [commonly asked questions](guide::common) page.
