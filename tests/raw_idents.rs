@@ -1,4 +1,4 @@
-use snafu::{ensure, Snafu, ResultExt};
+use snafu::{ensure, ResultExt, Snafu};
 
 #[derive(Debug, Snafu)]
 enum Error {
@@ -7,7 +7,7 @@ enum Error {
 
     r#Awesome {
         #[snafu(source(from(Error, Box::new)))]
-        r#mod: Box<Error>
+        r#mod: Box<Error>,
     },
 }
 
