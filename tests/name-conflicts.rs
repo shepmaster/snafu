@@ -1,4 +1,4 @@
-use snafu::Snafu;
+use snafu::{ensure, Snafu};
 
 // Modules to clash with likely candidates from the standard library.
 mod core {}
@@ -22,4 +22,9 @@ enum VariantNamedOk<T> {
 #[derive(Debug, Snafu)]
 enum VariantNamedErr<T> {
     Err { value: T },
+}
+
+fn _using_ensure() -> Result<u8, VariantNamedNone> {
+    ensure!(false, None);
+    Ok(0)
 }
