@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.10] - 2020-12-03
+
+### Fixed
+
+- `ensure!` now uses a fully-qualified path to avoid a name clash when
+  the path `core` is ambiguous.
+
+[0.6.10]: https://github.com/shepmaster/snafu/releases/tag/0.6.10
+
 ## [0.6.9] - 2020-09-21
 
 ### Added
