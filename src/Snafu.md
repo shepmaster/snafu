@@ -9,6 +9,7 @@ unique situations.
 - [`display`](#controlling-display)
 - [`source`](#controlling-error-sources)
 - [`visibility`](#controlling-visibility)
+- [`whatever`](#controlling-stringly-typed-errors)
 
 ## Controlling `Display`
 
@@ -239,6 +240,32 @@ enum Error {
         #[snafu(backtrace)]
         source: another::Error,
     },
+}
+```
+
+## Controlling stringly-typed errors
+
+This allows your custom error type to behave like the [`Whatever`][]
+error type. Since it is your type, you can implement additional
+methods or traits. When placed on a struct or enum variant, you will
+be able to use the type with the [`whatever!`][] macro as well as
+`whatever_context` methods, such as [`ResultExt::whatever_context`][].
+
+```rust
+# use snafu::Snafu;
+#[derive(Debug, Snafu)]
+enum Error {
+    SpecificError { username: String },
+
+    #[snafu(whatever, display("{}", message))]
+    GenericError {
+        message: String,
+
+        // Having a `source` is optional, but if it is present, it must
+        // have this specific attribute and type:
+        #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
+        source: Option<Box<dyn std::error::Error>>,
+    }
 }
 ```
 
