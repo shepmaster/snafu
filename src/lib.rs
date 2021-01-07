@@ -570,7 +570,10 @@ impl AsErrorSource for dyn Error + Send + Sync + 'static {
     }
 }
 
-impl<T: Error + 'static> AsErrorSource for T {
+impl<T> AsErrorSource for T
+where
+    T: Error + 'static,
+{
     fn as_error_source(&self) -> &(dyn Error + 'static) {
         self
     }
