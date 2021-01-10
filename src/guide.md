@@ -1,5 +1,10 @@
 # SNAFU user's guide
 
+Looking for quick help or answers? Please see the
+[troubleshooting](guide::troubleshooting) page.
+
+---
+
 Once you've got a high-level idea of what SNAFU can do by looking at
 the [quick example](crate) and some [more examples](guide::examples),
 take a peek at [our design philosophy](guide::philosophy).
