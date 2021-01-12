@@ -110,9 +110,6 @@ pub use backtrace::Backtrace;
 #[cfg(feature = "unstable-backtraces-impl-std")]
 pub use std::backtrace::Backtrace;
 
-#[cfg(feature = "futures-01")]
-pub mod futures01;
-
 #[cfg(feature = "futures")]
 pub mod futures;
 

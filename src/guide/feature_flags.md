@@ -10,7 +10,6 @@ cases:
 - [`backtraces-impl-backtrace-crate`](#backtraces-impl-backtrace-crate)
 - [`unstable-backtraces-impl-std`](#unstable-backtraces-impl-std)
 - [`futures`](#futures)
-- [`futures-01`](#futures-01)
 
 [controlling compatibility]: super::guide::compatibility
 [feature flags]: https://doc.rust-lang.org/stable/cargo/reference/specifying-dependencies.html#choosing-features
@@ -79,14 +78,3 @@ and streams returning `Result`s.
 
 [`futures::TryFutureExt`]: crate::futures::TryFutureExt
 [`futures::TryStreamExt`]: crate::futures::TryStreamExt
-
-## `futures-01`
-
-**default**: disabled
-
-When enabled, you can use the [`futures01::FutureExt`] and
-[`futures01::StreamExt`] traits to add context methods to futures
-and streams.
-
-[`futures01::FutureExt`]: crate::futures01::FutureExt
-[`futures01::StreamExt`]: crate::futures01::StreamExt

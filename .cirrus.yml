@@ -20,8 +20,6 @@ stable_test_task:
     - cargo test --manifest-path compatibility-tests/backtrace-shim/Cargo.toml
   backtraces_impl_backtrace_crate_test_script:
     - cargo test --manifest-path compatibility-tests/backtraces-impl-backtrace-crate/Cargo.toml
-  futures_0.1_test_script:
-    - cargo test --manifest-path compatibility-tests/futures-0.1/Cargo.toml
   context_selectors_have_documentation_test_script:
     - cargo test --manifest-path compatibility-tests/context-selectors-have-documentation/Cargo.toml
   renamed_import_test_script:
@@ -60,8 +58,6 @@ doc_test_task:
     - cargo +nightly doc --features=backtraces-impl-backtrace-crate
   unstable_backtraces_impl_std_docs_script:
     - cargo +nightly doc --features=unstable-backtraces-impl-std
-  futures_01_docs_script:
-    - cargo +nightly doc --features=futures-01
   futures_docs_script:
     - cargo +nightly doc --features=futures
   before_cache_script: rm -rf $CARGO_HOME/registry/index
@@ -86,8 +82,6 @@ doc_tests_task:
   #
   # unstable_backtraces_impl_std_doctests_script:
   #   - cargo +nightly test --doc --features=unstable-backtraces-impl-std
-  futures_01_doctests_script:
-    - cargo +nightly test --doc --features=futures-01
   futures_doctests_script:
     - cargo +nightly test --doc --features=futures,internal-dev-dependencies
   before_cache_script: rm -rf $CARGO_HOME/registry/index
