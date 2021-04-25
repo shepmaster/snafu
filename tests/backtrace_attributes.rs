@@ -19,9 +19,9 @@ enum Error {
 }
 
 fn example() -> Result<(), Error> {
-    NoArgument.fail()?;
-    ExplicitTrue.fail()?;
-    ExplicitFalse { backtrace: 42 }.fail()?;
+    NoArgumentSnafu.fail()?;
+    ExplicitTrueSnafu.fail()?;
+    ExplicitFalseSnafu { backtrace: 42 }.fail()?;
     Ok(())
 }
 

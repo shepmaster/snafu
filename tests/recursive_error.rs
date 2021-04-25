@@ -24,11 +24,11 @@ struct ApiError(Box<Error>);
 type Result<T, E = Error> = std::result::Result<T, E>;
 
 fn lookup() -> Result<()> {
-    Leaf { name: "foo" }.fail()
+    LeafSnafu { name: "foo" }.fail()
 }
 
 fn add() -> Result<()> {
-    lookup().context(BoxedSelf)
+    lookup().context(BoxedSelfSnafu)
 }
 
 fn public() -> Result<(), ApiError> {
@@ -37,7 +37,7 @@ fn public() -> Result<(), ApiError> {
 }
 
 fn re_private() -> Result<()> {
-    public().context(BoxedPublic)
+    public().context(BoxedPublicSnafu)
 }
 
 #[test]

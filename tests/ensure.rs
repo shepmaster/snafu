@@ -12,7 +12,7 @@ fn accepts_trailing_commas() {
     fn example(a_long_piece_of_information: i32) -> Result<()> {
         ensure!(
             a_long_piece_of_information > a_long_piece_of_information - 1,
-            AVeryLongVariantName {
+            AVeryLongVariantNameSnafu {
                 a_long_piece_of_information,
             },
         );

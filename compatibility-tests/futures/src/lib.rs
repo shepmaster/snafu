@@ -10,7 +10,7 @@ mod api {
     }
 
     pub async fn fetch_page(url: &str) -> Result<String, Error> {
-        InvalidUrl { url }.fail()
+        InvalidUrlSnafu { url }.fail()
     }
 
     pub fn keep_fetching_page<'u>(url: &'u str) -> impl TryStream<Ok = String, Error = Error> + 'u {
@@ -51,11 +51,11 @@ enum Error {
 async fn load_stock_data_sequential() -> Result<String, Error> {
     let apple = api::fetch_page("apple")
         .await
-        .context(UnableToLoadAppleStock)?;
+        .context(UnableToLoadAppleStockSnafu)?;
 
     let google = api::fetch_page("google")
         .await
-        .with_context(|| UnableToLoadGoogleStock {
+        .with_context(|| UnableToLoadGoogleStockSnafu {
             name: String::from("sequential"),
         })?;
 
@@ -73,8 +73,8 @@ async fn load_stock_data_sequential() -> Result<String, Error> {
 
 // Can be used as a `Future` combinator
 async fn load_stock_data_concurrent() -> Result<String, Error> {
-    let apple = api::fetch_page("apple").context(UnableToLoadAppleStock);
-    let google = api::fetch_page("google").with_context(|| UnableToLoadGoogleStock {
+    let apple = api::fetch_page("apple").context(UnableToLoadAppleStockSnafu);
+    let google = api::fetch_page("google").with_context(|| UnableToLoadGoogleStockSnafu {
         name: String::from("concurrent"),
     });
     let other_1 = api::fetch_page("other_1").whatever_context::<_, Error>("Oh no!");
@@ -91,11 +91,11 @@ async fn load_stock_data_concurrent() -> Result<String, Error> {
 // Return values of the combinators implement `Future`
 async fn load_stock_data_sequential_again() -> Result<String, Error> {
     let apple = api::fetch_page("apple")
-        .context(UnableToLoadAppleStock)
+        .context(UnableToLoadAppleStockSnafu)
         .await?;
 
     let google = api::fetch_page("google")
-        .with_context(|| UnableToLoadGoogleStock {
+        .with_context(|| UnableToLoadGoogleStockSnafu {
             name: String::from("sequential"),
         })
         .await?;
@@ -114,8 +114,8 @@ async fn load_stock_data_sequential_again() -> Result<String, Error> {
 
 // Can be used as a `Stream` combinator
 async fn load_stock_data_series() -> Result<String, Error> {
-    let apple = api::keep_fetching_page("apple").context(UnableToLoadAppleStock);
-    let google = api::keep_fetching_page("google").with_context(|| UnableToLoadGoogleStock {
+    let apple = api::keep_fetching_page("apple").context(UnableToLoadAppleStockSnafu);
+    let google = api::keep_fetching_page("google").with_context(|| UnableToLoadGoogleStockSnafu {
         name: String::from("stream"),
     });
     let other_1 = api::keep_fetching_page("other_1").whatever_context("Oh no!");

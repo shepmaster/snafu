@@ -4,11 +4,11 @@ pub(crate) use self::error::{Error, ErrorSourceMatchArm};
 pub(crate) use self::error_compat::{ErrorCompat, ErrorCompatBacktraceMatchArm};
 
 pub mod context_selector {
-    use crate::{ContextSelectorKind, Field};
+    use crate::{ContextSelectorKind, Field, SuffixKind};
     use proc_macro2::TokenStream;
     use quote::{format_ident, quote, IdentFragment, ToTokens};
 
-    const DEFAULT_SUFFIX: &str = "";
+    const DEFAULT_SUFFIX: &str = "Snafu";
 
     #[derive(Copy, Clone)]
     pub(crate) struct ContextSelector<'a> {
@@ -75,9 +75,13 @@ pub mod context_selector {
             let selector_name = selector_name.trim_end_matches("Error");
             let suffix: &dyn IdentFragment = match self.selector_kind {
                 ContextSelectorKind::Context {
-                    suffix: Some(suffix),
+                    suffix: SuffixKind::Some(suffix),
                     ..
                 } => suffix,
+                ContextSelectorKind::Context {
+                    suffix: SuffixKind::None,
+                    ..
+                } => &"",
                 _ => &DEFAULT_SUFFIX,
             };
             let selector_name = format_ident!(

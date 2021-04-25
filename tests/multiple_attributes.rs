@@ -24,16 +24,16 @@ mod error {
 // Confirm `pub(super)` is applied to the generated struct
 #[test]
 fn is_visible() {
-    let _ = error::Alpha;
+    let _ = error::AlphaSnafu;
 }
 
 fn example() -> Result<u8, InnerError> {
-    InnerVariant.fail()
+    InnerVariantSnafu.fail()
 }
 
 // Confirm `display("Moo")` is applied to the variant
 #[test]
 fn has_display() {
-    let err = example().context(error::Alpha).unwrap_err();
+    let err = example().context(error::AlphaSnafu).unwrap_err();
     assert_eq!(format!("{}", err), "Moo");
 }

@@ -12,8 +12,12 @@ enum Error {
 type Result<T, E = Error> = std::result::Result<T, E>;
 
 fn example(values: &HashMap<i32, i32>, left: i32, right: i32) -> Result<i32> {
-    let l = values.get(&left).context(LeftHandMissing { id: left })?;
-    let r = values.get(&right).context(RightHandMissing { id: right })?;
+    let l = values
+        .get(&left)
+        .context(LeftHandMissingSnafu { id: left })?;
+    let r = values
+        .get(&right)
+        .context(RightHandMissingSnafu { id: right })?;
 
     Ok(l + r)
 }

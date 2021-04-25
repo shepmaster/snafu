@@ -58,10 +58,10 @@ enum Error {
 }
 
 fn example() -> Result<(), Error> {
-    trait_object::function().context(TraitObject { user_id: 42 })?;
-    trait_object_send::function().context(TraitObjectSend { user_id: 42 })?;
-    trait_object_sync::function().context(TraitObjectSync { user_id: 42 })?;
-    trait_object_send_sync::function().context(TraitObjectSendSync { user_id: 42 })?;
+    trait_object::function().context(TraitObjectSnafu { user_id: 42 })?;
+    trait_object_send::function().context(TraitObjectSendSnafu { user_id: 42 })?;
+    trait_object_sync::function().context(TraitObjectSyncSnafu { user_id: 42 })?;
+    trait_object_send_sync::function().context(TraitObjectSendSyncSnafu { user_id: 42 })?;
 
     Ok(())
 }

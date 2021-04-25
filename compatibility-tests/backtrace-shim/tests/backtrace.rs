@@ -8,12 +8,12 @@ enum Error {
 type Result<T, E = Error> = std::result::Result<T, E>;
 
 fn check_less_than(user_id: i32) -> Result<()> {
-    ensure!(user_id >= 42, InvalidUser { user_id });
+    ensure!(user_id >= 42, InvalidUserSnafu { user_id });
     Ok(())
 }
 
 fn check_greater_than(user_id: i32) -> Result<()> {
-    ensure!(user_id <= 42, InvalidUser { user_id });
+    ensure!(user_id <= 42, InvalidUserSnafu { user_id });
     Ok(())
 }
 

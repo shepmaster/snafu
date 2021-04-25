@@ -4,7 +4,7 @@ extern crate proc_macro;
 
 use crate::parse::attributes_from_syn;
 use proc_macro::TokenStream;
-use quote::{format_ident, quote};
+use quote::quote;
 use std::collections::VecDeque;
 use std::fmt;
 
@@ -47,9 +47,15 @@ struct FieldContainer {
     visibility: Option<UserInput>,
 }
 
+enum SuffixKind {
+    Default,
+    None,
+    Some(syn::Ident),
+}
+
 enum ContextSelectorKind {
     Context {
-        suffix: Option<syn::Ident>,
+        suffix: SuffixKind,
         source_field: Option<SourceField>,
         user_fields: Vec<Field>,
     },
@@ -839,7 +845,7 @@ fn field_container(
         },
 
         (None, None) => ContextSelectorKind::Context {
-            suffix: None,
+            suffix: SuffixKind::Default,
             source_field,
             user_fields,
         },
@@ -1046,14 +1052,14 @@ fn parse_snafu_tuple_struct(
 
 enum Context {
     Flag(bool),
-    Suffix(syn::Ident),
+    Suffix(SuffixKind),
 }
 
 impl Context {
-    fn into_enabled(self) -> (bool, Option<syn::Ident>) {
+    fn into_enabled(self) -> (bool, SuffixKind) {
         match self {
-            Context::Flag(b) => (b, None),
-            Context::Suffix(suffix) => (true, Some(suffix)),
+            Context::Flag(b) => (b, SuffixKind::None),
+            Context::Suffix(suffix) => (true, suffix),
         }
     }
 }
@@ -1412,21 +1418,10 @@ impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
 }
 
 impl NamedStructInfo {
-    fn selector_name(&self) -> syn::Ident {
-        let selector_name = self.field_container.name.to_string();
-        let selector_name = selector_name.trim_end_matches("Error");
-        format_ident!(
-            "{}Context",
-            selector_name,
-            span = self.field_container.name.span()
-        )
-    }
-
     fn generate_snafu(self) -> proc_macro2::TokenStream {
         let parameterized_struct_name = self.parameterized_name();
         let original_generics = self.provided_generics_without_defaults();
         let where_clauses = self.provided_where_clauses();
-        let selector_name = self.selector_name();
 
         let Self {
             crate_root,
@@ -1517,7 +1512,7 @@ impl NamedStructInfo {
             parameterized_error_name: &parameterized_struct_name,
             selector_doc_string: &selector_doc_string,
             selector_kind: &selector_kind,
-            selector_name: &selector_name,
+            selector_name: &field_container.name,
             user_fields: &user_fields,
             visibility: visibility.as_ref().map(|x| &**x),
             where_clauses: &where_clauses,

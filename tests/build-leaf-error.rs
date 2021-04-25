@@ -12,7 +12,7 @@ fn other_result() -> Result<i32, ()> {
 }
 
 fn map_result() -> Result<i32> {
-    other_result().map_err(|_| Mine.build())
+    other_result().map_err(|_| MineSnafu.build())
 }
 
 #[test]

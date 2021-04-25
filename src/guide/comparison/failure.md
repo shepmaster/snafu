@@ -32,13 +32,13 @@ enum Error {
 
 fn check_range(x: usize, range: Range<usize>) -> Result<usize, Error> {
     if x < range.start {
-        return Any {
+        return AnySnafu {
             detail: format!("{} is below {}", x, range.start),
         }
         .fail();
     }
     if x >= range.end {
-        return Any {
+        return AnySnafu {
             detail: format!("{} is above {}", x, range.end),
         }
         .fail();
@@ -68,7 +68,7 @@ enum Error {
 }
 
 macro_rules! format_err {
-    ($($arg:tt)*) => { Any { detail: format!($($arg)*) }.fail() }
+    ($($arg:tt)*) => { AnySnafu { detail: format!($($arg)*) }.fail() }
 }
 
 fn check_range(x: usize, range: Range<usize>) -> Result<usize, Error> {
@@ -110,8 +110,8 @@ enum Error {
 }
 
 fn check_range(value: usize, range: Range<usize>) -> Result<usize, Error> {
-    ensure!(value >= range.start, Below { value, bound: range.start });
-    ensure!(value < range.end, Above { value, bound: range.end });
+    ensure!(value >= range.start, BelowSnafu { value, bound: range.start });
+    ensure!(value < range.end, AboveSnafu { value, bound: range.end });
     Ok(value)
 }
 ```
@@ -144,10 +144,10 @@ fn two_errors_from_same_underlying_error(
 ) -> Result<(i32, i32), Error> {
     let area_code: i32 = area_code
         .parse()
-        .context(AreaCodeInvalid { value: area_code })?;
+        .context(AreaCodeInvalidSnafu { value: area_code })?;
     let exchange: i32 = exchange
         .parse()
-        .context(PhoneExchangeInvalid { value: exchange })?;
+        .context(PhoneExchangeInvalidSnafu { value: exchange })?;
     Ok((area_code, exchange))
 }
 ```

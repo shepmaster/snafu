@@ -27,15 +27,15 @@ fn example(root: impl AsRef<Path>, user_id: Option<i32>) -> Result<()> {
     let root = root.as_ref();
     let filename = &root.join(CONFIG_FILENAME);
 
-    let config = fs::read(filename).context(OpenConfig { filename })?;
+    let config = fs::read(filename).context(OpenConfigSnafu { filename })?;
 
     let _user_id = match user_id {
-        None => MissingUser.fail()?,
-        Some(user_id) if user_id != 42 => InvalidUser { user_id }.fail()?,
+        None => MissingUserSnafu.fail()?,
+        Some(user_id) if user_id != 42 => InvalidUserSnafu { user_id }.fail()?,
         Some(user_id) => user_id,
     };
 
-    fs::write(filename, config).context(SaveConfig)?;
+    fs::write(filename, config).context(SaveConfigSnafu)?;
 
     Ok(())
 }

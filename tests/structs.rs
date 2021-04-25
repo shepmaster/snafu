@@ -5,6 +5,8 @@
 mod backtrace;
 #[path = "structs/backtrace_attributes.rs"]
 mod backtrace_attributes;
+#[path = "structs/context_selector_name.rs"]
+mod context_selector_name;
 #[path = "structs/display.rs"]
 mod display;
 #[path = "structs/from_option.rs"]

@@ -1,36 +1,36 @@
-error[E0603]: unit struct `Private` is private
+error[E0603]: unit struct `PrivateSnafu` is private
   --> $DIR/visibility.rs:19:30
    |
-19 |         let _ = self::inner::Private.build();
-   |                              ^^^^^^^ private unit struct
+19 |         let _ = self::inner::PrivateSnafu.build();
+   |                              ^^^^^^^^^^^^ private unit struct
    |
-note: the unit struct `Private` is defined here
+note: the unit struct `PrivateSnafu` is defined here
   --> $DIR/visibility.rs:7:25
    |
 7  |         #[derive(Debug, Snafu)]
    |                         ^^^^^
    = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0603]: unit struct `PubInPath` is private
+error[E0603]: unit struct `PubInPathSnafu` is private
   --> $DIR/visibility.rs:24:33
    |
-24 |     let _ = self::outer::inner::PubInPath.build();
-   |                                 ^^^^^^^^^ private unit struct
+24 |     let _ = self::outer::inner::PubInPathSnafu.build();
+   |                                 ^^^^^^^^^^^^^^ private unit struct
    |
-note: the unit struct `PubInPath` is defined here
+note: the unit struct `PubInPathSnafu` is defined here
   --> $DIR/visibility.rs:7:25
    |
 7  |         #[derive(Debug, Snafu)]
    |                         ^^^^^
    = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0603]: unit struct `Private` is private
+error[E0603]: unit struct `PrivateSnafu` is private
   --> $DIR/visibility.rs:28:33
    |
-28 |     let _ = self::outer::inner::Private.build();
-   |                                 ^^^^^^^ private unit struct
+28 |     let _ = self::outer::inner::PrivateSnafu.build();
+   |                                 ^^^^^^^^^^^^ private unit struct
    |
-note: the unit struct `Private` is defined here
+note: the unit struct `PrivateSnafu` is defined here
   --> $DIR/visibility.rs:7:25
    |
 7  |         #[derive(Debug, Snafu)]
@@ -38,19 +38,19 @@ note: the unit struct `Private` is defined here
    = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0624]: associated function `build` is private
-  --> $DIR/visibility.rs:19:38
+  --> $DIR/visibility.rs:19:43
    |
-19 |         let _ = self::inner::Private.build();
-   |                                      ^^^^^ private associated function
-
-error[E0624]: associated function `build` is private
-  --> $DIR/visibility.rs:24:43
-   |
-24 |     let _ = self::outer::inner::PubInPath.build();
+19 |         let _ = self::inner::PrivateSnafu.build();
    |                                           ^^^^^ private associated function
 
 error[E0624]: associated function `build` is private
-  --> $DIR/visibility.rs:28:41
+  --> $DIR/visibility.rs:24:48
    |
-28 |     let _ = self::outer::inner::Private.build();
-   |                                         ^^^^^ private associated function
+24 |     let _ = self::outer::inner::PubInPathSnafu.build();
+   |                                                ^^^^^ private associated function
+
+error[E0624]: associated function `build` is private
+  --> $DIR/visibility.rs:28:46
+   |
+28 |     let _ = self::outer::inner::PrivateSnafu.build();
+   |                                              ^^^^^ private associated function

@@ -12,7 +12,7 @@ mod enabling {
             cause: InnerError,
         }
 
-        let _ = inner().context(Context);
+        let _ = inner().context(Snafu);
     }
 
     #[test]
@@ -23,7 +23,7 @@ mod enabling {
             cause: InnerError,
         }
 
-        let _ = inner().context(Context);
+        let _ = inner().context(Snafu);
     }
 
     #[test]
@@ -34,7 +34,7 @@ mod enabling {
             cause: Box<InnerError>,
         }
 
-        let _ = inner().context(Context);
+        let _ = inner().context(Snafu);
     }
 
     #[test]
@@ -45,7 +45,7 @@ mod enabling {
             source: i32,
         }
 
-        let _ = Context { source: 42 }.build();
+        let _ = Snafu { source: 42 }.build();
     }
 }
 
@@ -62,7 +62,7 @@ mod transformation {
             source: io::Error,
         }
 
-        let _ = inner().context(Context);
+        let _ = inner().context(Snafu);
     }
 
     #[test]
@@ -77,7 +77,7 @@ mod transformation {
             source: io::Error,
         }
 
-        let _ = inner().context(Context);
+        let _ = inner().context(Snafu);
     }
 
     #[test]
@@ -88,7 +88,7 @@ mod transformation {
             source: Box<dyn StdError>,
         }
 
-        let _ = inner().context(Context);
+        let _ = inner().context(Snafu);
     }
 }
 

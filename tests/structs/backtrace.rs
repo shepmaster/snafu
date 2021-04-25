@@ -7,7 +7,7 @@ fn can_include_a_backtrace_in_leaf() {
         backtrace: Backtrace,
     }
 
-    let e = Context.build();
+    let e = Snafu.build();
     let backtrace = ErrorCompat::backtrace(&e);
     assert!(backtrace.is_some());
 }
@@ -23,8 +23,8 @@ fn can_include_a_backtrace_with_source() {
         backtrace: Backtrace,
     }
 
-    let i = InnerContext.build();
-    let e = Context.into_error(i);
+    let i = InnerSnafu.build();
+    let e = Snafu.into_error(i);
     let backtrace = ErrorCompat::backtrace(&e);
     assert!(backtrace.is_some());
 }
@@ -41,7 +41,7 @@ fn can_include_a_backtrace_with_no_context() {
         backtrace: Backtrace,
     }
 
-    let i = InnerContext.build();
+    let i = InnerSnafu.build();
     let e = Error::from(i);
     let backtrace = ErrorCompat::backtrace(&e);
     assert!(backtrace.is_some());

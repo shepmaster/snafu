@@ -10,7 +10,7 @@ struct Error {
 type Result<T, E = Error> = std::result::Result<T, E>;
 
 fn example(name: &str) -> Result<()> {
-    ensure!(name.is_empty(), Context { name });
+    ensure!(name.is_empty(), Snafu { name });
     Ok(())
 }
 

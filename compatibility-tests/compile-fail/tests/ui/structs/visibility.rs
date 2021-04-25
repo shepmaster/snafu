@@ -8,7 +8,7 @@ pub mod inner {
 }
 
 fn private_is_default() {
-    let _ = inner::Context.build();
+    let _ = inner::Snafu.build();
 }
 
 fn main() {}

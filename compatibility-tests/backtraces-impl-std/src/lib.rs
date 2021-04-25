@@ -11,7 +11,7 @@ enum Error {
 type Result<T, E = Error> = std::result::Result<T, E>;
 
 fn example() -> Result<()> {
-    WithBacktrace.fail()
+    WithBacktraceSnafu.fail()
 }
 
 #[test]

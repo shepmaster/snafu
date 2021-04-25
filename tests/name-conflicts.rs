@@ -8,6 +8,7 @@ mod snafu {}
 
 #[derive(Debug, Snafu)]
 enum VariantNamedNone {
+    #[snafu(context(suffix(false)))]
     None,
 }
 

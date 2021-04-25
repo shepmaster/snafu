@@ -166,11 +166,30 @@ struct Context {
 
 impl Context {
     fn into_component(self) -> super::Context {
+        use super::{Context::*, SuffixKind};
+
         match self.arg.into_option() {
-            None => super::Context::Flag(true),
+            None => Flag(true),
             Some(arg) => match arg {
-                ContextArg::Flag { value } => super::Context::Flag(value.value),
-                ContextArg::Suffix { suffix, .. } => super::Context::Suffix(suffix),
+                ContextArg::Flag { value } => Flag(value.value),
+                ContextArg::Suffix {
+                    suffix:
+                        SuffixArg::Flag {
+                            value: LitBool { value: true, .. },
+                        },
+                    ..
+                } => Suffix(SuffixKind::Default),
+                ContextArg::Suffix {
+                    suffix:
+                        SuffixArg::Flag {
+                            value: LitBool { value: false, .. },
+                        },
+                    ..
+                } => Suffix(SuffixKind::None),
+                ContextArg::Suffix {
+                    suffix: SuffixArg::Suffix { suffix, .. },
+                    ..
+                } => Suffix(SuffixKind::Some(suffix)),
             },
         }
     }
@@ -199,7 +218,7 @@ enum ContextArg {
     Suffix {
         suffix_token: kw::suffix,
         paren_token: token::Paren,
-        suffix: Ident,
+        suffix: SuffixArg,
     },
 }
 
@@ -238,6 +257,41 @@ impl ToTokens for ContextArg {
                 paren_token.surround(tokens, |tokens| {
                     suffix.to_tokens(tokens);
                 })
+            }
+        }
+    }
+}
+
+enum SuffixArg {
+    Flag { value: LitBool },
+    Suffix { suffix: Ident },
+}
+
+impl Parse for SuffixArg {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(LitBool) {
+            Ok(SuffixArg::Flag {
+                value: input.parse()?,
+            })
+        } else if lookahead.peek(syn::Ident) {
+            Ok(SuffixArg::Suffix {
+                suffix: input.parse()?,
+            })
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+impl ToTokens for SuffixArg {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            SuffixArg::Flag { value } => {
+                value.to_tokens(tokens);
+            }
+            SuffixArg::Suffix { suffix } => {
+                suffix.to_tokens(tokens);
             }
         }
     }
