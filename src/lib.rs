@@ -4,77 +4,191 @@
 
 //! # SNAFU
 //!
-//! SNAFU is a library to easily assign underlying errors into
-//! domain-specific errors while adding context. For detailed
-//! information, please see the [user's guide](guide).
+//! SNAFU is a library to easily generate errors and add information
+//! to underlying errors, especially when the same underlying error
+//! type can occur in different contexts.
 //!
-//! ## Quick example
+//! ## Features
 //!
-//! This example mimics a (very poor) authentication process that
-//! opens a file, writes to a file, and checks the user's ID. While
-//! two of our operations involve an [`io::Error`](std::io::Error),
-//! these are different conceptual errors to us.
+//! - [Turnkey errors based on strings](Whatever)
+//! - [Custom error types](Snafu)
+//!   - Including a conversion path from turnkey errors
+//! - [Backtraces](Backtrace)
+//! - Extension traits for
+//!   - [`Results`](ResultExt)
+//!   - [`Options`](OptionExt)
+#![cfg_attr(feature = "futures", doc = "   - [`Futures`](futures::TryFutureExt)")]
+#![cfg_attr(feature = "futures", doc = "   - [`Streams`](futures::TryStreamExt)")]
+//! - Suitable for libraries and applications
+//! - `no-std` compatibility
+//! - Generic types and lifetimes
 //!
-//! SNAFU creates a *context selector* type for each variant in the
-//! error enum. These context selectors are used with the
-//! [`context`](ResultExt::context) method to provide ergonomic error
-//! handling.
+//! For detailed information, please see the [user's guide](guide).
+//!
+//! ## Quick start
+//!
+//! If you want to report errors without hassle, start with the
+//! [`Whatever`][] type and the [`whatever!`][] macro:
 //!
 //! ```rust
-//! use snafu::{ensure, Backtrace, ErrorCompat, ResultExt, Snafu};
-//! use std::{
-//!     fs,
-//!     path::{Path, PathBuf},
-//! };
+//! use snafu::{Whatever, whatever};
+//!
+//! fn is_valid_id(id: u16) -> Result<(), Whatever> {
+//!     if id < 10 {
+//!         whatever!("ID may not be less than 10, but it was {}", id);
+//!     }
+//!     Ok(())
+//! }
+//! ```
+//!
+//! You can also use it to wrap any other error:
+//!
+//! ```rust
+//! use snafu::{ResultExt, Whatever, whatever};
+//!
+//! fn read_config_file(path: &str) -> Result<String, Whatever> {
+//!     std::fs::read_to_string(path)
+//!         .with_whatever_context(|_| format!("Could not read file {}", path))
+//! }
+//! ```
+//!
+//! [`Whatever`][] allows for a short message and tracks a
+//! [`Backtrace`][] for every error:
+//!
+//! ```rust
+//! use snafu::{ErrorCompat, ResultExt, Whatever};
+//!
+//! fn main() {
+//! # fn returns_an_error() -> Result<(), Whatever> { Ok(()) }
+//!     if let Err(e) = returns_an_error() {
+//!         eprintln!("An error occurred: {}", e);
+//!         if let Some(bt) = ErrorCompat::backtrace(&e) {
+//! #           #[cfg(not(feature = "backtraces-impl-backtrace-crate"))]
+//!             eprintln!("{}", bt);
+//!         }
+//!     }
+//! }
+//! ```
+//!
+//! ## Custom error types
+//!
+//! Many projects will hit limitations of the `Whatever` type. When
+//! that occurs, it's time to create your own error type by deriving
+//! [`Snafu`][]!
+//!
+//! ### Structs
+//!
+//! SNAFU will read your error struct definition and create a *context
+//! selector* type (called `InvalidIdContext` in this example). These
+//! context selectors are used with the [`ensure!`][] macro to provide
+//! ergonomic error creation:
+//!
+//! ```rust
+//! use snafu::{ensure, Snafu};
+//!
+//! #[derive(Debug, Snafu)]
+//! #[snafu(display("ID may not be less than 10, but it was {}", id))]
+//! struct InvalidIdError {
+//!     id: u16,
+//! }
+//!
+//! fn is_valid_id(id: u16) -> Result<(), InvalidIdError> {
+//!     ensure!(id >= 10, InvalidIdContext { id });
+//!     Ok(())
+//! }
+//! ```
+//!
+//! If you add a `source` field to your error, you can then wrap an
+//! underlying error using the [`context`](ResultExt::context)
+//! extension method:
+//!
+//! ```rust
+//! use snafu::{ResultExt, Snafu};
+//!
+//! #[derive(Debug, Snafu)]
+//! #[snafu(display("Could not read file {}", path))]
+//! struct ConfigFileError {
+//!     source: std::io::Error,
+//!     path: String,
+//! }
+//!
+//! fn read_config_file(path: &str) -> Result<String, ConfigFileError> {
+//!     std::fs::read_to_string(path).context(ConfigFileContext { path })
+//! }
+//! ```
+//!
+//! ### Enums
+//!
+//! While error structs are good for constrained cases, they don't
+//! allow for reporting multiple possible kinds of errors at one
+//! time. Error enums solve that problem.
+//!
+//! SNAFU will read your error enum definition and create a *context
+//! selector* type for each variant with **the same name as the
+//! variant** (called `InvalidId` in this example). These context
+//! selectors are used with the [`ensure!`][] macro to provide
+//! ergonomic error creation:
+//!
+//! ```rust
+//! use snafu::{ensure, Snafu};
 //!
 //! #[derive(Debug, Snafu)]
 //! enum Error {
-//!     #[snafu(display("Could not open config from {}: {}", filename.display(), source))]
-//!     OpenConfig {
-//!         filename: PathBuf,
-//!         source: std::io::Error,
-//!     },
-//!     #[snafu(display("Could not save config to {}: {}", filename.display(), source))]
-//!     SaveConfig {
-//!         filename: PathBuf,
-//!         source: std::io::Error,
-//!     },
-//!     #[snafu(display("The user id {} is invalid", user_id))]
-//!     UserIdInvalid { user_id: i32, backtrace: Backtrace },
+//!     #[snafu(display("ID may not be less than 10, but it was {}", id))]
+//!     InvalidId { id: u16 },
 //! }
 //!
-//! type Result<T, E = Error> = std::result::Result<T, E>;
-//!
-//! fn log_in_user<P>(config_root: P, user_id: i32) -> Result<bool>
-//! where
-//!     P: AsRef<Path>,
-//! {
-//!     let config_root = config_root.as_ref();
-//!     let filename = &config_root.join("config.toml");
-//!
-//!     let config = fs::read(filename).context(OpenConfig { filename })?;
-//!     // Perform updates to config
-//!     fs::write(filename, config).context(SaveConfig { filename })?;
-//!
-//!     ensure!(user_id == 42, UserIdInvalid { user_id });
-//!
-//!     Ok(true)
+//! fn is_valid_id(id: u16) -> Result<(), Error> {
+//!     ensure!(id >= 10, InvalidId { id });
+//!     Ok(())
 //! }
+//! ```
 //!
-//! # const CONFIG_DIRECTORY: &str = "/does/not/exist";
-//! # const USER_ID: i32 = 0;
-//! # #[cfg(not(feature = "backtraces-impl-backtrace-crate"))]
-//! fn log_in() {
-//!     match log_in_user(CONFIG_DIRECTORY, USER_ID) {
-//!         Ok(true) => println!("Logged in!"),
-//!         Ok(false) => println!("Not logged in!"),
-//!         Err(e) => {
-//!             eprintln!("An error occurred: {}", e);
-//!             if let Some(backtrace) = ErrorCompat::backtrace(&e) {
-//!                 println!("{}", backtrace);
-//!             }
-//!         }
+//! If you add a `source` field to a variant, you can then wrap an
+//! underlying error using the [`context`](ResultExt::context)
+//! extension method:
+//!
+//! ```rust
+//! use snafu::{ResultExt, Snafu};
+//!
+//! #[derive(Debug, Snafu)]
+//! enum Error {
+//!     #[snafu(display("Could not read file {}", path))]
+//!     ConfigFile {
+//!         source: std::io::Error,
+//!         path: String,
 //!     }
+//! }
+//!
+//! fn read_config_file(path: &str) -> Result<String, Error> {
+//!     std::fs::read_to_string(path).context(ConfigFile { path })
+//! }
+//! ```
+//!
+//! You can combine the power of the [`whatever!`][] macro with an
+//! enum error type. This is great if you started out with
+//! [`Whatever`][] and are moving to a custom error type:
+//!
+//! ```rust
+//! use snafu::{ensure, whatever, Snafu};
+//!
+//! #[derive(Debug, Snafu)]
+//! enum Error {
+//!     #[snafu(display("ID may not be less than 10, but it was {}", id))]
+//!     InvalidId { id: u16 },
+//!
+//!     #[snafu(whatever, display("{}", message))]
+//!     Whatever {
+//!         message: String,
+//!         #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
+//!         source: Option<Box<dyn std::error::Error>,>
+//!     }
+//! }
+//!
+//! fn is_valid_id(id: u16) -> Result<(), Error> {
+//!     ensure!(id >= 10, InvalidId { id });
+//!     whatever!("Just kidding... this function always fails!");
+//!     Ok(())
 //! }
 //! ```
 
