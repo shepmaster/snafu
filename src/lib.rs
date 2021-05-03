@@ -227,7 +227,10 @@ pub use std::backtrace::Backtrace;
 #[cfg(feature = "futures")]
 pub mod futures;
 
-pub use snafu_derive::Snafu;
+doc_comment::doc_comment! {
+    include_str!("Snafu.md"),
+    pub use snafu_derive::Snafu;
+}
 
 #[cfg(feature = "guide")]
 macro_rules! generate_guide {
@@ -259,7 +262,6 @@ macro_rules! generate_guide {
 #[cfg(feature = "guide")]
 generate_guide! {
     pub mod guide {
-        pub mod attributes;
         pub mod comparison {
             pub mod failure;
         }

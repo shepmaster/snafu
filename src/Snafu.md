@@ -1,4 +1,7 @@
-# Attributes understood by the `Snafu` macro
+The `Snafu` macro is the entrypoint to defining your own error
+types. It is designed to require little configuration for the
+recommended and typical usecases while still offering flexibility for
+unique situations.
 
 ## Controlling `Display`
 

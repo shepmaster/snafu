@@ -11,9 +11,7 @@ use std::fmt;
 mod parse;
 mod shared;
 
-/// See the crate-level documentation for SNAFU which contains tested
-/// examples of this macro.
-
+// The snafu crate re-exports this and adds useful documentation.
 #[proc_macro_derive(Snafu, attributes(snafu))]
 pub fn snafu_derive(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).expect("Could not parse type to derive Error for");
