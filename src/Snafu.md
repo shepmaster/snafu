@@ -3,6 +3,13 @@ types. It is designed to require little configuration for the
 recommended and typical usecases while still offering flexibility for
 unique situations.
 
+- [`backtrace`](#controlling-backtraces)
+- [`context`](#controlling-context)
+- [`crate_root`](#controlling-how-the-snafu-crate-is-resolved)
+- [`display`](#controlling-display)
+- [`source`](#controlling-error-sources)
+- [`visibility`](#controlling-visibility)
+
 ## Controlling `Display`
 
 There are a number of ways you can specify how the `Display` trait
