@@ -1111,6 +1111,18 @@ impl GenerateBacktrace for Backtrace {
 /// ```
 ///
 /// See [`whatever!`][] for detailed usage instructions.
+///
+/// ## Limitations
+///
+/// When wrapping errors, only the backtrace from the shallowest
+/// function is guaranteed to be available. If you need the deepest
+/// possible trace, consider creating a custom error type and [using
+/// `#[snafu(backtrace)]` on the `source`
+/// field](Snafu#controlling-backtraces). If a best-effort attempt is
+/// sufficient, see the [`backtrace`][Self::backtrace] method.
+///
+/// When the standard library stabilizes backtrace support, this
+/// behavior may change.
 #[derive(Debug, Snafu)]
 #[snafu(crate_root(crate))]
 #[snafu(whatever)]
@@ -1121,4 +1133,24 @@ pub struct Whatever {
     source: Option<Box<dyn std::error::Error>>,
     message: String,
     backtrace: Backtrace,
+}
+
+#[cfg(any(feature = "std", test))]
+impl Whatever {
+    /// Gets the backtrace from the deepest `Whatever` error. If none
+    /// of the underlying errors are `Whatever`, returns the backtrace
+    /// from when this instance was created.
+    pub fn backtrace(&self) -> Option<&Backtrace> {
+        let mut best_backtrace = &self.backtrace;
+
+        let mut source = self.source();
+        while let Some(s) = source {
+            if let Some(this) = s.downcast_ref::<Self>() {
+                best_backtrace = &this.backtrace;
+            }
+            source = s.source();
+        }
+
+        Some(best_backtrace)
+    }
 }
