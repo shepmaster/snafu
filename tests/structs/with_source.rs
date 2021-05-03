@@ -33,8 +33,9 @@ fn implements_error() {
     assert_eq!(e.filename, Path::new(path));
 
     let source = e.source().expect("Source must be present");
-    let source_as_io_error =
-        StdError::downcast_ref::<io::Error>(source).expect("Source must be io::Error");
+    let source_as_io_error = source
+        .downcast_ref::<io::Error>()
+        .expect("Source must be io::Error");
     assert!(ptr::eq(source_as_io_error, &e.source));
 
     let display = e.to_string();
