@@ -8,7 +8,119 @@
 //! domain-specific errors while adding context. For detailed
 //! information, please see the [user's guide](guide).
 //!
-//! ## Quick example
+//! ## Quickstart / Cookbook
+//!
+//! To decide if Snafu might be right for your project and get you
+//! going quickly, the following annotated examples illustrate how
+//! Snafu is used in some common situations.
+//!
+//! ### Basic Error Handling
+//! ```rust
+//! use snafu::Snafu;
+//!
+//! // To use Snafu, derive `Snafu` on an error enum
+//! // which creates a NEW *context selector* type, also named
+//! //`LogicalError` but distinct from `Error::LogicalError`
+//!
+//! #[derive(Debug, Snafu)]
+//! enum Error {
+//!     #[snafu(display("Programming Error: {}", val))]
+//!     LogicalError { val: u64 },
+//! }
+//!
+//! // Then, define a corresponding Result type
+//! type Result<T, E = Error> = std::result::Result<T, E>;
+//!
+//! /// Search for the answer
+//! fn calculate(val: u64) -> Result<()> {
+//!   if val != 42 {
+//!      // Generate a Err(Error::LogicalError(..)) using the SNAFU context selector
+//!      LogicalError { val }.fail()
+//!   } else {
+//!      Ok(())
+//!   }
+//! }
+//! ```
+//!
+//! ### Contextual Errors / [`ResultExt`]  trait
+//!
+//! Oftentimes, errors in your application occur due to an underlying error
+//! in libraries you call. Snafu makes the underlying source easy to capture and annotate
+//! with the [`ResultExt`] trait.
+//!
+//! ```rust
+//! use snafu::{ResultExt, Snafu};
+//! use std::fs::File;
+//!
+//! // As before, derive `Snafu` on an Error enum, but this time include
+//! // a `source` field with the corresponding error type
+//!
+//! #[derive(Debug, Snafu)]
+//! enum Error {
+//!     #[snafu(display("Could not open config from {}: {}", filename, source))]
+//!     OpenConfig {
+//!         // Users will appreciate knowing *what* file could not be opened
+//!         // which is information NOT included in std::io::Error
+//!         filename: String,
+//!
+//!         // NOTE: source error *must* be on a field named `source`
+//!         source: std::io::Error,
+//!     },
+//! }
+//!
+//! type Result<T, E = Error> = std::result::Result<T, E>;
+//!
+//! /// Try and open a config file
+//! fn open_the_file(filename: &'static str) -> Result<()> {
+//!   // Use the `context` function and `OpenConfig` context selector
+//!   // to map the std::io::Error to Error::OpenConfig and add the
+//!   // filename as well.
+//!   let file = File::open(&filename)
+//!     // Note that the context selector calls `filename.into()` automatically
+//!     // to convert the `str` into `String` in `Error::OpenConfig`
+//!     .context(OpenConfig { filename })?;
+//!
+//!   // do something with `file`
+//!   Ok(())
+//! }
+//! ```
+//!
+//! ### Boxing Errors
+//! In rare occasions, you might not know the type of error
+//! produced from an underlying library. While non-ideal,
+//! you can still handle this situation using `Box`ed errors with SNAFU.
+//!
+//! ```rust
+//! use snafu::{ResultExt, Snafu};
+//! use std::fs::File;
+//!
+//! // Derive `Snafu` and define a `source` field as a `Box`
+//!
+//! #[derive(Debug, Snafu)]
+//! enum Error {
+//!     #[snafu(display("Could not open config from {}: {}", filename, source))]
+//!     OpenConfig {
+//!         filename: String,
+//!         source: Box<dyn std::error::Error>,
+//!     },
+//! }
+//!
+//! type Result<T, E = Error> = std::result::Result<T, E>;
+//!
+//! fn open_the_file(filename: &'static str) -> Result<()> {
+//!   // we can `Box` the error when we don't know the type
+//!   // but still want to return Err(Error::OpenConfig{..}),
+//!   // with a filename as context
+//!   let file = File::open(&filename)
+//!     .map_err(|e| Box::new(e) as _)
+//!     .context(OpenConfig { filename })?;
+//!
+//!   // do something with `file`
+//!   Ok(())
+//! }
+//! ```
+//!
+//! ## Complete Example
 //!
 //! This example mimics a (very poor) authentication process that
 //! opens a file, writes to a file, and checks the user's ID. While
