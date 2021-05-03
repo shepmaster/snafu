@@ -6,7 +6,9 @@ pub(crate) use self::error_compat::{ErrorCompat, ErrorCompatBacktraceMatchArm};
 pub mod context_selector {
     use crate::{ContextSelectorKind, Field};
     use proc_macro2::TokenStream;
-    use quote::{format_ident, quote, ToTokens};
+    use quote::{format_ident, quote, IdentFragment, ToTokens};
+
+    const DEFAULT_SUFFIX: &str = "";
 
     #[derive(Copy, Clone)]
     pub(crate) struct ContextSelector<'a> {
@@ -69,8 +71,23 @@ pub mod context_selector {
         }
 
         fn parameterized_selector_name(&self) -> TokenStream {
-            let selector_name = self.selector_name;
+            let selector_name = self.selector_name.to_string();
+            let selector_name = selector_name.trim_end_matches("Error");
+            let suffix: &dyn IdentFragment = match self.selector_kind {
+                ContextSelectorKind::Context {
+                    suffix: Some(suffix),
+                    ..
+                } => suffix,
+                _ => &DEFAULT_SUFFIX,
+            };
+            let selector_name = format_ident!(
+                "{}{}",
+                selector_name,
+                suffix,
+                span = self.selector_name.span()
+            );
             let user_generics = self.user_field_generics();
+
             quote! { #selector_name<#(#user_generics,)*> }
         }
 

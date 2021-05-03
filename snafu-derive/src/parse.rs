@@ -5,7 +5,7 @@ use syn::{
     parenthesized,
     parse::{Parse, ParseBuffer, ParseStream, Result},
     punctuated::Punctuated,
-    token, Expr, LitBool, LitStr, Path, Type,
+    token, Expr, Ident, LitBool, LitStr, Path, Type,
 };
 
 mod kw {
@@ -21,6 +21,8 @@ mod kw {
 
     custom_keyword!(delegate); // deprecated
     custom_keyword!(from);
+
+    custom_keyword!(suffix);
 }
 
 pub(crate) fn attributes_from_syn(
@@ -72,7 +74,7 @@ impl From<Attribute> for SnafuAttribute {
 
         match other {
             Backtrace(b) => SnafuAttribute::Backtrace(b.to_token_stream(), b.into_bool()),
-            Context(c) => SnafuAttribute::Context(c.to_token_stream(), c.into_bool()),
+            Context(c) => SnafuAttribute::Context(c.to_token_stream(), c.into_component()),
             CrateRoot(cr) => SnafuAttribute::CrateRoot(cr.to_token_stream(), cr.into_arbitrary()),
             Display(d) => SnafuAttribute::Display(d.to_token_stream(), d.into_arbitrary()),
             Whatever(o) => SnafuAttribute::Whatever(o.to_token_stream()),
@@ -159,12 +161,18 @@ impl ToTokens for BacktraceArg {
 
 struct Context {
     context_token: kw::context,
-    arg: MaybeArg<LitBool>,
+    arg: MaybeArg<ContextArg>,
 }
 
 impl Context {
-    fn into_bool(self) -> bool {
-        self.arg.into_option().map_or(true, |a| a.value)
+    fn into_component(self) -> super::Context {
+        match self.arg.into_option() {
+            None => super::Context::Flag(true),
+            Some(arg) => match arg {
+                ContextArg::Flag { value } => super::Context::Flag(value.value),
+                ContextArg::Suffix { suffix, .. } => super::Context::Suffix(suffix),
+            },
+        }
     }
 }
 
@@ -181,6 +189,57 @@ impl ToTokens for Context {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.context_token.to_tokens(tokens);
         self.arg.to_tokens(tokens);
+    }
+}
+
+enum ContextArg {
+    Flag {
+        value: LitBool,
+    },
+    Suffix {
+        suffix_token: kw::suffix,
+        paren_token: token::Paren,
+        suffix: Ident,
+    },
+}
+
+impl Parse for ContextArg {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(LitBool) {
+            Ok(ContextArg::Flag {
+                value: input.parse()?,
+            })
+        } else if lookahead.peek(kw::suffix) {
+            let content;
+            Ok(ContextArg::Suffix {
+                suffix_token: input.parse()?,
+                paren_token: parenthesized!(content in input),
+                suffix: content.parse()?,
+            })
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+impl ToTokens for ContextArg {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            ContextArg::Flag { value } => {
+                value.to_tokens(tokens);
+            }
+            ContextArg::Suffix {
+                suffix_token,
+                paren_token,
+                suffix,
+            } => {
+                suffix_token.to_tokens(tokens);
+                paren_token.surround(tokens, |tokens| {
+                    suffix.to_tokens(tokens);
+                })
+            }
+        }
     }
 }
 

@@ -3,7 +3,7 @@ use snafu::{ResultExt, Snafu};
 #[derive(Debug, Snafu)]
 enum InnerError {
     #[snafu(display("inner error"))]
-    AnError,
+    AnExample,
 }
 
 #[derive(Debug, Snafu)]
@@ -13,6 +13,6 @@ enum Error {
 
 #[test]
 fn default_error_display() {
-    let err: Error = AnError.fail::<()>().context(NoDisplay).unwrap_err();
+    let err: Error = AnExample.fail::<()>().context(NoDisplay).unwrap_err();
     assert_eq!(format!("{}", err), "NoDisplay: inner error",);
 }

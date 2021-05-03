@@ -49,6 +49,7 @@ struct FieldContainer {
 
 enum ContextSelectorKind {
     Context {
+        suffix: Option<syn::Ident>,
         source_field: Option<SourceField>,
         user_fields: Vec<Field>,
     },
@@ -814,6 +815,7 @@ fn field_container(
     errors.extend(errs);
 
     let (is_context, errs) = contexts.finish_with_location();
+    let is_context = is_context.map(|(c, tt)| (c.into_enabled(), tt));
     errors.extend(errs);
 
     let (is_whatever, errs) = whatevers.finish_with_location();
@@ -822,7 +824,7 @@ fn field_container(
     let source_field = source.map(|(val, _tts)| val);
 
     let selector_kind = match (is_context, is_whatever) {
-        (Some((true, c_tt)), Some(((), o_tt))) => {
+        (Some(((true, _), c_tt)), Some(((), o_tt))) => {
             let txt = "Cannot be both a `context` and `whatever` error";
             return Err(vec![
                 syn::Error::new_spanned(c_tt, txt),
@@ -830,12 +832,19 @@ fn field_container(
             ]);
         }
 
-        (Some((true, _)), None) | (None, None) => ContextSelectorKind::Context {
+        (Some(((true, suffix), _)), None) => ContextSelectorKind::Context {
+            suffix,
             source_field,
             user_fields,
         },
 
-        (Some((false, _)), Some(_)) | (None, Some(_)) => {
+        (None, None) => ContextSelectorKind::Context {
+            suffix: None,
+            source_field,
+            user_fields,
+        },
+
+        (Some(((false, _), _)), Some(_)) | (None, Some(_)) => {
             let mut messages = AtMostOne::new("message", outer_error_location);
 
             for f in user_fields {
@@ -867,7 +876,7 @@ fn field_container(
             }
         }
 
-        (Some((false, _)), None) => {
+        (Some(((false, _), _)), None) => {
             errors.extend(user_fields.into_iter().map(|Field { original, .. }| {
                 syn::Error::new_spanned(
                     original,
@@ -1035,6 +1044,20 @@ fn parse_snafu_tuple_struct(
     })
 }
 
+enum Context {
+    Flag(bool),
+    Suffix(syn::Ident),
+}
+
+impl Context {
+    fn into_enabled(self) -> (bool, Option<syn::Ident>) {
+        match self {
+            Context::Flag(b) => (b, None),
+            Context::Suffix(suffix) => (true, Some(suffix)),
+        }
+    }
+}
+
 enum Source {
     Flag(bool),
     From(syn::Type, syn::Expr),
@@ -1052,7 +1075,7 @@ enum SnafuAttribute {
     Visibility(proc_macro2::TokenStream, UserInput),
     Source(proc_macro2::TokenStream, Vec<Source>),
     Backtrace(proc_macro2::TokenStream, bool),
-    Context(proc_macro2::TokenStream, bool),
+    Context(proc_macro2::TokenStream, Context),
     Whatever(proc_macro2::TokenStream),
     CrateRoot(proc_macro2::TokenStream, UserInput),
     DocComment(proc_macro2::TokenStream, String),
