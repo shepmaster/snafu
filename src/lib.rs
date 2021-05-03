@@ -373,7 +373,31 @@ pub trait ResultExt<T, E>: Sized {
         C: IntoError<E2, Source = E>,
         E2: Error + ErrorCompat;
 
-    #[allow(missing_docs)] // Waiting for premade type
+    /// Extend a [`Result`]'s error with information from a string.
+    ///
+    /// The target error type must implement [`FromString`] by using
+    /// the
+    /// [`#[snafu(whatever)]`][Snafu#controlling-stringly-typed-errors]
+    /// attribute. The premade [`Whatever`] type is also available.
+    ///
+    /// In many cases, you will want to use
+    /// [`with_whatever_context`][Self::with_whatever_context] instead
+    /// as it gives you access to the error and is only called in case
+    /// of error. This method is best suited for when you have a
+    /// string literal.
+    ///
+    /// ```rust
+    /// use snafu::{ResultExt, Whatever};
+    ///
+    /// fn example() -> Result<(), Whatever> {
+    ///     std::fs::read_to_string("/this/does/not/exist")
+    ///         .whatever_context("couldn't open the file")?;
+    ///     Ok(())
+    /// }
+    ///
+    /// let err = example().unwrap_err();
+    /// assert_eq!("couldn't open the file", err.to_string());
+    /// ```
     #[cfg(any(feature = "std", test))]
     fn whatever_context<S, E2>(self, context: S) -> Result<T, E2>
     where
@@ -381,7 +405,40 @@ pub trait ResultExt<T, E>: Sized {
         E2: FromString,
         E: Into<E2::Source>;
 
-    #[allow(missing_docs)] // Waiting for premade type
+    /// Extend a [`Result`]'s error with information from a
+    /// lazily-generated string.
+    ///
+    /// The target error type must implement [`FromString`] by using
+    /// the
+    /// [`#[snafu(whatever)]`][Snafu#controlling-stringly-typed-errors]
+    /// attribute. The premade [`Whatever`] type is also available.
+    ///
+    /// ```rust
+    /// use snafu::{ResultExt, Whatever};
+    ///
+    /// fn example() -> Result<(), Whatever> {
+    ///     let filename = "/this/does/not/exist";
+    ///     std::fs::read_to_string(filename)
+    ///         .with_whatever_context(|_| format!("couldn't open the file {}", filename))?;
+    ///     Ok(())
+    /// }
+    ///
+    /// let err = example().unwrap_err();
+    /// assert_eq!("couldn't open the file /this/does/not/exist", err.to_string());
+    /// ```
+    ///
+    /// The closure is not called when the `Result` is `Ok`:
+    ///
+    /// ```rust
+    /// use snafu::{ResultExt, Whatever};
+    ///
+    /// let value: std::io::Result<i32> = Ok(42);
+    /// let result = value.with_whatever_context::<_, String, Whatever>(|_| {
+    ///     panic!("This block will not be evaluated");
+    /// });
+    ///
+    /// assert!(result.is_ok());
+    /// ```
     #[cfg(any(feature = "std", test))]
     fn with_whatever_context<F, S, E2>(self, context: F) -> Result<T, E2>
     where
@@ -542,14 +599,74 @@ pub trait OptionExt<T>: Sized {
         C: IntoError<E, Source = NoneError>,
         E: Error + ErrorCompat;
 
-    #[allow(missing_docs)] // Waiting for premade type
+    /// Convert an [`Option`] into a [`Result`] with information
+    /// from a string.
+    ///
+    /// The target error type must implement [`FromString`] by using
+    /// the
+    /// [`#[snafu(whatever)]`][Snafu#controlling-stringly-typed-errors]
+    /// attribute. The premade [`Whatever`] type is also available.
+    ///
+    /// In many cases, you will want to use
+    /// [`with_whatever_context`][Self::with_whatever_context] instead
+    /// as it is only called in case of error. This method is best
+    /// suited for when you have a string literal.
+    ///
+    /// ```rust
+    /// use snafu::{OptionExt, Whatever};
+    ///
+    /// fn example(env_var_name: &str) -> Result<(), Whatever> {
+    ///     std::env::var_os(env_var_name)
+    ///         .whatever_context("couldn't get the environment variable")?;
+    ///     Ok(())
+    /// }
+    ///
+    /// let err = example("UNDEFINED_ENVIRONMENT_VARIABLE").unwrap_err();
+    /// assert_eq!("couldn't get the environment variable", err.to_string());
+    /// ```
     #[cfg(any(feature = "std", test))]
     fn whatever_context<S, E>(self, context: S) -> Result<T, E>
     where
         S: Into<String>,
         E: FromString;
 
-    #[allow(missing_docs)] // Waiting for premade type
+    /// Convert an [`Option`] into a [`Result`][] with information from a
+    /// lazily-generated string.
+    ///
+    /// The target error type must implement [`FromString`][] by using
+    /// the
+    /// [`#[snafu(whatever)]`][Snafu#controlling-stringly-typed-errors]
+    /// attribute. The premade [`Whatever`][] type is also available.
+    ///
+    /// ```rust
+    /// use snafu::{OptionExt, Whatever};
+    ///
+    /// fn example(env_var_name: &str) -> Result<(), Whatever> {
+    ///     std::env::var_os(env_var_name).with_whatever_context(|| {
+    ///         format!("couldn't get the environment variable {}", env_var_name)
+    ///     })?;
+    ///     Ok(())
+    /// }
+    ///
+    /// let err = example("UNDEFINED_ENVIRONMENT_VARIABLE").unwrap_err();
+    /// assert_eq!(
+    ///     "couldn't get the environment variable UNDEFINED_ENVIRONMENT_VARIABLE",
+    ///     err.to_string()
+    /// );
+    /// ```
+    ///
+    /// The closure is not called when the `Option` is `Some`:
+    ///
+    /// ```rust
+    /// use snafu::{OptionExt, Whatever};
+    ///
+    /// let value = Some(42);
+    /// let result = value.with_whatever_context::<_, String, Whatever>(|| {
+    ///     panic!("This block will not be evaluated");
+    /// });
+    ///
+    /// assert!(result.is_ok());
+    /// ```
     #[cfg(any(feature = "std", test))]
     fn with_whatever_context<F, S, E>(self, context: F) -> Result<T, E>
     where

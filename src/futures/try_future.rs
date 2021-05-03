@@ -91,13 +91,63 @@ pub trait TryFutureExt: TryFuture + Sized {
         C: IntoError<E, Source = Self::Error>,
         E: Error + ErrorCompat;
 
-    #[allow(missing_docs)] // Waiting for premade type
+    /// Extend a [`TryFuture`]'s error with information from a string.
+    ///
+    /// The target error type must implement [`FromString`] by using
+    /// the
+    /// [`#[snafu(whatever)]`][crate::Snafu#controlling-stringly-typed-errors]
+    /// attribute. The premade [`Whatever`](crate::Whatever) type is also available.
+    ///
+    /// In many cases, you will want to use
+    /// [`with_whatever_context`][Self::with_whatever_context] instead
+    /// as it is only called in case of error. This method is best
+    /// suited for when you have a string literal.
+    ///
+    /// ```rust
+    /// # use futures_crate as futures;
+    /// use futures::future::TryFuture;
+    /// use snafu::{futures::TryFutureExt, Whatever};
+    ///
+    /// fn example() -> impl TryFuture<Ok = i32, Error = Whatever> {
+    ///     api_function().whatever_context("The API failed")
+    /// }
+    ///
+    /// # type ApiError = Box<dyn std::error::Error>;
+    /// fn api_function() -> impl TryFuture<Ok = i32, Error = ApiError> {
+    ///     /* ... */
+    /// # futures::future::ok(42)
+    /// }
+    /// ```
     fn whatever_context<S, E>(self, context: S) -> WhateverContext<Self, S, E>
     where
         S: Into<String>,
         E: FromString;
 
-    #[allow(missing_docs)] // Waiting for premade type
+    /// Extend a [`TryFuture`]'s error with information from a
+    /// lazily-generated string.
+    ///
+    /// The target error type must implement [`FromString`] by using
+    /// the
+    /// [`#[snafu(whatever)]`][crate::Snafu#controlling-stringly-typed-errors]
+    /// attribute. The premade [`Whatever`](crate::Whatever) type is also available.
+    ///
+    /// ```rust
+    /// # use futures_crate as futures;
+    /// use futures::future::TryFuture;
+    /// use snafu::{futures::TryFutureExt, Whatever};
+    ///
+    /// fn example(arg: &'static str) -> impl TryFuture<Ok = i32, Error = Whatever> {
+    ///     api_function(arg).with_whatever_context(move |_| {
+    ///         format!("The API failed for argument {}", arg)
+    ///     })
+    /// }
+    ///
+    /// # type ApiError = Box<dyn std::error::Error>;
+    /// fn api_function(arg: &'static str) -> impl TryFuture<Ok = i32, Error = ApiError> {
+    ///     /* ... */
+    /// # futures::future::ok(42)
+    /// }
+    /// ```
     fn with_whatever_context<F, S, E>(self, context: F) -> WithWhateverContext<Self, F, E>
     where
         F: FnOnce(&Self::Error) -> S,

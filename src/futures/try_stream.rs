@@ -92,13 +92,65 @@ pub trait TryStreamExt: TryStream + Sized {
         C: IntoError<E, Source = Self::Error>,
         E: Error + ErrorCompat;
 
-    #[allow(missing_docs)] // Waiting for premade type
+    /// Extend a [`TryStream`]'s error with information from a string.
+    ///
+    /// The target error type must implement [`FromString`] by using
+    /// the
+    /// [`#[snafu(whatever)]`][crate::Snafu#controlling-stringly-typed-errors]
+    /// attribute. The premade [`Whatever`](crate::Whatever) type is also available.
+    ///
+    /// In many cases, you will want to use
+    /// [`with_whatever_context`][Self::with_whatever_context] instead
+    /// as it is only called in case of error. This method is best
+    /// suited for when you have a string literal.
+    ///
+    /// ```rust
+    /// # use futures_crate as futures;
+    /// use futures::TryStream;
+    /// # use futures::stream;
+    /// use snafu::{futures::TryStreamExt, Whatever};
+    ///
+    /// fn example() -> impl TryStream<Ok = i32, Error = Whatever> {
+    ///     stock_prices().whatever_context("Couldn't get stock prices")
+    /// }
+    ///
+    /// # type ApiError = Box<dyn std::error::Error>;
+    /// fn stock_prices() -> impl TryStream<Ok = i32, Error = ApiError> {
+    ///     /* ... */
+    /// # stream::empty()
+    /// }
+    /// ```
     fn whatever_context<S, E>(self, context: S) -> WhateverContext<Self, S, E>
     where
         S: Into<String>,
         E: FromString;
 
-    #[allow(missing_docs)] // Waiting for premade type
+    /// Extend a [`TryStream`]'s error with information from a
+    /// lazily-generated string.
+    ///
+    /// The target error type must implement [`FromString`] by using
+    /// the
+    /// [`#[snafu(whatever)]`][crate::Snafu#controlling-stringly-typed-errors]
+    /// attribute. The premade [`Whatever`](crate::Whatever) type is also available.
+    ///
+    /// ```rust
+    /// # use futures_crate as futures;
+    /// use futures::TryStream;
+    /// # use futures::stream;
+    /// use snafu::{futures::TryStreamExt, Whatever};
+    ///
+    /// fn example(symbol: &'static str) -> impl TryStream<Ok = i32, Error = Whatever> {
+    ///     stock_prices(symbol).with_whatever_context(move |_| {
+    ///         format!("Couldn't get stock prices for {}", symbol)
+    ///     })
+    /// }
+    ///
+    /// # type ApiError = Box<dyn std::error::Error>;
+    /// fn stock_prices(symbol: &'static str) -> impl TryStream<Ok = i32, Error = ApiError> {
+    ///     /* ... */
+    /// # stream::empty()
+    /// }
+    /// ```
     fn with_whatever_context<F, S, E>(self, context: F) -> WithWhateverContext<Self, F, E>
     where
         F: FnMut(&Self::Error) -> S,
