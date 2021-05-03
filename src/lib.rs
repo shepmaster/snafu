@@ -208,6 +208,9 @@ macro_rules! ensure {
 
 /// Instantiate and return a stringly-typed error message.
 ///
+/// This can be used with the provided [`Whatever`][] type or with a
+/// custom error type that uses `snafu(whatever)`.
+///
 /// # Without an underlying error
 ///
 /// Provide a format string and any optional arguments. The macro will
@@ -842,4 +845,47 @@ impl GenerateBacktrace for Backtrace {
     fn as_backtrace(&self) -> Option<&Backtrace> {
         Some(self)
     }
+}
+
+/// A basic error type that you can use as a first step to better
+/// error handling.
+///
+/// You can use this type in your own application as a quick way to
+/// create errors or add basic context to another error. This can also
+/// be used in a library, but consider wrapping it in an
+/// [opaque](guide::opaque) error to avoid putting the SNAFU crate in
+/// your public API.
+///
+/// ## Examples
+///
+/// ```rust
+/// use snafu::{whatever, ResultExt};
+///
+/// type Result<T, E = snafu::Whatever> = std::result::Result<T, E>;
+///
+/// fn subtract_numbers(a: u32, b: u32) -> Result<u32> {
+///     if a > b {
+///         Ok(a - b)
+///     } else {
+///         whatever!("Can't subtract {} - {}", a, b)
+///     }
+/// }
+///
+/// fn complicated_math(a: u32, b: u32) -> Result<u32> {
+///     let val = subtract_numbers(a, b).whatever_context("Can't do the math")?;
+///     Ok(val * 2)
+/// }
+/// ```
+///
+/// See [`whatever!`][] for detailed usage instructions.
+#[derive(Debug, Snafu)]
+#[snafu(crate_root(crate))]
+#[snafu(whatever)]
+#[snafu(display("{}", message))]
+#[cfg(any(feature = "std", test))]
+pub struct Whatever {
+    #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
+    source: Option<Box<dyn std::error::Error>>,
+    message: String,
+    backtrace: Backtrace,
 }
