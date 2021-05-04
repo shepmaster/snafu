@@ -4,77 +4,191 @@
 
 //! # SNAFU
 //!
-//! SNAFU is a library to easily assign underlying errors into
-//! domain-specific errors while adding context. For detailed
-//! information, please see the [user's guide](guide).
+//! SNAFU is a library to easily generate errors and add information
+//! to underlying errors, especially when the same underlying error
+//! type can occur in different contexts.
 //!
-//! ## Quick example
+//! ## Features
 //!
-//! This example mimics a (very poor) authentication process that
-//! opens a file, writes to a file, and checks the user's ID. While
-//! two of our operations involve an [`io::Error`](std::io::Error),
-//! these are different conceptual errors to us.
+//! - [Turnkey errors based on strings](Whatever)
+//! - [Custom error types](Snafu)
+//!   - Including a conversion path from turnkey errors
+//! - [Backtraces](Backtrace)
+//! - Extension traits for
+//!   - [`Results`](ResultExt)
+//!   - [`Options`](OptionExt)
+#![cfg_attr(feature = "futures", doc = "   - [`Futures`](futures::TryFutureExt)")]
+#![cfg_attr(feature = "futures", doc = "   - [`Streams`](futures::TryStreamExt)")]
+//! - Suitable for libraries and applications
+//! - `no-std` compatibility
+//! - Generic types and lifetimes
 //!
-//! SNAFU creates a *context selector* type for each variant in the
-//! error enum. These context selectors are used with the
-//! [`context`](ResultExt::context) method to provide ergonomic error
-//! handling.
+//! For detailed information, please see the [user's guide](guide).
+//!
+//! ## Quick start
+//!
+//! If you want to report errors without hassle, start with the
+//! [`Whatever`][] type and the [`whatever!`][] macro:
 //!
 //! ```rust
-//! use snafu::{ensure, Backtrace, ErrorCompat, ResultExt, Snafu};
-//! use std::{
-//!     fs,
-//!     path::{Path, PathBuf},
-//! };
+//! use snafu::{Whatever, whatever};
+//!
+//! fn is_valid_id(id: u16) -> Result<(), Whatever> {
+//!     if id < 10 {
+//!         whatever!("ID may not be less than 10, but it was {}", id);
+//!     }
+//!     Ok(())
+//! }
+//! ```
+//!
+//! You can also use it to wrap any other error:
+//!
+//! ```rust
+//! use snafu::{ResultExt, Whatever, whatever};
+//!
+//! fn read_config_file(path: &str) -> Result<String, Whatever> {
+//!     std::fs::read_to_string(path)
+//!         .with_whatever_context(|_| format!("Could not read file {}", path))
+//! }
+//! ```
+//!
+//! [`Whatever`][] allows for a short message and tracks a
+//! [`Backtrace`][] for every error:
+//!
+//! ```rust
+//! use snafu::{ErrorCompat, ResultExt, Whatever};
+//!
+//! fn main() {
+//! # fn returns_an_error() -> Result<(), Whatever> { Ok(()) }
+//!     if let Err(e) = returns_an_error() {
+//!         eprintln!("An error occurred: {}", e);
+//!         if let Some(bt) = ErrorCompat::backtrace(&e) {
+//! #           #[cfg(not(feature = "backtraces-impl-backtrace-crate"))]
+//!             eprintln!("{}", bt);
+//!         }
+//!     }
+//! }
+//! ```
+//!
+//! ## Custom error types
+//!
+//! Many projects will hit limitations of the `Whatever` type. When
+//! that occurs, it's time to create your own error type by deriving
+//! [`Snafu`][]!
+//!
+//! ### Structs
+//!
+//! SNAFU will read your error struct definition and create a *context
+//! selector* type (called `InvalidIdContext` in this example). These
+//! context selectors are used with the [`ensure!`][] macro to provide
+//! ergonomic error creation:
+//!
+//! ```rust
+//! use snafu::{ensure, Snafu};
+//!
+//! #[derive(Debug, Snafu)]
+//! #[snafu(display("ID may not be less than 10, but it was {}", id))]
+//! struct InvalidIdError {
+//!     id: u16,
+//! }
+//!
+//! fn is_valid_id(id: u16) -> Result<(), InvalidIdError> {
+//!     ensure!(id >= 10, InvalidIdContext { id });
+//!     Ok(())
+//! }
+//! ```
+//!
+//! If you add a `source` field to your error, you can then wrap an
+//! underlying error using the [`context`](ResultExt::context)
+//! extension method:
+//!
+//! ```rust
+//! use snafu::{ResultExt, Snafu};
+//!
+//! #[derive(Debug, Snafu)]
+//! #[snafu(display("Could not read file {}", path))]
+//! struct ConfigFileError {
+//!     source: std::io::Error,
+//!     path: String,
+//! }
+//!
+//! fn read_config_file(path: &str) -> Result<String, ConfigFileError> {
+//!     std::fs::read_to_string(path).context(ConfigFileContext { path })
+//! }
+//! ```
+//!
+//! ### Enums
+//!
+//! While error structs are good for constrained cases, they don't
+//! allow for reporting multiple possible kinds of errors at one
+//! time. Error enums solve that problem.
+//!
+//! SNAFU will read your error enum definition and create a *context
+//! selector* type for each variant with **the same name as the
+//! variant** (called `InvalidId` in this example). These context
+//! selectors are used with the [`ensure!`][] macro to provide
+//! ergonomic error creation:
+//!
+//! ```rust
+//! use snafu::{ensure, Snafu};
 //!
 //! #[derive(Debug, Snafu)]
 //! enum Error {
-//!     #[snafu(display("Could not open config from {}: {}", filename.display(), source))]
-//!     OpenConfig {
-//!         filename: PathBuf,
-//!         source: std::io::Error,
-//!     },
-//!     #[snafu(display("Could not save config to {}: {}", filename.display(), source))]
-//!     SaveConfig {
-//!         filename: PathBuf,
-//!         source: std::io::Error,
-//!     },
-//!     #[snafu(display("The user id {} is invalid", user_id))]
-//!     UserIdInvalid { user_id: i32, backtrace: Backtrace },
+//!     #[snafu(display("ID may not be less than 10, but it was {}", id))]
+//!     InvalidId { id: u16 },
 //! }
 //!
-//! type Result<T, E = Error> = std::result::Result<T, E>;
-//!
-//! fn log_in_user<P>(config_root: P, user_id: i32) -> Result<bool>
-//! where
-//!     P: AsRef<Path>,
-//! {
-//!     let config_root = config_root.as_ref();
-//!     let filename = &config_root.join("config.toml");
-//!
-//!     let config = fs::read(filename).context(OpenConfig { filename })?;
-//!     // Perform updates to config
-//!     fs::write(filename, config).context(SaveConfig { filename })?;
-//!
-//!     ensure!(user_id == 42, UserIdInvalid { user_id });
-//!
-//!     Ok(true)
+//! fn is_valid_id(id: u16) -> Result<(), Error> {
+//!     ensure!(id >= 10, InvalidId { id });
+//!     Ok(())
 //! }
+//! ```
 //!
-//! # const CONFIG_DIRECTORY: &str = "/does/not/exist";
-//! # const USER_ID: i32 = 0;
-//! # #[cfg(not(feature = "backtraces-impl-backtrace-crate"))]
-//! fn log_in() {
-//!     match log_in_user(CONFIG_DIRECTORY, USER_ID) {
-//!         Ok(true) => println!("Logged in!"),
-//!         Ok(false) => println!("Not logged in!"),
-//!         Err(e) => {
-//!             eprintln!("An error occurred: {}", e);
-//!             if let Some(backtrace) = ErrorCompat::backtrace(&e) {
-//!                 println!("{}", backtrace);
-//!             }
-//!         }
+//! If you add a `source` field to a variant, you can then wrap an
+//! underlying error using the [`context`](ResultExt::context)
+//! extension method:
+//!
+//! ```rust
+//! use snafu::{ResultExt, Snafu};
+//!
+//! #[derive(Debug, Snafu)]
+//! enum Error {
+//!     #[snafu(display("Could not read file {}", path))]
+//!     ConfigFile {
+//!         source: std::io::Error,
+//!         path: String,
 //!     }
+//! }
+//!
+//! fn read_config_file(path: &str) -> Result<String, Error> {
+//!     std::fs::read_to_string(path).context(ConfigFile { path })
+//! }
+//! ```
+//!
+//! You can combine the power of the [`whatever!`][] macro with an
+//! enum error type. This is great if you started out with
+//! [`Whatever`][] and are moving to a custom error type:
+//!
+//! ```rust
+//! use snafu::{ensure, whatever, Snafu};
+//!
+//! #[derive(Debug, Snafu)]
+//! enum Error {
+//!     #[snafu(display("ID may not be less than 10, but it was {}", id))]
+//!     InvalidId { id: u16 },
+//!
+//!     #[snafu(whatever, display("{}", message))]
+//!     Whatever {
+//!         message: String,
+//!         #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
+//!         source: Option<Box<dyn std::error::Error>,>
+//!     }
+//! }
+//!
+//! fn is_valid_id(id: u16) -> Result<(), Error> {
+//!     ensure!(id >= 10, InvalidId { id });
+//!     whatever!("Just kidding... this function always fails!");
+//!     Ok(())
 //! }
 //! ```
 
@@ -113,7 +227,10 @@ pub use std::backtrace::Backtrace;
 #[cfg(feature = "futures")]
 pub mod futures;
 
-pub use snafu_derive::Snafu;
+doc_comment::doc_comment! {
+    include_str!("Snafu.md"),
+    pub use snafu_derive::Snafu;
+}
 
 #[cfg(feature = "guide")]
 macro_rules! generate_guide {
@@ -145,7 +262,6 @@ macro_rules! generate_guide {
 #[cfg(feature = "guide")]
 generate_guide! {
     pub mod guide {
-        pub mod attributes;
         pub mod comparison {
             pub mod failure;
         }
@@ -202,6 +318,92 @@ macro_rules! ensure {
             return $context_selector
                 .fail()
                 .map_err(::core::convert::Into::into);
+        }
+    };
+}
+
+/// Instantiate and return a stringly-typed error message.
+///
+/// This can be used with the provided [`Whatever`][] type or with a
+/// custom error type that uses `snafu(whatever)`.
+///
+/// # Without an underlying error
+///
+/// Provide a format string and any optional arguments. The macro will
+/// unconditionally exit the calling function with an error.
+///
+/// ```rust
+/// use snafu::{Snafu, whatever};
+///
+/// #[derive(Debug, Snafu)]
+/// #[snafu(whatever, display("Error was: {}", message))]
+/// struct Error {
+///     message: String,
+/// }
+/// type Result<T, E = Error> = std::result::Result<T, E>;
+///
+/// fn get_bank_account_balance(account_id: &str) -> Result<u8> {
+/// # fn moon_is_rising() -> bool { false }
+///     if moon_is_rising() {
+///         whatever!("We are recalibrating the dynamos for account {}, sorry", account_id);
+///     }
+///
+///     Ok(100)
+/// }
+/// ```
+///
+/// # With an underlying error
+///
+/// Provide a `Result` as the first argument, followed by a format
+/// string and any optional arguments. If the `Result` is an error,
+/// the formatted string will be appended to the error and the macro
+/// will exist the calling function with an error. If the `Result` is
+/// not an error, the macro will evaluate to the `Ok` value of the
+/// `Result`.
+///
+/// ```rust
+/// use snafu::{Snafu, whatever};
+///
+/// #[derive(Debug, Snafu)]
+/// #[snafu(whatever, display("Error was: {}", message))]
+/// struct Error {
+///     message: String,
+///     #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
+///     source: Option<Box<dyn std::error::Error>>,
+/// }
+/// type Result<T, E = Error> = std::result::Result<T, E>;
+///
+/// fn calculate_brightness_factor() -> Result<u8> {
+///     let angle = calculate_angle_of_refraction();
+///     let angle = whatever!(angle, "There was no angle");
+///     Ok(angle * 2)
+/// }
+///
+/// fn calculate_angle_of_refraction() -> Result<u8> {
+///     whatever!("The programmer forgot to implement this...");
+/// }
+/// ```
+#[macro_export]
+#[cfg(any(feature = "std", test))]
+macro_rules! whatever {
+    ($fmt:literal$(, $($arg:expr),* $(,)?)?) => {
+        return core::result::Result::Err({
+            $crate::FromString::without_source(
+                format!($fmt$(, $($arg),*)*),
+            )
+        });
+    };
+    ($source:expr, $fmt:literal$(, $($arg:expr),* $(,)?)*) => {
+        match $source {
+            core::result::Result::Ok(v) => v,
+            core::result::Result::Err(e) => {
+                return core::result::Result::Err({
+                    $crate::FromString::with_source(
+                        core::convert::Into::into(e),
+                        format!($fmt$(, $($arg),*)*),
+                    )
+                });
+            }
         }
     };
 }
@@ -287,6 +489,80 @@ pub trait ResultExt<T, E>: Sized {
         C: IntoError<E2, Source = E>,
         E2: Error + ErrorCompat;
 
+    /// Extend a [`Result`]'s error with information from a string.
+    ///
+    /// The target error type must implement [`FromString`] by using
+    /// the
+    /// [`#[snafu(whatever)]`][Snafu#controlling-stringly-typed-errors]
+    /// attribute. The premade [`Whatever`] type is also available.
+    ///
+    /// In many cases, you will want to use
+    /// [`with_whatever_context`][Self::with_whatever_context] instead
+    /// as it gives you access to the error and is only called in case
+    /// of error. This method is best suited for when you have a
+    /// string literal.
+    ///
+    /// ```rust
+    /// use snafu::{ResultExt, Whatever};
+    ///
+    /// fn example() -> Result<(), Whatever> {
+    ///     std::fs::read_to_string("/this/does/not/exist")
+    ///         .whatever_context("couldn't open the file")?;
+    ///     Ok(())
+    /// }
+    ///
+    /// let err = example().unwrap_err();
+    /// assert_eq!("couldn't open the file", err.to_string());
+    /// ```
+    #[cfg(any(feature = "std", test))]
+    fn whatever_context<S, E2>(self, context: S) -> Result<T, E2>
+    where
+        S: Into<String>,
+        E2: FromString,
+        E: Into<E2::Source>;
+
+    /// Extend a [`Result`]'s error with information from a
+    /// lazily-generated string.
+    ///
+    /// The target error type must implement [`FromString`] by using
+    /// the
+    /// [`#[snafu(whatever)]`][Snafu#controlling-stringly-typed-errors]
+    /// attribute. The premade [`Whatever`] type is also available.
+    ///
+    /// ```rust
+    /// use snafu::{ResultExt, Whatever};
+    ///
+    /// fn example() -> Result<(), Whatever> {
+    ///     let filename = "/this/does/not/exist";
+    ///     std::fs::read_to_string(filename)
+    ///         .with_whatever_context(|_| format!("couldn't open the file {}", filename))?;
+    ///     Ok(())
+    /// }
+    ///
+    /// let err = example().unwrap_err();
+    /// assert_eq!("couldn't open the file /this/does/not/exist", err.to_string());
+    /// ```
+    ///
+    /// The closure is not called when the `Result` is `Ok`:
+    ///
+    /// ```rust
+    /// use snafu::{ResultExt, Whatever};
+    ///
+    /// let value: std::io::Result<i32> = Ok(42);
+    /// let result = value.with_whatever_context::<_, String, Whatever>(|_| {
+    ///     panic!("This block will not be evaluated");
+    /// });
+    ///
+    /// assert!(result.is_ok());
+    /// ```
+    #[cfg(any(feature = "std", test))]
+    fn with_whatever_context<F, S, E2>(self, context: F) -> Result<T, E2>
+    where
+        F: FnOnce(&E) -> S,
+        S: Into<String>,
+        E2: FromString,
+        E: Into<E2::Source>;
+
     #[doc(hidden)]
     #[deprecated(since = "0.4.0", note = "use ResultExt::context instead")]
     fn eager_context<C, E2>(self, context: C) -> Result<T, E2>
@@ -327,6 +603,30 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
         self.map_err(|error| {
             let context = context();
             context.into_error(error)
+        })
+    }
+
+    #[cfg(any(feature = "std", test))]
+    fn whatever_context<S, E2>(self, context: S) -> Result<T, E2>
+    where
+        S: Into<String>,
+        E2: FromString,
+        E: Into<E2::Source>,
+    {
+        self.map_err(|e| FromString::with_source(e.into(), context.into()))
+    }
+
+    #[cfg(any(feature = "std", test))]
+    fn with_whatever_context<F, S, E2>(self, context: F) -> Result<T, E2>
+    where
+        F: FnOnce(&E) -> S,
+        S: Into<String>,
+        E2: FromString,
+        E: Into<E2::Source>,
+    {
+        self.map_err(|e| {
+            let context = context(&e);
+            FromString::with_source(e.into(), context.into())
         })
     }
 }
@@ -415,6 +715,81 @@ pub trait OptionExt<T>: Sized {
         C: IntoError<E, Source = NoneError>,
         E: Error + ErrorCompat;
 
+    /// Convert an [`Option`] into a [`Result`] with information
+    /// from a string.
+    ///
+    /// The target error type must implement [`FromString`] by using
+    /// the
+    /// [`#[snafu(whatever)]`][Snafu#controlling-stringly-typed-errors]
+    /// attribute. The premade [`Whatever`] type is also available.
+    ///
+    /// In many cases, you will want to use
+    /// [`with_whatever_context`][Self::with_whatever_context] instead
+    /// as it is only called in case of error. This method is best
+    /// suited for when you have a string literal.
+    ///
+    /// ```rust
+    /// use snafu::{OptionExt, Whatever};
+    ///
+    /// fn example(env_var_name: &str) -> Result<(), Whatever> {
+    ///     std::env::var_os(env_var_name)
+    ///         .whatever_context("couldn't get the environment variable")?;
+    ///     Ok(())
+    /// }
+    ///
+    /// let err = example("UNDEFINED_ENVIRONMENT_VARIABLE").unwrap_err();
+    /// assert_eq!("couldn't get the environment variable", err.to_string());
+    /// ```
+    #[cfg(any(feature = "std", test))]
+    fn whatever_context<S, E>(self, context: S) -> Result<T, E>
+    where
+        S: Into<String>,
+        E: FromString;
+
+    /// Convert an [`Option`] into a [`Result`][] with information from a
+    /// lazily-generated string.
+    ///
+    /// The target error type must implement [`FromString`][] by using
+    /// the
+    /// [`#[snafu(whatever)]`][Snafu#controlling-stringly-typed-errors]
+    /// attribute. The premade [`Whatever`][] type is also available.
+    ///
+    /// ```rust
+    /// use snafu::{OptionExt, Whatever};
+    ///
+    /// fn example(env_var_name: &str) -> Result<(), Whatever> {
+    ///     std::env::var_os(env_var_name).with_whatever_context(|| {
+    ///         format!("couldn't get the environment variable {}", env_var_name)
+    ///     })?;
+    ///     Ok(())
+    /// }
+    ///
+    /// let err = example("UNDEFINED_ENVIRONMENT_VARIABLE").unwrap_err();
+    /// assert_eq!(
+    ///     "couldn't get the environment variable UNDEFINED_ENVIRONMENT_VARIABLE",
+    ///     err.to_string()
+    /// );
+    /// ```
+    ///
+    /// The closure is not called when the `Option` is `Some`:
+    ///
+    /// ```rust
+    /// use snafu::{OptionExt, Whatever};
+    ///
+    /// let value = Some(42);
+    /// let result = value.with_whatever_context::<_, String, Whatever>(|| {
+    ///     panic!("This block will not be evaluated");
+    /// });
+    ///
+    /// assert!(result.is_ok());
+    /// ```
+    #[cfg(any(feature = "std", test))]
+    fn with_whatever_context<F, S, E>(self, context: F) -> Result<T, E>
+    where
+        F: FnOnce() -> S,
+        S: Into<String>,
+        E: FromString;
+
     #[doc(hidden)]
     #[deprecated(since = "0.4.0", note = "use OptionExt::context instead")]
     fn eager_context<C, E>(self, context: C) -> Result<T, E>
@@ -453,6 +828,28 @@ impl<T> OptionExt<T> for Option<T> {
         E: Error + ErrorCompat,
     {
         self.ok_or_else(|| context().into_error(NoneError))
+    }
+
+    #[cfg(any(feature = "std", test))]
+    fn whatever_context<S, E>(self, context: S) -> Result<T, E>
+    where
+        S: Into<String>,
+        E: FromString,
+    {
+        self.ok_or_else(|| FromString::without_source(context.into()))
+    }
+
+    #[cfg(any(feature = "std", test))]
+    fn with_whatever_context<F, S, E>(self, context: F) -> Result<T, E>
+    where
+        F: FnOnce() -> S,
+        S: Into<String>,
+        E: FromString,
+    {
+        self.ok_or_else(|| {
+            let context = context();
+            FromString::without_source(context.into())
+        })
     }
 }
 
@@ -595,6 +992,22 @@ where
     fn into_error(self, source: Self::Source) -> E;
 }
 
+/// Takes a string message and builds the corresponding error.
+///
+/// It is expected that most users of SNAFU will not directly interact
+/// with this trait.
+#[cfg(any(feature = "std", test))]
+pub trait FromString {
+    /// The underlying error
+    type Source;
+
+    /// Create a brand new error from the given string
+    fn without_source(message: String) -> Self;
+
+    /// Wrap an existing error with the given string
+    fn with_source(source: Self::Source, message: String) -> Self;
+}
+
 /// Construct a backtrace, allowing it to be optional.
 pub trait GenerateBacktrace {
     /// Generate a new backtrace instance
@@ -664,5 +1077,80 @@ impl GenerateBacktrace for Backtrace {
 
     fn as_backtrace(&self) -> Option<&Backtrace> {
         Some(self)
+    }
+}
+
+/// A basic error type that you can use as a first step to better
+/// error handling.
+///
+/// You can use this type in your own application as a quick way to
+/// create errors or add basic context to another error. This can also
+/// be used in a library, but consider wrapping it in an
+/// [opaque](guide::opaque) error to avoid putting the SNAFU crate in
+/// your public API.
+///
+/// ## Examples
+///
+/// ```rust
+/// use snafu::{whatever, ResultExt};
+///
+/// type Result<T, E = snafu::Whatever> = std::result::Result<T, E>;
+///
+/// fn subtract_numbers(a: u32, b: u32) -> Result<u32> {
+///     if a > b {
+///         Ok(a - b)
+///     } else {
+///         whatever!("Can't subtract {} - {}", a, b)
+///     }
+/// }
+///
+/// fn complicated_math(a: u32, b: u32) -> Result<u32> {
+///     let val = subtract_numbers(a, b).whatever_context("Can't do the math")?;
+///     Ok(val * 2)
+/// }
+/// ```
+///
+/// See [`whatever!`][] for detailed usage instructions.
+///
+/// ## Limitations
+///
+/// When wrapping errors, only the backtrace from the shallowest
+/// function is guaranteed to be available. If you need the deepest
+/// possible trace, consider creating a custom error type and [using
+/// `#[snafu(backtrace)]` on the `source`
+/// field](Snafu#controlling-backtraces). If a best-effort attempt is
+/// sufficient, see the [`backtrace`][Self::backtrace] method.
+///
+/// When the standard library stabilizes backtrace support, this
+/// behavior may change.
+#[derive(Debug, Snafu)]
+#[snafu(crate_root(crate))]
+#[snafu(whatever)]
+#[snafu(display("{}", message))]
+#[cfg(any(feature = "std", test))]
+pub struct Whatever {
+    #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
+    source: Option<Box<dyn std::error::Error>>,
+    message: String,
+    backtrace: Backtrace,
+}
+
+#[cfg(any(feature = "std", test))]
+impl Whatever {
+    /// Gets the backtrace from the deepest `Whatever` error. If none
+    /// of the underlying errors are `Whatever`, returns the backtrace
+    /// from when this instance was created.
+    pub fn backtrace(&self) -> Option<&Backtrace> {
+        let mut best_backtrace = &self.backtrace;
+
+        let mut source = self.source();
+        while let Some(s) = source {
+            if let Some(this) = s.downcast_ref::<Self>() {
+                best_backtrace = &this.backtrace;
+            }
+            source = s.source();
+        }
+
+        Some(best_backtrace)
     }
 }

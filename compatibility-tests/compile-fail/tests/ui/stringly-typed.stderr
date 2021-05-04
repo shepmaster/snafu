@@ -1,0 +1,53 @@
+error: Cannot be both a `context` and `whatever` error
+ --> $DIR/stringly-typed.rs:5:13
+  |
+5 |     #[snafu(context, whatever)]
+  |             ^^^^^^^
+
+error: Cannot be both a `context` and `whatever` error
+ --> $DIR/stringly-typed.rs:5:22
+  |
+5 |     #[snafu(context, whatever)]
+  |                      ^^^^^^^^
+
+error: expected `,`
+  --> $DIR/stringly-typed.rs:13:21
+   |
+13 |     #[snafu(whatever(true))]
+   |                     ^^^^^^
+
+error: Whatever selectors must have a message field
+  --> $DIR/stringly-typed.rs:21:5
+   |
+21 |     #[snafu(whatever)]
+   |     ^
+
+error: Multiple `message` attributes are not supported on a named struct
+  --> $DIR/stringly-typed.rs:32:9
+   |
+32 |         message: String,
+   |         ^^^^^^^^^^^^^^^
+
+error: Whatever selectors must not have context fields
+  --> $DIR/stringly-typed.rs:43:9
+   |
+43 |         user_id: i32,
+   |         ^^^^^^^^^^^^
+
+error[E0124]: field `message` is already declared
+  --> $DIR/stringly-typed.rs:32:9
+   |
+31 |         message: String,
+   |         --------------- `message` first declared here
+32 |         message: String,
+   |         ^^^^^^^^^^^^^^^ field already declared
+
+error[E0025]: field `message` bound multiple times in the pattern
+  --> $DIR/stringly-typed.rs:32:9
+   |
+31 |         message: String,
+   |         --------------- first use of `message`
+32 |         message: String,
+   |         ^^^^^^^^^^^^^^^ multiple uses of `message` in pattern
+   |
+   = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
