@@ -124,10 +124,9 @@
 //! time. Error enums solve that problem.
 //!
 //! SNAFU will read your error enum definition and create a *context
-//! selector* type for each variant with **the same name as the
-//! variant** (called `InvalidId` in this example). These context
-//! selectors are used with the [`ensure!`][] macro to provide
-//! ergonomic error creation:
+//! selector* type for each variant (called `InvalidIdSnafu` in this
+//! example). These context selectors are used with the [`ensure!`][]
+//! macro to provide ergonomic error creation:
 //!
 //! ```rust
 //! use snafu::{ensure, Snafu};

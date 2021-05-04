@@ -59,6 +59,43 @@ fn main() {
 
 ## Controlling context
 
+### Changing the context selector suffix
+
+When context selectors are generated, they have the suffix `Snafu`
+added by default. If you'd prefer a different suffix, such as `Ctx` or
+`Context`, you can specify that with
+`#[snafu(context(suffix(SomeIdentifier)))]`. If you'd like to disable
+the suffix entirely, you can use `#[snafu(context(suffix(false)))]`.
+
+**Example**
+
+```rust
+# use snafu::Snafu;
+#
+#[derive(Debug, Snafu)]
+enum Error {
+    UsesTheDefaultSuffix,
+
+    #[snafu(context(suffix(Ctx)))]
+    HasAnotherSuffix,
+
+    #[snafu(context(suffix(false)))]
+    DoesNotHaveASuffix,
+}
+
+fn my_code() -> Result<(), Error> {
+    UsesTheDefaultSuffixSnafu.fail()?;
+
+    HasAnotherSuffixCtx.fail()?;
+
+    DoesNotHaveASuffix.fail()?;
+
+    Ok(())
+}
+```
+
+### Disabling the context selector
+
 Sometimes, an underlying error can only occur in exactly one context
 and there's no additional information that can be provided to the
 caller. In these cases, you can use `#[snafu(context(false))]` to
