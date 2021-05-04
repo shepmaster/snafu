@@ -2,7 +2,7 @@
 //!
 //! [`TryFuture`]: futures_core_crate::future::TryFuture
 
-use crate::{Error, ErrorCompat, IntoError};
+use crate::{Error, ErrorCompat, FromString, IntoError};
 use core::{
     future::Future,
     marker::PhantomData,
@@ -90,6 +90,69 @@ pub trait TryFutureExt: TryFuture + Sized {
         F: FnOnce() -> C,
         C: IntoError<E, Source = Self::Error>,
         E: Error + ErrorCompat;
+
+    /// Extend a [`TryFuture`]'s error with information from a string.
+    ///
+    /// The target error type must implement [`FromString`] by using
+    /// the
+    /// [`#[snafu(whatever)]`][crate::Snafu#controlling-stringly-typed-errors]
+    /// attribute. The premade [`Whatever`](crate::Whatever) type is also available.
+    ///
+    /// In many cases, you will want to use
+    /// [`with_whatever_context`][Self::with_whatever_context] instead
+    /// as it is only called in case of error. This method is best
+    /// suited for when you have a string literal.
+    ///
+    /// ```rust
+    /// # use futures_crate as futures;
+    /// use futures::future::TryFuture;
+    /// use snafu::{futures::TryFutureExt, Whatever};
+    ///
+    /// fn example() -> impl TryFuture<Ok = i32, Error = Whatever> {
+    ///     api_function().whatever_context("The API failed")
+    /// }
+    ///
+    /// # type ApiError = Box<dyn std::error::Error>;
+    /// fn api_function() -> impl TryFuture<Ok = i32, Error = ApiError> {
+    ///     /* ... */
+    /// # futures::future::ok(42)
+    /// }
+    /// ```
+    fn whatever_context<S, E>(self, context: S) -> WhateverContext<Self, S, E>
+    where
+        S: Into<String>,
+        E: FromString;
+
+    /// Extend a [`TryFuture`]'s error with information from a
+    /// lazily-generated string.
+    ///
+    /// The target error type must implement [`FromString`] by using
+    /// the
+    /// [`#[snafu(whatever)]`][crate::Snafu#controlling-stringly-typed-errors]
+    /// attribute. The premade [`Whatever`](crate::Whatever) type is also available.
+    ///
+    /// ```rust
+    /// # use futures_crate as futures;
+    /// use futures::future::TryFuture;
+    /// use snafu::{futures::TryFutureExt, Whatever};
+    ///
+    /// fn example(arg: &'static str) -> impl TryFuture<Ok = i32, Error = Whatever> {
+    ///     api_function(arg).with_whatever_context(move |_| {
+    ///         format!("The API failed for argument {}", arg)
+    ///     })
+    /// }
+    ///
+    /// # type ApiError = Box<dyn std::error::Error>;
+    /// fn api_function(arg: &'static str) -> impl TryFuture<Ok = i32, Error = ApiError> {
+    ///     /* ... */
+    /// # futures::future::ok(42)
+    /// }
+    /// ```
+    fn with_whatever_context<F, S, E>(self, context: F) -> WithWhateverContext<Self, F, E>
+    where
+        F: FnOnce(&Self::Error) -> S,
+        S: Into<String>,
+        E: FromString;
 }
 
 impl<Fut> TryFutureExt for Fut
@@ -115,6 +178,31 @@ where
         E: Error + ErrorCompat,
     {
         WithContext {
+            inner: self,
+            context: Some(context),
+            _e: PhantomData,
+        }
+    }
+
+    fn whatever_context<S, E>(self, context: S) -> WhateverContext<Self, S, E>
+    where
+        S: Into<String>,
+        E: FromString,
+    {
+        WhateverContext {
+            inner: self,
+            context: Some(context),
+            _e: PhantomData,
+        }
+    }
+
+    fn with_whatever_context<F, S, E>(self, context: F) -> WithWhateverContext<Self, F, E>
+    where
+        F: FnOnce(&Self::Error) -> S,
+        S: Into<String>,
+        E: FromString,
+    {
+        WithWhateverContext {
             inner: self,
             context: Some(context),
             _e: PhantomData,
@@ -190,6 +278,85 @@ where
                 .expect("Cannot poll WithContext after it resolves");
 
             context().into_error(error)
+        })
+    }
+}
+
+/// Future for the
+/// [`whatever_context`](TryFutureExt::whatever_context) combinator.
+///
+/// See the [`TryFutureExt::whatever_context`] method for more
+/// details.
+#[pin_project]
+#[derive(Debug)]
+#[must_use = "futures do nothing unless polled"]
+pub struct WhateverContext<Fut, S, E> {
+    #[pin]
+    inner: Fut,
+    context: Option<S>,
+    _e: PhantomData<E>,
+}
+
+impl<Fut, S, E> Future for WhateverContext<Fut, S, E>
+where
+    Fut: TryFuture,
+    S: Into<String>,
+    E: FromString,
+    Fut::Error: Into<E::Source>,
+{
+    type Output = Result<Fut::Ok, E>;
+
+    fn poll(self: Pin<&mut Self>, ctx: &mut TaskContext) -> Poll<Self::Output> {
+        let this = self.project();
+        let inner = this.inner;
+        let context = this.context;
+
+        inner.try_poll(ctx).map_err(|error| {
+            let context = context
+                .take()
+                .expect("Cannot poll WhateverContext after it resolves");
+            FromString::with_source(error.into(), context.into())
+        })
+    }
+}
+
+/// Future for the
+/// [`with_whatever_context`](TryFutureExt::with_whatever_context)
+/// combinator.
+///
+/// See the [`TryFutureExt::with_whatever_context`] method for more
+/// details.
+#[pin_project]
+#[derive(Debug)]
+#[must_use = "futures do nothing unless polled"]
+pub struct WithWhateverContext<Fut, F, E> {
+    #[pin]
+    inner: Fut,
+    context: Option<F>,
+    _e: PhantomData<E>,
+}
+
+impl<Fut, F, S, E> Future for WithWhateverContext<Fut, F, E>
+where
+    Fut: TryFuture,
+    F: FnOnce(&Fut::Error) -> S,
+    S: Into<String>,
+    E: FromString,
+    Fut::Error: Into<E::Source>,
+{
+    type Output = Result<Fut::Ok, E>;
+
+    fn poll(self: Pin<&mut Self>, ctx: &mut TaskContext) -> Poll<Self::Output> {
+        let this = self.project();
+        let inner = this.inner;
+        let context = this.context;
+
+        inner.try_poll(ctx).map_err(|error| {
+            let context = context
+                .take()
+                .expect("Cannot poll WhateverContext after it resolves");
+            let context = context(&error);
+            FromString::with_source(error.into(), context.into())
         })
     }
 }

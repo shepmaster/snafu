@@ -43,6 +43,10 @@ pub mod context_selector {
                         #context_selector_into_error_impl
                     }
                 }
+                Whatever {
+                    source_field,
+                    message_field,
+                } => self.generate_whatever(source_field.as_ref(), message_field),
                 NoContext { source_field } => self.generate_from_source(source_field),
             };
 
@@ -205,6 +209,58 @@ pub mod context_selector {
             }
         }
 
+        fn generate_whatever(
+            self,
+            source_field: Option<&crate::SourceField>,
+            message_field: &crate::Field,
+        ) -> TokenStream {
+            let crate_root = self.crate_root;
+            let parameterized_error_name = self.parameterized_error_name;
+            let error_constructor_name = self.error_constructor_name;
+            let construct_backtrace_field = self.construct_backtrace_field();
+
+            // testme: transform
+
+            let (source_ty, transfer_source_field, empty_source_field) = match source_field {
+                Some(f) => {
+                    let source_field_type = f.transformation.ty();
+                    let source_field_name = &f.name;
+                    let source_transformation = f.transformation.transformation();
+
+                    (
+                        quote! { #source_field_type },
+                        Some(quote! { #source_field_name: (#source_transformation)(error), }),
+                        Some(quote! { #source_field_name: core::option::Option::None, }),
+                    )
+                }
+                None => (quote! { #crate_root::NoneError }, None, None),
+            };
+
+            let message_field_name = &message_field.name;
+
+            quote! {
+                impl #crate_root::FromString for #parameterized_error_name {
+                    type Source = #source_ty;
+
+                    fn without_source(message: String) -> Self {
+                        #error_constructor_name {
+                            #empty_source_field
+                            #message_field_name: message,
+                            #construct_backtrace_field
+                        }
+                    }
+
+                    fn with_source(error: Self::Source, message: String) -> Self {
+                        #error_constructor_name {
+                            #transfer_source_field
+                            #message_field_name: message,
+                            #construct_backtrace_field
+                        }
+                    }
+                }
+            }
+        }
+
         fn generate_from_source(self, source_field: &crate::SourceField) -> TokenStream {
             let parameterized_error_name = self.parameterized_error_name;
             let error_constructor_name = self.error_constructor_name;
@@ -316,6 +372,7 @@ pub mod display {
 
             let user_fields = selector_kind.user_fields();
             let source_field = selector_kind.source_field();
+            let message_field = selector_kind.message_field();
 
             let format = match (display_format, source_field) {
                 (Some(v), _) => quote! { #v },
@@ -332,6 +389,7 @@ pub mod display {
             let field_names = user_fields
                 .iter()
                 .chain(backtrace_field)
+                .chain(message_field)
                 .map(Field::name)
                 .chain(source_field.map(SourceField::name));
 
@@ -447,9 +505,20 @@ pub mod error {
                     let SourceField {
                         name: field_name, ..
                     } = source_field;
+
+                    let convert_to_error_source = if selector_kind.is_whatever() {
+                        quote! {
+                            #field_name.as_ref().map(|e| e.as_error_source())
+                        }
+                    } else {
+                        quote! {
+                            ::core::option::Option::Some(#field_name.as_error_source())
+                        }
+                    };
+
                     quote! {
                         #pattern_ident { ref #field_name, .. } => {
-                            ::core::option::Option::Some(#field_name.as_error_source())
+                            #convert_to_error_source
                         }
                     }
                 }

@@ -2,7 +2,7 @@
 //!
 //! [`TryStream`]: futures_core_crate::TryStream
 
-use crate::{Error, ErrorCompat, IntoError};
+use crate::{Error, ErrorCompat, FromString, IntoError};
 use core::{
     marker::PhantomData,
     pin::Pin,
@@ -91,6 +91,71 @@ pub trait TryStreamExt: TryStream + Sized {
         F: FnMut() -> C,
         C: IntoError<E, Source = Self::Error>,
         E: Error + ErrorCompat;
+
+    /// Extend a [`TryStream`]'s error with information from a string.
+    ///
+    /// The target error type must implement [`FromString`] by using
+    /// the
+    /// [`#[snafu(whatever)]`][crate::Snafu#controlling-stringly-typed-errors]
+    /// attribute. The premade [`Whatever`](crate::Whatever) type is also available.
+    ///
+    /// In many cases, you will want to use
+    /// [`with_whatever_context`][Self::with_whatever_context] instead
+    /// as it is only called in case of error. This method is best
+    /// suited for when you have a string literal.
+    ///
+    /// ```rust
+    /// # use futures_crate as futures;
+    /// use futures::TryStream;
+    /// # use futures::stream;
+    /// use snafu::{futures::TryStreamExt, Whatever};
+    ///
+    /// fn example() -> impl TryStream<Ok = i32, Error = Whatever> {
+    ///     stock_prices().whatever_context("Couldn't get stock prices")
+    /// }
+    ///
+    /// # type ApiError = Box<dyn std::error::Error>;
+    /// fn stock_prices() -> impl TryStream<Ok = i32, Error = ApiError> {
+    ///     /* ... */
+    /// # stream::empty()
+    /// }
+    /// ```
+    fn whatever_context<S, E>(self, context: S) -> WhateverContext<Self, S, E>
+    where
+        S: Into<String>,
+        E: FromString;
+
+    /// Extend a [`TryStream`]'s error with information from a
+    /// lazily-generated string.
+    ///
+    /// The target error type must implement [`FromString`] by using
+    /// the
+    /// [`#[snafu(whatever)]`][crate::Snafu#controlling-stringly-typed-errors]
+    /// attribute. The premade [`Whatever`](crate::Whatever) type is also available.
+    ///
+    /// ```rust
+    /// # use futures_crate as futures;
+    /// use futures::TryStream;
+    /// # use futures::stream;
+    /// use snafu::{futures::TryStreamExt, Whatever};
+    ///
+    /// fn example(symbol: &'static str) -> impl TryStream<Ok = i32, Error = Whatever> {
+    ///     stock_prices(symbol).with_whatever_context(move |_| {
+    ///         format!("Couldn't get stock prices for {}", symbol)
+    ///     })
+    /// }
+    ///
+    /// # type ApiError = Box<dyn std::error::Error>;
+    /// fn stock_prices(symbol: &'static str) -> impl TryStream<Ok = i32, Error = ApiError> {
+    ///     /* ... */
+    /// # stream::empty()
+    /// }
+    /// ```
+    fn with_whatever_context<F, S, E>(self, context: F) -> WithWhateverContext<Self, F, E>
+    where
+        F: FnMut(&Self::Error) -> S,
+        S: Into<String>,
+        E: FromString;
 }
 
 impl<St> TryStreamExt for St
@@ -116,6 +181,31 @@ where
         E: Error + ErrorCompat,
     {
         WithContext {
+            inner: self,
+            context,
+            _e: PhantomData,
+        }
+    }
+
+    fn whatever_context<S, E>(self, context: S) -> WhateverContext<Self, S, E>
+    where
+        S: Into<String>,
+        E: FromString,
+    {
+        WhateverContext {
+            inner: self,
+            context,
+            _e: PhantomData,
+        }
+    }
+
+    fn with_whatever_context<F, S, E>(self, context: F) -> WithWhateverContext<Self, F, E>
+    where
+        F: FnMut(&Self::Error) -> S,
+        S: Into<String>,
+        E: FromString,
+    {
+        WithWhateverContext {
             inner: self,
             context,
             _e: PhantomData,
@@ -194,6 +284,91 @@ where
             Poll::Ready(Some(Ok(v))) => Poll::Ready(Some(Ok(v))),
             Poll::Ready(Some(Err(error))) => {
                 let error = context().into_error(error);
+                Poll::Ready(Some(Err(error)))
+            }
+        }
+    }
+}
+
+/// Stream for the
+/// [`whatever_context`](TryStreamExt::whatever_context) combinator.
+///
+/// See the [`TryStreamExt::whatever_context`] method for more
+/// details.
+#[pin_project]
+#[derive(Debug)]
+#[must_use = "streams do nothing unless polled"]
+pub struct WhateverContext<St, S, E> {
+    #[pin]
+    inner: St,
+    context: S,
+    _e: PhantomData<E>,
+}
+
+impl<St, S, E> Stream for WhateverContext<St, S, E>
+where
+    St: TryStream,
+    S: Into<String> + Clone,
+    E: FromString,
+    St::Error: Into<E::Source>,
+{
+    type Item = Result<St::Ok, E>;
+
+    fn poll_next(self: Pin<&mut Self>, ctx: &mut TaskContext) -> Poll<Option<Self::Item>> {
+        let this = self.project();
+        let inner = this.inner;
+        let context = this.context;
+
+        match inner.try_poll_next(ctx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Ready(Some(Ok(v))) => Poll::Ready(Some(Ok(v))),
+            Poll::Ready(Some(Err(error))) => {
+                let error = E::with_source(error.into(), context.clone().into());
+                Poll::Ready(Some(Err(error)))
+            }
+        }
+    }
+}
+
+/// Stream for the
+/// [`with_whatever_context`](TryStreamExt::with_whatever_context)
+/// combinator.
+///
+/// See the [`TryStreamExt::with_whatever_context`] method for more
+/// details.
+#[pin_project]
+#[derive(Debug)]
+#[must_use = "streams do nothing unless polled"]
+pub struct WithWhateverContext<St, F, E> {
+    #[pin]
+    inner: St,
+    context: F,
+    _e: PhantomData<E>,
+}
+
+impl<St, F, S, E> Stream for WithWhateverContext<St, F, E>
+where
+    St: TryStream,
+    F: FnMut(&St::Error) -> S,
+    S: Into<String>,
+    E: FromString,
+    St::Error: Into<E::Source>,
+{
+    type Item = Result<St::Ok, E>;
+
+    fn poll_next(self: Pin<&mut Self>, ctx: &mut TaskContext) -> Poll<Option<Self::Item>> {
+        let this = self.project();
+        let inner = this.inner;
+        let context = this.context;
+
+        match inner.try_poll_next(ctx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Ready(Some(Ok(v))) => Poll::Ready(Some(Ok(v))),
+            Poll::Ready(Some(Err(error))) => {
+                let context = context(&error);
+                let error = E::with_source(error.into(), context.into());
                 Poll::Ready(Some(Err(error)))
             }
         }

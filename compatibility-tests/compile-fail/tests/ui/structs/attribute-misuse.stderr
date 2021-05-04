@@ -1,4 +1,4 @@
-error: expected one of: `backtrace`, `context`, `crate_root`, `display`, `source`, `visibility`
+error: expected one of: `backtrace`, `context`, `crate_root`, `display`, `whatever`, `source`, `visibility`
  --> $DIR/attribute-misuse.rs:5:13
   |
 5 |     #[snafu(unknown_attribute)]

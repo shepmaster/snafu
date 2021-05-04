@@ -29,8 +29,22 @@ use snafu::{
 
 #[derive(Debug, Snafu)]
 enum Error {
-    UnableToLoadAppleStock { source: api::Error },
-    UnableToLoadGoogleStock { source: api::Error, name: String },
+    UnableToLoadAppleStock {
+        source: api::Error,
+    },
+
+    UnableToLoadGoogleStock {
+        source: api::Error,
+        name: String,
+    },
+
+    #[snafu(whatever, display("{}", message))]
+    UnableToLoadOtherStock {
+        message: String,
+
+        #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
+        source: Option<Box<dyn std::error::Error>>,
+    },
 }
 
 // Normal `Result` code works with `await`
@@ -45,7 +59,16 @@ async fn load_stock_data_sequential() -> Result<String, Error> {
             name: String::from("sequential"),
         })?;
 
-    Ok(format!("{}+{}", apple, google))
+    let other_1 = api::fetch_page("other_1")
+        .await
+        .whatever_context("Oh no!")?;
+
+    let symbol = "other_2";
+    let other_2 = api::fetch_page(symbol)
+        .await
+        .with_whatever_context(|_| format!("Unable to get stock prices for: {}", symbol))?;
+
+    Ok(format!("{}+{}+{}+{}", apple, google, other_1, other_2))
 }
 
 // Can be used as a `Future` combinator
@@ -54,10 +77,15 @@ async fn load_stock_data_concurrent() -> Result<String, Error> {
     let google = api::fetch_page("google").with_context(|| UnableToLoadGoogleStock {
         name: String::from("concurrent"),
     });
+    let other_1 = api::fetch_page("other_1").whatever_context::<_, Error>("Oh no!");
+    let symbol = "other_2";
+    let other_2 = api::fetch_page(symbol)
+        .with_whatever_context(|_| format!("Unable to get stock prices for: {}", symbol));
 
-    let (apple, google) = future::try_join(apple, google).await?;
+    let (apple, google, other_1, other_2) =
+        future::try_join4(apple, google, other_1, other_2).await?;
 
-    Ok(format!("{}+{}", apple, google))
+    Ok(format!("{}+{}+{}+{}", apple, google, other_1, other_2))
 }
 
 // Return values of the combinators implement `Future`
@@ -72,7 +100,16 @@ async fn load_stock_data_sequential_again() -> Result<String, Error> {
         })
         .await?;
 
-    Ok(format!("{}+{}", apple, google))
+    let other_1 = api::fetch_page("other_1")
+        .whatever_context("Oh no!")
+        .await?;
+
+    let symbol = "other_2";
+    let other_2 = api::fetch_page(symbol)
+        .with_whatever_context(|_| format!("Unable to get stock prices for: {}", symbol))
+        .await?;
+
+    Ok(format!("{}+{}+{}+{}", apple, google, other_1, other_2))
 }
 
 // Can be used as a `Stream` combinator
@@ -81,17 +118,21 @@ async fn load_stock_data_series() -> Result<String, Error> {
     let google = api::keep_fetching_page("google").with_context(|| UnableToLoadGoogleStock {
         name: String::from("stream"),
     });
+    let other_1 = api::keep_fetching_page("other_1").whatever_context("Oh no!");
+    let symbol = "other_2";
+    let other_2 = api::keep_fetching_page(symbol)
+        .with_whatever_context(|_| format!("Unable to get stock prices for: {}", symbol));
 
-    let together = apple.zip(google);
+    let together = apple.zip(google).zip(other_1).zip(other_2);
 
     // No try_zip?
-    let together = together.map(|(a, g)| Ok((a?, g?)));
+    let together = together.map(|(((a, g), o1), o2)| Ok((a?, g?, o1?, o2?)));
 
     together
         .take(10)
-        .try_fold(String::new(), |mut acc, (a, g)| {
+        .try_fold(String::new(), |mut acc, (a, g, o1, o2)| {
             use std::fmt::Write;
-            writeln!(&mut acc, "{}+{}", a, g).expect("Could not format");
+            writeln!(&mut acc, "{}+{}+{}+{}", a, g, o1, o2).expect("Could not format");
             future::ready(Ok(acc))
         })
         .await
