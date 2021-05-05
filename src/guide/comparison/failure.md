@@ -1,90 +1,29 @@
 # SNAFU vs. Failure
 
 This comparison was made against the examples in [the guide for
-failure 0.1.5][failure-guide].
+failure 0.1.8][failure-guide].
 
 [failure-guide]: https://rust-lang-nursery.github.io/failure/guidance.html
 
 ## "Strings as errors"
 
-It's unclear what benefit Failure provides here. If you are using this
-functionality, we recommend using the standard library's `Box<dyn
-Error>`:
+If you wanted to do something similar with SNAFU, you can use the
+[`Whatever`](crate::Whatever) type:
 
 ```rust
-fn example() -> Result<(), Box<dyn std::error::Error>> {
-    Err(format!("Something went bad: {}", 1 + 1))?;
-    Ok(())
-}
-```
-
-If you wanted to do something similar with SNAFU, you can create a
-single-variant error enum with `String` data:
-
-```rust
-use snafu::Snafu;
 use std::ops::Range;
+use snafu::{Whatever,  whatever};
 
-#[derive(Debug, Snafu)]
-enum Error {
-    Any { detail: String },
-}
-
-fn check_range(x: usize, range: Range<usize>) -> Result<usize, Error> {
+fn check_range(x: usize, range: Range<usize>) -> Result<usize, Whatever> {
     if x < range.start {
-        return AnySnafu {
-            detail: format!("{} is below {}", x, range.start),
-        }
-        .fail();
+        whatever!("{} is below {}", x, range.start);
     }
     if x >= range.end {
-        return AnySnafu {
-            detail: format!("{} is above {}", x, range.end),
-        }
-        .fail();
+        whatever!("{} is above {}", x, range.end);
     }
     Ok(x)
 }
 ```
-
-This could be enhanced in a few ways:
-
-- create methods on your `Error` type
-- create a custom macro
-- add a [`Backtrace`][Backtrace] to the enum variant
-
-For example:
-
-```rust
-use snafu::{Backtrace, Snafu};
-use std::ops::Range;
-
-#[derive(Debug, Snafu)]
-enum Error {
-    Any {
-        detail: String,
-        backtrace: Backtrace,
-    },
-}
-
-macro_rules! format_err {
-    ($($arg:tt)*) => { AnySnafu { detail: format!($($arg)*) }.fail() }
-}
-
-fn check_range(x: usize, range: Range<usize>) -> Result<usize, Error> {
-    if x < range.start {
-        return format_err!("{} is below {}", x, range.start);
-    }
-    if x >= range.end {
-        return format_err!("{} is above {}", x, range.end);
-    }
-    Ok(x)
-}
-```
-
-Please see the next section for the recommended pattern for this error.
-
-[Backtrace]: crate::Backtrace
 
 ## "A Custom Fail type" and "Using the Error type"
 
