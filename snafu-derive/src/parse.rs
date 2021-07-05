@@ -3,7 +3,7 @@ use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{
     parenthesized,
-    parse::{Parse, ParseBuffer, ParseStream, Result},
+    parse::{Parse, ParseStream, Result},
     punctuated::Punctuated,
     token, Expr, Ident, LitBool, LitStr, Path, Type,
 };
@@ -299,21 +299,24 @@ impl ToTokens for SuffixArg {
 
 struct CrateRoot {
     crate_root_token: kw::crate_root,
-    arg: CompatArg<Path>,
+    paren_token: token::Paren,
+    arg: Path,
 }
 
 impl CrateRoot {
     // TODO: Remove boxed trait object
     fn into_arbitrary(self) -> Box<dyn ToTokens> {
-        Box::new(self.arg.into_value())
+        Box::new(self.arg)
     }
 }
 
 impl Parse for CrateRoot {
     fn parse(input: ParseStream) -> Result<Self> {
+        let content;
         Ok(Self {
             crate_root_token: input.parse()?,
-            arg: input.parse()?,
+            paren_token: parenthesized!(content in input),
+            arg: content.parse()?,
         })
     }
 }
@@ -321,27 +324,32 @@ impl Parse for CrateRoot {
 impl ToTokens for CrateRoot {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.crate_root_token.to_tokens(tokens);
-        self.arg.to_tokens(tokens);
+        self.paren_token.surround(tokens, |tokens| {
+            self.arg.to_tokens(tokens);
+        });
     }
 }
 
 struct Display {
     display_token: kw::display,
-    args: CompatArg<Punctuated<Expr, token::Comma>>,
+    paren_token: token::Paren,
+    args: Punctuated<Expr, token::Comma>,
 }
 
 impl Display {
     // TODO: Remove boxed trait object
     fn into_arbitrary(self) -> Box<dyn ToTokens> {
-        Box::new(self.args.into_value())
+        Box::new(self.args)
     }
 }
 
 impl Parse for Display {
     fn parse(input: ParseStream) -> Result<Self> {
+        let content;
         Ok(Self {
             display_token: input.parse()?,
-            args: CompatArg::parse_with(&input, Punctuated::parse_terminated)?,
+            paren_token: parenthesized!(content in input),
+            args: Punctuated::parse_terminated(&content)?,
         })
     }
 }
@@ -349,7 +357,9 @@ impl Parse for Display {
 impl ToTokens for Display {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.display_token.to_tokens(tokens);
-        self.args.to_tokens(tokens);
+        self.paren_token.surround(tokens, |tokens| {
+            self.args.to_tokens(tokens);
+        });
     }
 }
 
@@ -501,7 +511,7 @@ impl ToTokens for SourceArg {
 
 struct Visibility {
     visibility_token: kw::visibility,
-    visibility: MaybeCompatArg<syn::Visibility>,
+    visibility: MaybeArg<syn::Visibility>,
 }
 
 impl Visibility {
@@ -579,164 +589,6 @@ impl<T: ToTokens> ToTokens for MaybeArg<T> {
             paren_token.surround(tokens, |tokens| {
                 content.to_tokens(tokens);
             });
-        }
-    }
-}
-
-// TODO: Remove this with a semver-incompatible release
-enum CompatArg<T> {
-    Compat {
-        eq_token: token::Eq,
-        str: LitStr,
-        content: T,
-    },
-    Pretty {
-        paren_token: token::Paren,
-        content: T,
-    },
-}
-
-impl<T> CompatArg<T> {
-    fn into_value(self) -> T {
-        match self {
-            CompatArg::Compat { content, .. } => content,
-            CompatArg::Pretty { content, .. } => content,
-        }
-    }
-
-    fn parse_with<F>(input: ParseStream<'_>, mut parser: F) -> Result<Self>
-    where
-        F: FnMut(ParseStream<'_>) -> Result<T>,
-    {
-        let lookahead = input.lookahead1();
-        if lookahead.peek(token::Paren) {
-            let content;
-            Ok(CompatArg::Pretty {
-                paren_token: parenthesized!(content in input),
-                content: parser(&content)?,
-            })
-        } else if lookahead.peek(token::Eq) {
-            let eq_token = input.parse()?;
-            let str: LitStr = input.parse()?;
-
-            let parser_with_parens = |input: &ParseBuffer| {
-                let content;
-                parenthesized!(content in input);
-                parser(&content)
-            };
-
-            let content = str
-                .parse_with(parser_with_parens)
-                .or_else(|_| str.parse_with(parser))?;
-
-            Ok(CompatArg::Compat {
-                eq_token,
-                str,
-                content,
-            })
-        } else {
-            Err(lookahead.error())
-        }
-    }
-}
-
-impl<T: Parse> Parse for CompatArg<T> {
-    fn parse(input: ParseStream) -> Result<Self> {
-        Self::parse_with(input, Parse::parse)
-    }
-}
-
-impl<T: ToTokens> ToTokens for CompatArg<T> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self {
-            CompatArg::Compat { eq_token, str, .. } => {
-                eq_token.to_tokens(tokens);
-                str.to_tokens(tokens);
-            }
-            CompatArg::Pretty {
-                paren_token,
-                content,
-            } => {
-                paren_token.surround(tokens, |tokens| {
-                    content.to_tokens(tokens);
-                });
-            }
-        }
-    }
-}
-
-// TODO: Remove this with a semver-incompatible release
-enum MaybeCompatArg<T> {
-    None,
-    Compat {
-        eq_token: token::Eq,
-        str: LitStr,
-        content: T,
-    },
-    Pretty {
-        paren_token: token::Paren,
-        content: T,
-    },
-}
-
-impl<T> MaybeCompatArg<T> {
-    fn into_option(self) -> Option<T> {
-        match self {
-            MaybeCompatArg::None => None,
-            MaybeCompatArg::Compat { content, .. } => Some(content),
-            MaybeCompatArg::Pretty { content, .. } => Some(content),
-        }
-    }
-
-    fn parse_with<F>(input: ParseStream<'_>, parser: F) -> Result<Self>
-    where
-        F: FnOnce(ParseStream<'_>) -> Result<T>,
-    {
-        let lookahead = input.lookahead1();
-        if lookahead.peek(token::Paren) {
-            let content;
-            Ok(MaybeCompatArg::Pretty {
-                paren_token: parenthesized!(content in input),
-                content: parser(&content)?,
-            })
-        } else if lookahead.peek(token::Eq) {
-            let eq_token = input.parse()?;
-            let str: LitStr = input.parse()?;
-            let content = str.parse_with(parser)?;
-
-            Ok(MaybeCompatArg::Compat {
-                eq_token,
-                str,
-                content,
-            })
-        } else {
-            Ok(MaybeCompatArg::None)
-        }
-    }
-}
-
-impl<T: Parse> Parse for MaybeCompatArg<T> {
-    fn parse(input: ParseStream) -> Result<Self> {
-        Self::parse_with(input, Parse::parse)
-    }
-}
-
-impl<T: ToTokens> ToTokens for MaybeCompatArg<T> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self {
-            MaybeCompatArg::None => { /* no-op */ }
-            MaybeCompatArg::Compat { eq_token, str, .. } => {
-                eq_token.to_tokens(tokens);
-                str.to_tokens(tokens);
-            }
-            MaybeCompatArg::Pretty {
-                paren_token,
-                content,
-            } => {
-                paren_token.surround(tokens, |tokens| {
-                    content.to_tokens(tokens);
-                });
-            }
         }
     }
 }

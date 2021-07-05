@@ -61,7 +61,7 @@ use crate::{Snafu, Backtrace, ErrorCompat, GenerateBacktrace};
 #[derive(Debug, Snafu)]
 // This line is only needed to generate documentation; it is not
 // needed in most cases:
-#[snafu(crate_root(crate), visibility = "pub")]
+#[snafu(crate_root(crate), visibility(pub))]
 pub enum Error {
     /// The most common leaf error should always include a backtrace field.
     UsualCase {

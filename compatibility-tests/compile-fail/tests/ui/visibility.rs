@@ -5,10 +5,10 @@ mod outer {
         use snafu::Snafu;
 
         #[derive(Debug, Snafu)]
-        #[snafu(visibility = "pub(crate)")]
+        #[snafu(visibility(pub(crate)))]
         pub(crate) enum Error {
             PubCrate,
-            #[snafu(visibility = "pub(in crate::outer)")]
+            #[snafu(visibility(pub(in crate::outer)))]
             PubInPath,
             #[snafu(visibility)]
             Private,

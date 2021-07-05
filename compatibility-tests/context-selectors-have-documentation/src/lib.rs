@@ -5,7 +5,7 @@
 use snafu::Snafu;
 
 #[derive(Debug, Snafu)]
-#[snafu(visibility = "pub")]
+#[snafu(visibility(pub))]
 /// Enum docs
 pub enum Error {
     /// Variant docs

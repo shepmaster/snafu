@@ -4,7 +4,7 @@ type AnotherError = Box<dyn std::error::Error>;
 
 #[derive(Debug, Snafu)]
 enum Error {
-    #[snafu(display = r#"("Invalid user {}:\n{}", user_id, backtrace)"#)]
+    #[snafu(display("Invalid user {}:\n{}", user_id, backtrace))]
     InvalidUser { user_id: i32, backtrace: Backtrace },
     WithSource {
         source: AnotherError,
