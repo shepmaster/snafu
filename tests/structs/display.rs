@@ -5,7 +5,7 @@ fn defaults_to_name_of_struct() {
     #[derive(Debug, Snafu)]
     struct Error;
 
-    let e = Context.build();
+    let e = Snafu.build();
     let display = e.to_string();
     assert_eq!(display, "Error");
 }
@@ -18,7 +18,7 @@ fn doc_comment_used_as_display() {
     #[derive(Debug, Snafu)]
     struct Error;
 
-    let e = Context.build();
+    let e = Snafu.build();
     let display = e.to_string();
     assert_eq!(display, "This is a bad thing");
 }
@@ -30,7 +30,7 @@ fn attribute_is_stronger_than_doc_comment() {
     #[snafu(display("In favor of this"))]
     struct Error;
 
-    let e = Context.build();
+    let e = Snafu.build();
     let display = e.to_string();
     assert_eq!(display, "In favor of this");
 }

@@ -10,5 +10,5 @@ pub mod inner {
 
 #[test]
 fn can_set_visibility() {
-    let _ = inner::Context.build();
+    let _ = inner::Snafu.build();
 }

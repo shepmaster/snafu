@@ -33,11 +33,11 @@ enum InnerError {
 }
 
 fn validate_user(user_id: i32) -> Result<(), InnerError> {
-    InvalidUser { user_id }.fail()
+    InvalidUserSnafu { user_id }.fail()
 }
 
 fn is_user_locked(user_id: i32) -> Result<(), InnerError> {
-    UserLocked { user_id }.fail()
+    UserLockedSnafu { user_id }.fail()
 }
 ```
 

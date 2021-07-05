@@ -9,7 +9,7 @@ mod house {
     }
 
     pub fn answer_telephone() -> Result<(), Error> {
-        Fatal.fail()
+        FatalSnafu.fail()
     }
 }
 
@@ -28,7 +28,7 @@ enum Error {
 }
 
 fn delegate_example() -> Result<(), Error> {
-    house::answer_telephone().context(MovieTrope)?;
+    house::answer_telephone().context(MovieTropeSnafu)?;
 
     Ok(())
 }
@@ -47,7 +47,7 @@ fn backtrace_comes_from_delegated_error() {
 }
 
 fn delegate_and_rename_example() -> Result<(), Error> {
-    house::answer_telephone().context(SourceAndBacktraceAttrs)
+    house::answer_telephone().context(SourceAndBacktraceAttrsSnafu)
 }
 
 #[test]

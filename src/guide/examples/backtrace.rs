@@ -46,7 +46,7 @@ use crate::{Snafu, Backtrace, ErrorCompat, GenerateBacktrace};
 ///
 /// fn inner_process() -> Result<(), Error> {
 ///     // Complicated logic
-///     # UsualCase.fail()
+///     # UsualCaseSnafu.fail()
 /// }
 ///
 /// fn main() {

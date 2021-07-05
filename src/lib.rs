@@ -79,7 +79,7 @@
 //! ### Structs
 //!
 //! SNAFU will read your error struct definition and create a *context
-//! selector* type (called `InvalidIdContext` in this example). These
+//! selector* type (called `InvalidIdSnafu` in this example). These
 //! context selectors are used with the [`ensure!`][] macro to provide
 //! ergonomic error creation:
 //!
@@ -93,7 +93,7 @@
 //! }
 //!
 //! fn is_valid_id(id: u16) -> Result<(), InvalidIdError> {
-//!     ensure!(id >= 10, InvalidIdContext { id });
+//!     ensure!(id >= 10, InvalidIdSnafu { id });
 //!     Ok(())
 //! }
 //! ```
@@ -113,7 +113,7 @@
 //! }
 //!
 //! fn read_config_file(path: &str) -> Result<String, ConfigFileError> {
-//!     std::fs::read_to_string(path).context(ConfigFileContext { path })
+//!     std::fs::read_to_string(path).context(ConfigFileSnafu { path })
 //! }
 //! ```
 //!
@@ -124,10 +124,9 @@
 //! time. Error enums solve that problem.
 //!
 //! SNAFU will read your error enum definition and create a *context
-//! selector* type for each variant with **the same name as the
-//! variant** (called `InvalidId` in this example). These context
-//! selectors are used with the [`ensure!`][] macro to provide
-//! ergonomic error creation:
+//! selector* type for each variant (called `InvalidIdSnafu` in this
+//! example). These context selectors are used with the [`ensure!`][]
+//! macro to provide ergonomic error creation:
 //!
 //! ```rust
 //! use snafu::{ensure, Snafu};
@@ -139,7 +138,7 @@
 //! }
 //!
 //! fn is_valid_id(id: u16) -> Result<(), Error> {
-//!     ensure!(id >= 10, InvalidId { id });
+//!     ensure!(id >= 10, InvalidIdSnafu { id });
 //!     Ok(())
 //! }
 //! ```
@@ -161,7 +160,7 @@
 //! }
 //!
 //! fn read_config_file(path: &str) -> Result<String, Error> {
-//!     std::fs::read_to_string(path).context(ConfigFile { path })
+//!     std::fs::read_to_string(path).context(ConfigFileSnafu { path })
 //! }
 //! ```
 //!
@@ -186,7 +185,7 @@
 //! }
 //!
 //! fn is_valid_id(id: u16) -> Result<(), Error> {
-//!     ensure!(id >= 10, InvalidId { id });
+//!     ensure!(id >= 10, InvalidIdSnafu { id });
 //!     whatever!("Just kidding... this function always fails!");
 //!     Ok(())
 //! }
@@ -305,7 +304,7 @@ pub use no_std_error::Error;
 /// }
 ///
 /// fn example(user_id: i32) -> Result<(), Error> {
-///     ensure!(user_id > 0, InvalidUser { user_id });
+///     ensure!(user_id > 0, InvalidUserSnafu { user_id });
 ///     // After this point, we know that `user_id` is positive.
 ///     let user_id = user_id as u32;
 ///     Ok(())
@@ -427,7 +426,7 @@ pub trait ResultExt<T, E>: Sized {
     /// }
     ///
     /// fn example() -> Result<(), Error> {
-    ///     another_function().context(Authenticating {
+    ///     another_function().context(AuthenticatingSnafu {
     ///         user_name: "admin",
     ///         user_id: 42,
     ///     })?;
@@ -466,7 +465,7 @@ pub trait ResultExt<T, E>: Sized {
     /// }
     ///
     /// fn example() -> Result<(), Error> {
-    ///     another_function().with_context(|| Authenticating {
+    ///     another_function().with_context(|| AuthenticatingSnafu {
     ///         user_name: "admin".to_string(),
     ///         user_id: 42,
     ///     })?;
@@ -655,7 +654,7 @@ pub trait OptionExt<T>: Sized {
     /// }
     ///
     /// fn example(user_id: i32) -> Result<(), Error> {
-    ///     let name = username(user_id).context(UserLookup { user_id })?;
+    ///     let name = username(user_id).context(UserLookupSnafu { user_id })?;
     ///     println!("Username was {}", name);
     ///     Ok(())
     /// }
@@ -692,7 +691,7 @@ pub trait OptionExt<T>: Sized {
     /// }
     ///
     /// fn example(user_id: i32) -> Result<(), Error> {
-    ///     let name = username(user_id).with_context(|| UserLookup {
+    ///     let name = username(user_id).with_context(|| UserLookupSnafu {
     ///         user_id,
     ///         previous_ids: Vec::new(),
     ///     })?;

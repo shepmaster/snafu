@@ -1,7 +1,7 @@
 //! The most common usage of SNAFU — an enumeration of possible errors.
 //!
 //! Start by looking at the error type [`Error`], then view the
-//! *context selectors* [`Leaf`] and [`Intermediate`].
+//! *context selectors* [`LeafSnafu`] and [`IntermediateSnafu`].
 
 use crate::{Snafu, ResultExt};
 
@@ -9,14 +9,14 @@ use crate::{Snafu, ResultExt};
 ///
 /// This will create a number of *context selectors*:
 ///
-/// - [`Leaf`]
-/// - [`Intermediate`]
+/// - [`LeafSnafu`]
+/// - [`IntermediateSnafu`]
 ///
 /// ## Leaf errors
 ///
 /// Context selectors for error variants without a `source`, such
-/// as `Leaf`, have methods to construct them, such as
-/// [`Leaf::build`] or [`Leaf::fail`]. The [`ensure`] macro also
+/// as `LeafSnafu`, have methods to construct them, such as
+/// [`LeafSnafu::build`] or [`LeafSnafu::fail`]. The [`ensure`] macro also
 /// accepts these kinds of context selectors.
 ///
 /// ```
@@ -24,11 +24,11 @@ use crate::{Snafu, ResultExt};
 /// use snafu::ensure;
 ///
 /// fn always_fails() -> Result<(), Error> {
-///     Leaf { user_id: 42 }.fail()
+///     LeafSnafu { user_id: 42 }.fail()
 /// }
 ///
 /// fn sometimes_fails(user_id: i32) -> Result<(), Error> {
-///     ensure!(user_id > 0, Leaf { user_id });
+///     ensure!(user_id > 0, LeafSnafu { user_id });
 ///     Ok(())
 /// }
 /// ```
@@ -44,7 +44,7 @@ use crate::{Snafu, ResultExt};
 /// use snafu::ResultExt;
 ///
 /// fn load_config_file() -> Result<usize, Error> {
-///     let config = std::fs::read_to_string("/path/to/my/config/file").context(Intermediate)?;
+///     let config = std::fs::read_to_string("/path/to/my/config/file").context(IntermediateSnafu)?;
 ///     Ok(config.len())
 /// }
 /// ```

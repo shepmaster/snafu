@@ -26,9 +26,9 @@ type Result<T, E = Error> = std::result::Result<T, E>;
 
 fn process_data() -> Result<()> {
     let path = "config.toml";
-    let configuration = fs::read_to_string(path).context(ReadConfiguration { path })?;
+    let configuration = fs::read_to_string(path).context(ReadConfigurationSnafu { path })?;
     let path = unpack_config(&configuration);
-    fs::write(&path, b"My complex calculation").context(WriteResult { path })?;
+    fs::write(&path, b"My complex calculation").context(WriteResultSnafu { path })?;
     Ok(())
 }
 

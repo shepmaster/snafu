@@ -33,7 +33,7 @@ enum Error {
 }
 
 fn example() -> Result<(), Error> {
-    Boom.fail().context(Wrapper)
+    BoomSnafu.fail().context(WrapperSnafu)
 }
 
 #[test]

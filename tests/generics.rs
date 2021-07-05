@@ -28,14 +28,14 @@ where
 {
     let length = name.len();
 
-    cause_error().context(Everything { name, length })?;
+    cause_error().context(EverythingSnafu { name, length })?;
 
     if name == "alice" {
-        return Lifetime { key }.fail();
+        return LifetimeSnafu { key }.fail();
     }
 
     if name == "bob" {
-        return Type { value }.fail();
+        return TypeSnafu { value }.fail();
     }
 
     Ok(())

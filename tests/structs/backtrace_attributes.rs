@@ -8,7 +8,7 @@ fn no_argument_treated_as_backtrace() {
         thing: Backtrace,
     }
 
-    let _ = Context.build();
+    let _ = Snafu.build();
 }
 
 #[test]
@@ -19,7 +19,7 @@ fn explicit_true_treated_as_backtrace() {
         thing: Backtrace,
     }
 
-    let _ = Context.build();
+    let _ = Snafu.build();
 }
 
 #[test]
@@ -30,5 +30,5 @@ fn explicit_false_not_treated_as_backtrace() {
         backtrace: i32,
     }
 
-    let _ = Context { backtrace: 42 }.build();
+    let _ = Snafu { backtrace: 42 }.build();
 }

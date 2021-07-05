@@ -20,14 +20,14 @@ where
 }
 
 fn validate_number(value: u8) -> Result<u8, Error<u8>> {
-    ensure!(value <= 200, TooLarge { value, limit: 100u32 });
-    ensure!(value >= 100, TooSmall { value, limit: 200u32 });
+    ensure!(value <= 200, TooLargeSnafu { value, limit: 100u32 });
+    ensure!(value >= 100, TooSmallSnafu { value, limit: 200u32 });
     Ok(value)
 }
 
 fn validate_string(value: &str) -> Result<&str, Error<String>> {
-    ensure!(value.len() <= 20, TooLarge { value, limit: 10u32 });
-    ensure!(value.len() >= 10, TooSmall { value, limit: 20u32 });
+    ensure!(value.len() <= 20, TooLargeSnafu { value, limit: 10u32 });
+    ensure!(value.len() >= 10, TooSmallSnafu { value, limit: 20u32 });
     Ok(value)
 }
 ```
@@ -44,8 +44,8 @@ enum Error<'a> {
 }
 
 fn validate_username<'a>(value: &'a str) -> Result<&'a str, Error<'a>> {
-    ensure!(!value.contains("stinks"), BadWord { value, word: "stinks" });
-    ensure!(!value.contains("smells"), BadWord { value, word: "smells" });
+    ensure!(!value.contains("stinks"), BadWordSnafu { value, word: "stinks" });
+    ensure!(!value.contains("smells"), BadWordSnafu { value, word: "smells" });
     Ok(value)
 }
 ```

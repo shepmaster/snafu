@@ -8,6 +8,6 @@ enum Error {
 #[test]
 fn optional_backtrace_is_present_with_environment_variable() {
     std::env::set_var("RUST_LIB_BACKTRACE", "1");
-    let sometimes = BacktraceSometimes.build();
+    let sometimes = BacktraceSometimesSnafu.build();
     assert!(ErrorCompat::backtrace(&sometimes).is_some());
 }

@@ -15,45 +15,71 @@ use std::path::PathBuf;
 
 #[derive(Debug, Snafu)]
 enum Error {
-    #[snafu(display("Could not open config at {}: {}", filename.display(), source))]
+    #[snafu(display("Could not open config at {}", filename.display()))]
     OpenConfig {
         filename: PathBuf,
         source: std::io::Error,
     },
-    #[snafu(display("Could not open config: {}", source))]
+
+    #[snafu(display("Could not open config"))]
     SaveConfig { source: std::io::Error },
+
     #[snafu(display("The user id {} is invalid", user_id))]
     UserIdInvalid { user_id: i32, backtrace: Backtrace },
+
+    #[snafu(display("Could not validate config with key {}: checksum was {}", key, checksum))]
+    ConfigValidationFailed {
+        checksum: u64,
+        key: String,
+        source: crypto::Error,
+    },
 }
+# mod crypto { #[derive(Debug, snafu::Snafu)] pub struct Error; }
 ```
 
 ### Generated code
 
-<div style="background: #ffffd0; padding: 0.6em; margin-bottom: 0.6em;">
+<div style="color: #000; background: #ffffd0; padding: 0.6em; margin-bottom: 0.6em;">
 
 **Note** — The actual generated code may differ in exact names and
 details. This section is only intended to provide general
-guidance.
+guidance. Use a tool like [cargo-expand][] to see the exact generated
+code for your situation.
 
 </div>
 
+[cargo-expand]: https://crates.io/crates/cargo-expand
+
 #### Context selectors
 
-This will generate three additional types called *context
-selectors*:
+Each enum variant will generate an additional type called a *context
+selector*:
 
 ```rust,ignore
-struct OpenConfig<P> { filename: P }
-struct SaveConfig<P>;
-struct UserIdInvalid<I> { user_id: I }
+struct OpenConfigSnafu<P> {
+    filename: P,
+}
+
+struct SaveConfigSnafu<P>;
+
+struct UserIdInvalidSnafu<I> {
+    user_id: I,
+}
+
+struct ConfigValidationFailedSnafu {
+    checksum: u64,
+    key: String,
+    source: crypto::Error,
+}
 ```
 
 Notably:
 
-1. One context selector is created for each enum variant.
-1. The name of the selector is the same as the enum variant's name.
+1. The name of the selector is the enum variant's name with the suffix
+   `Snafu` added. If the name originally ended in `Error`, that is
+   removed.
 1. The `source` and `backtrace` fields have been removed; the
-   library will automatically handle this for you.
+   library will automatically handle these for you.
 1. Each remaining field's type has been replaced with a generic
    type.
 1. If there are no fields remaining for the user to specify, the
@@ -63,7 +89,7 @@ If the original variant had a `source` field, its context selector
 will have an implementation of [`IntoError`][IntoError]:
 
 ```rust,ignore
-impl<P> IntoError<Error> for OpenConfig<P>
+impl<P> IntoError<Error> for OpenConfigSnafu<P>
 where
     P: Into<PathBuf>,
 ```
@@ -72,7 +98,7 @@ Otherwise, the context selector will have the inherent methods `build`
 and `fail` and can be used with the [`ensure`](ensure) macro:
 
 ```rust,ignore
-impl<I> UserIdInvalid<I>
+impl<I> UserIdInvalidSnafu<I>
 where
     I: Into<i32>,
 {
@@ -98,6 +124,7 @@ impl std::error::Error for Error {
             Error::OpenConfig { source, .. } => Some(source),
             Error::SaveConfig { source, .. } => Some(source),
             Error::UserIdInvalid { .. } => None,
+            Error::ConfigValidationFailed { source, .. } => Some(source),
         }
     }
 }
@@ -117,11 +144,13 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter ) -> fmt::Result {
         match self {
             Error::OpenConfig { filename, source } =>
-                write!(f, "Could not open config at {}: {}", filename.display(), source),
+                write!(f, "Could not open config at {}", filename.display()),
             Error::SaveConfig { source } =>
-                write!(f, "Could not open config: {}", source),
+                write!(f, "Could not open config"),
             Error::UserIdInvalid { user_id, backtrace } =>
                 write!(f, "The user id {} is invalid", user_id),
+            Error::ConfigValidationFailed { key, checksum, source } =>
+                write!(f, "Could not validate config with key {}: checksum was {}", key, checksum),
         }
     }
 }
@@ -143,6 +172,7 @@ impl snafu::ErrorCompat for Error {
             Error::OpenConfig { .. } => None,
             Error::SaveConfig { .. } => None,
             Error::UserIdInvalid { backtrace, .. } => Some(backtrace),
+            Error::ConfigValidationFailed { .. } => None,
         }
     }
 }

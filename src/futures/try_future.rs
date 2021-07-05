@@ -32,7 +32,7 @@ pub trait TryFutureExt: TryFuture + Sized {
     /// }
     ///
     /// fn example() -> impl TryFuture<Ok = i32, Error = Error> {
-    ///     another_function().context(Authenticating {
+    ///     another_function().context(AuthenticatingSnafu {
     ///         user_name: "admin",
     ///         user_id: 42,
     ///     })
@@ -70,7 +70,7 @@ pub trait TryFutureExt: TryFuture + Sized {
     /// }
     ///
     /// fn example() -> impl TryFuture<Ok = i32, Error = Error> {
-    ///     another_function().with_context(|| Authenticating {
+    ///     another_function().with_context(|| AuthenticatingSnafu {
     ///         user_name: "admin".to_string(),
     ///         user_id: 42,
     ///     })

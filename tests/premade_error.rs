@@ -7,7 +7,7 @@ type Result<T, E = Whatever> = std::result::Result<T, E>;
 #[derive(Debug, snafu::Snafu)]
 pub struct UnderlyingError;
 pub fn underlying(success: bool) -> Result<i32, UnderlyingError> {
-    snafu::ensure!(success, UnderlyingContext);
+    snafu::ensure!(success, UnderlyingSnafu);
     Ok(1)
 }
 

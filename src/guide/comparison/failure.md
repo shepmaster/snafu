@@ -1,90 +1,29 @@
 # SNAFU vs. Failure
 
 This comparison was made against the examples in [the guide for
-failure 0.1.5][failure-guide].
+failure 0.1.8][failure-guide].
 
 [failure-guide]: https://rust-lang-nursery.github.io/failure/guidance.html
 
 ## "Strings as errors"
 
-It's unclear what benefit Failure provides here. If you are using this
-functionality, we recommend using the standard library's `Box<dyn
-Error>`:
+If you wanted to do something similar with SNAFU, you can use the
+[`Whatever`](crate::Whatever) type:
 
 ```rust
-fn example() -> Result<(), Box<dyn std::error::Error>> {
-    Err(format!("Something went bad: {}", 1 + 1))?;
-    Ok(())
-}
-```
-
-If you wanted to do something similar with SNAFU, you can create a
-single-variant error enum with `String` data:
-
-```rust
-use snafu::Snafu;
 use std::ops::Range;
+use snafu::{Whatever,  whatever};
 
-#[derive(Debug, Snafu)]
-enum Error {
-    Any { detail: String },
-}
-
-fn check_range(x: usize, range: Range<usize>) -> Result<usize, Error> {
+fn check_range(x: usize, range: Range<usize>) -> Result<usize, Whatever> {
     if x < range.start {
-        return Any {
-            detail: format!("{} is below {}", x, range.start),
-        }
-        .fail();
+        whatever!("{} is below {}", x, range.start);
     }
     if x >= range.end {
-        return Any {
-            detail: format!("{} is above {}", x, range.end),
-        }
-        .fail();
+        whatever!("{} is above {}", x, range.end);
     }
     Ok(x)
 }
 ```
-
-This could be enhanced in a few ways:
-
-- create methods on your `Error` type
-- create a custom macro
-- add a [`Backtrace`][Backtrace] to the enum variant
-
-For example:
-
-```rust
-use snafu::{Backtrace, Snafu};
-use std::ops::Range;
-
-#[derive(Debug, Snafu)]
-enum Error {
-    Any {
-        detail: String,
-        backtrace: Backtrace,
-    },
-}
-
-macro_rules! format_err {
-    ($($arg:tt)*) => { Any { detail: format!($($arg)*) }.fail() }
-}
-
-fn check_range(x: usize, range: Range<usize>) -> Result<usize, Error> {
-    if x < range.start {
-        return format_err!("{} is below {}", x, range.start);
-    }
-    if x >= range.end {
-        return format_err!("{} is above {}", x, range.end);
-    }
-    Ok(x)
-}
-```
-
-Please see the next section for the recommended pattern for this error.
-
-[Backtrace]: crate::Backtrace
 
 ## "A Custom Fail type" and "Using the Error type"
 
@@ -110,8 +49,8 @@ enum Error {
 }
 
 fn check_range(value: usize, range: Range<usize>) -> Result<usize, Error> {
-    ensure!(value >= range.start, Below { value, bound: range.start });
-    ensure!(value < range.end, Above { value, bound: range.end });
+    ensure!(value >= range.start, BelowSnafu { value, bound: range.start });
+    ensure!(value < range.end, AboveSnafu { value, bound: range.end });
     Ok(value)
 }
 ```
@@ -144,10 +83,10 @@ fn two_errors_from_same_underlying_error(
 ) -> Result<(i32, i32), Error> {
     let area_code: i32 = area_code
         .parse()
-        .context(AreaCodeInvalid { value: area_code })?;
+        .context(AreaCodeInvalidSnafu { value: area_code })?;
     let exchange: i32 = exchange
         .parse()
-        .context(PhoneExchangeInvalid { value: exchange })?;
+        .context(PhoneExchangeInvalidSnafu { value: exchange })?;
     Ok((area_code, exchange))
 }
 ```

@@ -9,7 +9,7 @@ mod lifetimes {
     #[test]
     fn are_allowed() {
         let key = 42;
-        let e = Context { key: &key }.build();
+        let e = Snafu { key: &key }.build();
         assert_eq!(*e.key, key);
     }
 }
@@ -25,7 +25,7 @@ mod types {
     #[test]
     fn are_allowed() {
         let key = 42;
-        let e: Error<i32> = Context { key }.build();
+        let e: Error<i32> = Snafu { key }.build();
         assert_eq!(e.key, key);
     }
 
@@ -48,8 +48,8 @@ mod types {
             #[derive(Debug, Snafu)]
             struct AnotherError;
 
-            let r = AnotherContext.fail::<()>();
-            let _e: Error<_, u8> = r.context(Context { key: 42 }).unwrap_err();
+            let r = AnotherSnafu.fail::<()>();
+            let _e: Error<_, u8> = r.context(Snafu { key: 42 }).unwrap_err();
         }
     }
 }
@@ -67,7 +67,7 @@ mod bounds {
 
         #[test]
         fn are_preserved() {
-            let e: Error<bool> = Context { key: true }.build();
+            let e: Error<bool> = Snafu { key: true }.build();
             let display = e.to_string();
             assert_eq!(display, "key: true");
         }
@@ -88,7 +88,7 @@ mod bounds {
 
         #[test]
         fn are_preserved() {
-            let e: Error<bool> = Context { key: true }.build();
+            let e: Error<bool> = Snafu { key: true }.build();
             let display = e.to_string();
             assert_eq!(display, "key: true");
         }

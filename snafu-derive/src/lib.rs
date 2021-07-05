@@ -4,7 +4,7 @@ extern crate proc_macro;
 
 use crate::parse::attributes_from_syn;
 use proc_macro::TokenStream;
-use quote::{format_ident, quote};
+use quote::quote;
 use std::collections::VecDeque;
 use std::fmt;
 
@@ -47,8 +47,15 @@ struct FieldContainer {
     visibility: Option<UserInput>,
 }
 
+enum SuffixKind {
+    Default,
+    None,
+    Some(syn::Ident),
+}
+
 enum ContextSelectorKind {
     Context {
+        suffix: SuffixKind,
         source_field: Option<SourceField>,
         user_fields: Vec<Field>,
     },
@@ -814,6 +821,7 @@ fn field_container(
     errors.extend(errs);
 
     let (is_context, errs) = contexts.finish_with_location();
+    let is_context = is_context.map(|(c, tt)| (c.into_enabled(), tt));
     errors.extend(errs);
 
     let (is_whatever, errs) = whatevers.finish_with_location();
@@ -822,7 +830,7 @@ fn field_container(
     let source_field = source.map(|(val, _tts)| val);
 
     let selector_kind = match (is_context, is_whatever) {
-        (Some((true, c_tt)), Some(((), o_tt))) => {
+        (Some(((true, _), c_tt)), Some(((), o_tt))) => {
             let txt = "Cannot be both a `context` and `whatever` error";
             return Err(vec![
                 syn::Error::new_spanned(c_tt, txt),
@@ -830,12 +838,19 @@ fn field_container(
             ]);
         }
 
-        (Some((true, _)), None) | (None, None) => ContextSelectorKind::Context {
+        (Some(((true, suffix), _)), None) => ContextSelectorKind::Context {
+            suffix,
             source_field,
             user_fields,
         },
 
-        (Some((false, _)), Some(_)) | (None, Some(_)) => {
+        (None, None) => ContextSelectorKind::Context {
+            suffix: SuffixKind::Default,
+            source_field,
+            user_fields,
+        },
+
+        (Some(((false, _), _)), Some(_)) | (None, Some(_)) => {
             let mut messages = AtMostOne::new("message", outer_error_location);
 
             for f in user_fields {
@@ -867,7 +882,7 @@ fn field_container(
             }
         }
 
-        (Some((false, _)), None) => {
+        (Some(((false, _), _)), None) => {
             errors.extend(user_fields.into_iter().map(|Field { original, .. }| {
                 syn::Error::new_spanned(
                     original,
@@ -1035,6 +1050,20 @@ fn parse_snafu_tuple_struct(
     })
 }
 
+enum Context {
+    Flag(bool),
+    Suffix(SuffixKind),
+}
+
+impl Context {
+    fn into_enabled(self) -> (bool, SuffixKind) {
+        match self {
+            Context::Flag(b) => (b, SuffixKind::None),
+            Context::Suffix(suffix) => (true, suffix),
+        }
+    }
+}
+
 enum Source {
     Flag(bool),
     From(syn::Type, syn::Expr),
@@ -1052,7 +1081,7 @@ enum SnafuAttribute {
     Visibility(proc_macro2::TokenStream, UserInput),
     Source(proc_macro2::TokenStream, Vec<Source>),
     Backtrace(proc_macro2::TokenStream, bool),
-    Context(proc_macro2::TokenStream, bool),
+    Context(proc_macro2::TokenStream, Context),
     Whatever(proc_macro2::TokenStream),
     CrateRoot(proc_macro2::TokenStream, UserInput),
     DocComment(proc_macro2::TokenStream, String),
@@ -1389,21 +1418,10 @@ impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
 }
 
 impl NamedStructInfo {
-    fn selector_name(&self) -> syn::Ident {
-        let selector_name = self.field_container.name.to_string();
-        let selector_name = selector_name.trim_end_matches("Error");
-        format_ident!(
-            "{}Context",
-            selector_name,
-            span = self.field_container.name.span()
-        )
-    }
-
     fn generate_snafu(self) -> proc_macro2::TokenStream {
         let parameterized_struct_name = self.parameterized_name();
         let original_generics = self.provided_generics_without_defaults();
         let where_clauses = self.provided_where_clauses();
-        let selector_name = self.selector_name();
 
         let Self {
             crate_root,
@@ -1494,7 +1512,7 @@ impl NamedStructInfo {
             parameterized_error_name: &parameterized_struct_name,
             selector_doc_string: &selector_doc_string,
             selector_kind: &selector_kind,
-            selector_name: &selector_name,
+            selector_name: &field_container.name,
             user_fields: &user_fields,
             visibility: visibility.as_ref().map(|x| &**x),
             where_clauses: &where_clauses,

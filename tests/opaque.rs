@@ -9,12 +9,12 @@ mod inner {
     }
 
     pub fn not_positive(value: i32) -> Result<i32, Error> {
-        ensure!(value < 1, TooBig { count: value });
+        ensure!(value < 1, TooBigSnafu { count: value });
         Ok(value)
     }
 
     pub fn boxed_inner(value: i32) -> Result<i32, Box<dyn std::error::Error>> {
-        ensure!(value < 1, TooBig { count: value });
+        ensure!(value < 1, TooBigSnafu { count: value });
         Ok(value)
     }
 
@@ -25,11 +25,11 @@ mod inner {
     }
 
     fn a() -> Result<i32, InnerError> {
-        TooBig { count: 1 }.fail()
+        TooBigSnafu { count: 1 }.fail()
     }
 
     fn b() -> Result<i32, InnerError> {
-        TooBig { count: 2 }.fail()
+        TooBigSnafu { count: 2 }.fail()
     }
 }
 

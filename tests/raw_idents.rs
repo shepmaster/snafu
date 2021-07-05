@@ -22,12 +22,12 @@ fn implements_error() {
 #[test]
 fn creates_context_selectors() {
     fn one(success: bool) -> Result<()> {
-        ensure!(success, Example { r#type: "boom" });
+        ensure!(success, ExampleSnafu { r#type: "boom" });
         Ok(())
     }
 
     fn two(success: bool) -> Result<()> {
-        one(success).context(r#Awesome)?;
+        one(success).context(r#AwesomeSnafu)?;
         Ok(())
     }
 

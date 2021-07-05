@@ -18,7 +18,7 @@ type Result<T, E = Error> = std::result::Result<T, E>;
 fn example(filename: impl AsRef<Path>) -> Result<()> {
     let filename = filename.as_ref();
 
-    let _config = fs::read(filename).context(Context { filename })?;
+    let _config = fs::read(filename).context(Snafu { filename })?;
 
     Ok(())
 }

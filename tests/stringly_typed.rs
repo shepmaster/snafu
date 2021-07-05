@@ -46,7 +46,7 @@ mod message_and_source {
     struct UnderlyingError;
 
     fn underlying(success: bool) -> Result<i32, UnderlyingError> {
-        ensure!(success, UnderlyingContext);
+        ensure!(success, UnderlyingSnafu);
         Ok(1)
     }
 
@@ -155,7 +155,7 @@ mod message_source_and_backtrace {
     struct UnderlyingError;
 
     fn underlying(success: bool) -> Result<i32, UnderlyingError> {
-        ensure!(success, UnderlyingContext);
+        ensure!(success, UnderlyingSnafu);
         Ok(1)
     }
 

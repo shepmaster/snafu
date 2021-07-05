@@ -37,10 +37,10 @@ mod enabling {
     }
 
     fn example() -> Result<(), Error> {
-        inner().context(NoArgument)?;
-        inner().context(ExplicitTrue)?;
-        inner().context(FromImpliesTrue)?;
-        ExplicitFalse { source: 42 }.fail()?;
+        inner().context(NoArgumentSnafu)?;
+        inner().context(ExplicitTrueSnafu)?;
+        inner().context(FromImpliesTrueSnafu)?;
+        ExplicitFalseSnafu { source: 42 }.fail()?;
         Ok(())
     }
 
@@ -80,9 +80,9 @@ mod transformation {
     }
 
     fn example() -> Result<(), Error> {
-        inner().context(TransformationViaClosure)?;
-        inner().context(TransformationViaFunction)?;
-        inner().context(TransformationToTraitObject)?;
+        inner().context(TransformationViaClosureSnafu)?;
+        inner().context(TransformationViaFunctionSnafu)?;
+        inner().context(TransformationToTraitObjectSnafu)?;
         Ok(())
     }
 

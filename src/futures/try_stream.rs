@@ -32,7 +32,7 @@ pub trait TryStreamExt: TryStream + Sized {
     /// }
     ///
     /// fn example() -> impl TryStream<Ok = i32, Error = Error> {
-    ///     stock_prices().context(Authenticating {
+    ///     stock_prices().context(AuthenticatingSnafu {
     ///         user_name: "admin",
     ///         user_id: 42,
     ///     })
@@ -71,7 +71,7 @@ pub trait TryStreamExt: TryStream + Sized {
     /// }
     ///
     /// fn example() -> impl TryStream<Ok = i32, Error = Error> {
-    ///     stock_prices().with_context(|| Authenticating {
+    ///     stock_prices().with_context(|| AuthenticatingSnafu {
     ///         user_name: "admin",
     ///         user_id: 42,
     ///     })

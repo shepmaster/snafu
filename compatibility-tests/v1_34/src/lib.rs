@@ -26,11 +26,11 @@ mod enum_style {
     type Result<T, E = Error> = std::result::Result<T, E>;
 
     fn create_without_source() -> Result<()> {
-        WithoutSource { id: 42 }.fail()
+        WithoutSourceSnafu { id: 42 }.fail()
     }
 
     fn create_with_source() -> Result<()> {
-        io_failure().context(WithSource { id: 42 })
+        io_failure().context(WithSourceSnafu { id: 42 })
     }
 
     #[test]
@@ -59,11 +59,11 @@ mod struct_style {
     }
 
     fn create_without_source() -> Result<(), WithoutSource> {
-        WithoutSourceContext { id: 42 }.fail()
+        WithoutSourceSnafu { id: 42 }.fail()
     }
 
     fn create_with_source() -> Result<(), WithSource> {
-        io_failure().context(WithSourceContext { id: 42 })
+        io_failure().context(WithSourceSnafu { id: 42 })
     }
 
     #[test]
@@ -86,7 +86,7 @@ mod opaque_style {
     struct Opaque(Dummy);
 
     fn create() -> Result<(), Opaque> {
-        Ok(DummyContext.fail()?)
+        Ok(DummySnafu.fail()?)
     }
 
     #[test]
