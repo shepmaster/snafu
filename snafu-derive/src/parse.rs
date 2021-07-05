@@ -19,7 +19,6 @@ mod kw {
     custom_keyword!(source);
     custom_keyword!(visibility);
 
-    custom_keyword!(delegate); // deprecated
     custom_keyword!(from);
 
     custom_keyword!(suffix);
@@ -140,13 +139,6 @@ struct BacktraceArg {
 
 impl Parse for BacktraceArg {
     fn parse(input: ParseStream) -> Result<Self> {
-        // TODO: Remove this with a semver-incompatible release
-        if input.peek(kw::delegate) {
-            return Err(input.error(
-                "`backtrace(delegate)` has been removed; use `backtrace` on a source field",
-            ));
-        }
-
         Ok(Self {
             value: input.parse()?,
         })
