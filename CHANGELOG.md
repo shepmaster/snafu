@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rust 1.34 is now the minimum supported Rust version. This is a
   **breaking change**.
 
+### Removed
+
+- String attribute parsing (`#[snafu(foo = "...")]`) is no longer
+  supported.
+
 [0.7.0]: https://github.com/shepmaster/snafu/releases/tag/0.7.0
 
 ## [0.6.10] - 2020-12-03

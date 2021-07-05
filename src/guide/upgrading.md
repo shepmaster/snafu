@@ -25,6 +25,25 @@ attempts to locate all of your context selectors and rename them.
 
 [snafu-upgrade-assistant]: https://github.com/shepmaster/snafu-upgrade-assistant
 
+### String attribute parsing is no longer supported
+
+Previously, SNAFU allowed an alternate attribute specification format
+to support versions of Rust before 1.34. Since the minimum version has
+been increased, this format is no longer required. Use the
+parenthesized format instead:
+
+#### Before
+
+```rust,ignore
+#[snafu(display = r#"("a format string with arguments: {}", info)"#)]
+```
+
+#### After
+
+```rust,ignore
+#[snafu(display("a format string with arguments: {}", info))]
+```
+
 ### Minimum supported version of Rust is now 1.34
 
 If you are writing a library, you will need to increase your minimum
