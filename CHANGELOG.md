@@ -6,7 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.7.0] - XXXX-XX-XX
 
+### Added
+
+- A ready-to-use error type `Whatever` is available to quickly start
+  reporting errors with little hassle.
+
+- "Stringly typed" error cases can be added to existing error types,
+  allowing you to construct errors without defining them first.
+
 ### Changed
+
+- Generated context selectors now have the suffix `Snafu`. This is a
+  **breaking change**.
 
 - Rust 1.34 is now the minimum supported Rust version. This is a
   **breaking change**.
