@@ -63,7 +63,7 @@ use crate::{Snafu, Backtrace, ErrorCompat, GenerateBacktrace};
 // needed in most cases:
 #[snafu(crate_root(crate), visibility = "pub")]
 pub enum Error {
-    /// The most common leaf error should always include a backtrace field.    .
+    /// The most common leaf error should always include a backtrace field.
     UsualCase {
         backtrace: Backtrace,
     },
@@ -73,7 +73,7 @@ pub enum Error {
     /// `Option`. See
     /// [GenerateBacktrace](GenerateBacktrace#impl-GenerateBacktrace-for-Option<Backtrace>)
     /// for instructions on how to access the backtrace in this
-    /// case.q.
+    /// case.
     UsedInTightLoop {
         backtrace: Option<Backtrace>,
     },

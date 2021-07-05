@@ -9,6 +9,22 @@
 
 ## Version 0.6 → 0.7
 
+### Context selector names have changed
+
+Previously, context selector names for enum errors exactly matched
+their corresponding enum variant names. This caused a large amount of
+confusion for people new to SNAFU. It was also inconsistent with
+context selector names for struct errors.
+
+Now, context selectors for both enum and struct errors use the `Snafu`
+suffix.
+
+Upgrading should be a tedious but straightforward process. To assist
+upgrading your code, you can use the [snafu-upgrade-assistant], which
+attempts to locate all of your context selectors and rename them.
+
+[snafu-upgrade-assistant]: https://github.com/shepmaster/snafu-upgrade-assistant
+
 ### Minimum supported version of Rust is now 1.34
 
 If you are writing a library, you will need to increase your minimum
