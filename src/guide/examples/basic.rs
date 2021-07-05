@@ -51,7 +51,7 @@ use crate::{Snafu, ResultExt};
 #[derive(Debug, Snafu)]
 // This line is only needed to generate documentation; it is not
 // needed in most cases:
-#[snafu(crate_root(crate), visibility = "pub")]
+#[snafu(crate_root(crate), visibility(pub))]
 pub enum Error {
     Leaf {
         user_id: i32,

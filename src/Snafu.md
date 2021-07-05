@@ -13,21 +13,28 @@ unique situations.
 
 ## Controlling `Display`
 
-There are a number of ways you can specify how the `Display` trait
-will be implemented for each variant:
+You can specify how the `Display` trait will be implemented for each
+variant. The argument is a format string and the arguments. All of the
+fields of the variant will be available and you can call methods on
+them, such as `filename.display()`.
 
-- `#[snafu(display("a format string with arguments: {}", info))]`
+**Example**
 
-  The argument is a format string and the arguments. Available in Rust 1.34.
+```rust
+# use snafu::Snafu;
+#[derive(Debug, Snafu)]
+enum Error {
+    #[snafu(display("The user {} could not log in", username))]
+    InvalidLogin { username: String, password: String },
+}
 
-- `#[snafu(display = r#"("a format string with arguments: {}", info)"#)]`
-
-  The same argument as above, but wrapped in a raw string to
-  support previous Rust versions.
-
-Each choice has the same capabilities. All of the fields of the
-variant will be available and you can call methods on them, such
-as `filename.display()`.
+fn main() {
+    assert_eq!(
+        InvalidLoginSnafu { username: "Stefani", password: "Germanotta" }.build().to_string(),
+        "The user Stefani could not log in",
+    );
+}
+```
 
 ### The default `Display` implementation
 
@@ -47,11 +54,11 @@ enum Error {
 
 fn main() {
     assert_eq!(
-        Error::MissingUser.to_string(),
+        MissingUserSnafu.build().to_string(),
         "No user available. You may need to specify one.",
     );
     assert_eq!(
-        Error::MissingPassword.to_string(),
+        MissingPasswordSnafu.build().to_string(),
         "MissingPassword",
     );
 }
@@ -143,24 +150,19 @@ module, you can use the `#[snafu(visibility)]` attribute. This can
 be applied to the error type as a default visibility or to
 specific context selectors.
 
-There are a number of forms of the attribute:
+There are multiple forms of the attribute:
 
 - `#[snafu(visibility(X))]`
 
   `X` is a normal Rust visibility modifier (`pub`, `pub(crate)`,
-  `pub(in some::path)`, etc.). Supported in Rust 1.34.
-
-- `#[snafu(visibility = "X")]`
-
-  The same argument as above, but wrapped in a string to support
-  previous Rust versions.
+  `pub(in some::path)`, etc.).
 
 - `#[snafu(visibility)]` will reset back to private visibility.
 
 ```
 # use snafu::Snafu;
 #[derive(Debug, Snafu)]
-#[snafu(visibility = "pub(crate)")] // Sets the default visibility for these context selectors
+#[snafu(visibility(pub(crate)))] // Sets the default visibility for these context selectors
 pub(crate) enum Error {
     IsPubCrate, // Uses the default
     #[snafu(visibility)]

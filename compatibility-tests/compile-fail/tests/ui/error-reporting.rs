@@ -29,18 +29,15 @@ mod display {
     enum FailedAttributeParsing {
         #[snafu(display)]
         DisplayWithoutArgument,
-
-        #[snafu(display = 42)]
-        StringStyleNotStringLiteral,
     }
 
     #[derive(Debug, Snafu)]
     enum InvalidGeneratedCode {
         #[snafu(display(foo()))]
-        CleanStyleBadFormatString,
+        FormatStringMissing,
 
-        #[snafu(display = "42")]
-        StringStyleBadFormatString,
+        #[snafu(display(42))]
+        FormatStringNotStringLiteral,
     }
 }
 
