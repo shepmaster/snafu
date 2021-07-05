@@ -15,7 +15,7 @@ use crate::{Snafu, ResultExt};
 /// ## Leaf errors
 ///
 /// Context selectors for error variants without a `source`, such
-/// as `LeafSnafu`, have methods to construct them, such as
+/// as [`LeafSnafu`], have methods to construct them, such as
 /// [`LeafSnafu::build`] or [`LeafSnafu::fail`]. The [`ensure`] macro also
 /// accepts these kinds of context selectors.
 ///
@@ -36,7 +36,7 @@ use crate::{Snafu, ResultExt};
 /// ## Intermediate errors
 ///
 /// Context selectors for error variants with a `source`, such as
-/// `Intermediate`, are intended to be used with the
+/// [`IntermediateSnafu`], are intended to be used with the
 /// [`ResultExt::context`] family of methods.
 ///
 /// ```
