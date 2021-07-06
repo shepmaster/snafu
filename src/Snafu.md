@@ -8,6 +8,7 @@ unique situations.
 - [`crate_root`](#controlling-how-the-snafu-crate-is-resolved)
 - [`display`](#controlling-display)
 - [`implicit`](#controlling-implicitly-generated-data)
+- [`module`](#placing-context-selectors-in-modules)
 - [`source`](#controlling-error-sources)
 - [`visibility`](#controlling-visibility)
 - [`whatever`](#controlling-stringly-typed-errors)
@@ -183,6 +184,83 @@ It should be noted that API stability of context selectors is not
 guaranteed. Therefore, exporting them in a crate's public API
 could cause semver breakage for such crates, should SNAFU internals
 change.
+
+## Placing context selectors in modules
+
+When you have multiple error enums that would generate conflicting
+context selectors, you can choose to place the context selectors into
+a module using `snafu(module)`:
+
+```rust
+use snafu::prelude::*;
+
+#[derive(Debug, Snafu)]
+#[snafu(module)]
+enum ReadError {
+    Opening,
+}
+
+fn example() -> Result<(), ReadError> {
+    read_error::OpeningSnafu.fail()
+}
+
+#[derive(Debug, Snafu)]
+enum WriteError {
+    Opening, // Would conflict if `snafu(module)` was not used above.
+}
+# // https://github.com/rust-lang/rust/issues/83583
+# fn main() {}
+```
+
+By default, the module name will be the `snake_case` equivalent of the
+enum name. You can override the default by providing an argument to
+`#[snafu(module(...))]`:
+
+```rust
+use snafu::prelude::*;
+
+#[derive(Debug, Snafu)]
+#[snafu(module(read))]
+enum ReadError {
+    Opening,
+}
+
+fn example() -> Result<(), ReadError> {
+    read::OpeningSnafu.fail()
+}
+# // https://github.com/rust-lang/rust/issues/83583
+# fn main() {}
+```
+
+As placing the context selectors in a module naturally namespaces
+them, you may wish to combine this option with
+`#[snafu(context(suffix(false)))]`:
+
+```rust
+use snafu::prelude::*;
+
+#[derive(Debug, Snafu)]
+#[snafu(module, context(suffix(false)))]
+enum ReadError {
+    Opening,
+}
+
+fn example() -> Result<(), ReadError> {
+    read_error::Opening.fail()
+}
+# // https://github.com/rust-lang/rust/issues/83583
+# fn main() {}
+```
+
+The generated module starts with `use super::*`, so any types or
+traits used by the context selectors need to be in scope — complicated
+paths may need to be simplified or made absolute.
+
+By default, the visibility of the generated module will be private
+while the context selectors inside will be `pub(super)`. Using
+[`#[snafu(visibility)]`](#controlling-visibility) to control the
+visibility will change the visibility of *both* the module and the
+context selectors.
 
 ## Controlling error sources
 
