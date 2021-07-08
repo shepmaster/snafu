@@ -231,7 +231,6 @@ doc_comment::doc_comment! {
     pub use snafu_derive::Snafu;
 }
 
-#[cfg(feature = "guide")]
 macro_rules! generate_guide {
     (pub mod $name:ident; $($rest:tt)*) => {
         generate_guide!(@gen ".", pub mod $name { } $($rest)*);
@@ -244,21 +243,33 @@ macro_rules! generate_guide {
         generate_guide!(@gen $prefix, pub mod $name { } $($rest)*);
     };
     (@gen $prefix:expr, @code pub mod $name:ident; $($rest:tt)*) => {
+        #[cfg(feature = "guide")]
         pub mod $name;
+
+        #[cfg(not(feature = "guide"))]
+        /// Not currently built; please add the `guide` feature flag.
+        pub mod $name {}
+
         generate_guide!(@gen $prefix, $($rest)*);
     };
     (@gen $prefix:expr, pub mod $name:ident { $($children:tt)* } $($rest:tt)*) => {
+        #[cfg(feature = "guide")]
         doc_comment::doc_comment! {
             include_str!(concat!($prefix, "/", stringify!($name), ".md")),
             pub mod $name {
                 generate_guide!(@gen concat!($prefix, "/", stringify!($name)), $($children)*);
             }
         }
+        #[cfg(not(feature = "guide"))]
+        /// Not currently built; please add the `guide` feature flag.
+        pub mod $name {
+            generate_guide!(@gen concat!($prefix, "/", stringify!($name)), $($children)*);
+        }
+
         generate_guide!(@gen $prefix, $($rest)*);
     };
 }
 
-#[cfg(feature = "guide")]
 generate_guide! {
     pub mod guide {
         pub mod comparison {

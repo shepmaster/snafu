@@ -25,7 +25,7 @@ exclude = [
 features = [ "std", "backtraces", "futures", "guide" ]
 
 [features]
-default = ["std", "guide"]
+default = ["std"]
 
 # Implement the `std::error::Error` trait.
 std = []
