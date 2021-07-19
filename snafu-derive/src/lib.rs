@@ -1247,9 +1247,9 @@ impl EnumInfo {
         let error_impl = ErrorImpl(&self);
         let error_compat_impl = ErrorCompatImpl(&self);
 
-        let context = match self.module {
+        let context = match &self.module {
             None => quote! { #context_selectors },
-            Some(ref module_name) => {
+            Some(module_name) => {
                 use crate::shared::ContextModule;
 
                 let context_module = ContextModule {
@@ -1563,11 +1563,11 @@ impl NamedStructInfo {
 
         let pub_visibility = pub_visibility();
         let selector_visibility = match (visibility, module) {
-            (Some(ref v), _) => Some(&**v),
+            (Some(v), _) => Some(&**v),
             (None, Some(_)) => {
                 // Default to pub visibility since private context selectors
                 // wouldn't be accessible outside the module.
-                Some(&pub_visibility as &dyn quote::ToTokens)
+                Some(&pub_visibility as _)
             }
             (None, None) => None,
         };
