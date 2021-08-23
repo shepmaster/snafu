@@ -25,7 +25,7 @@ mod missing_message {
 mod double_message {
     use snafu::Snafu;
 
-    #[derive(Debug, Snafu)]
+    #[derive(Snafu)]
     #[snafu(whatever)]
     struct Error {
         message: String,
