@@ -9,7 +9,7 @@ note: the unit struct `PrivateSnafu` is defined here
    |
 7  |         #[derive(Debug, Snafu)]
    |                         ^^^^^
-   = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the derive macro `Snafu` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0603]: unit struct `PubInPathSnafu` is private
   --> $DIR/visibility.rs:24:33
@@ -22,7 +22,7 @@ note: the unit struct `PubInPathSnafu` is defined here
    |
 7  |         #[derive(Debug, Snafu)]
    |                         ^^^^^
-   = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the derive macro `Snafu` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0603]: unit struct `PrivateSnafu` is private
   --> $DIR/visibility.rs:28:33
@@ -35,7 +35,7 @@ note: the unit struct `PrivateSnafu` is defined here
    |
 7  |         #[derive(Debug, Snafu)]
    |                         ^^^^^
-   = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the derive macro `Snafu` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0624]: associated function `build` is private
   --> $DIR/visibility.rs:19:43

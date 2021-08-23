@@ -41,13 +41,3 @@ error[E0124]: field `message` is already declared
    |         --------------- `message` first declared here
 32 |         message: String,
    |         ^^^^^^^^^^^^^^^ field already declared
-
-error[E0025]: field `message` bound multiple times in the pattern
-  --> $DIR/stringly-typed.rs:32:9
-   |
-31 |         message: String,
-   |         --------------- first use of `message`
-32 |         message: String,
-   |         ^^^^^^^^^^^^^^^ multiple uses of `message` in pattern
-   |
-   = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
