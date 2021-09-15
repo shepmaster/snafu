@@ -40,17 +40,26 @@ note: the unit struct `PrivateSnafu` is defined here
 error[E0624]: associated function `build` is private
   --> $DIR/visibility.rs:19:43
    |
+7  |         #[derive(Debug, Snafu)]
+   |                         ----- private associated function defined here
+...
 19 |         let _ = self::inner::PrivateSnafu.build();
    |                                           ^^^^^ private associated function
 
 error[E0624]: associated function `build` is private
   --> $DIR/visibility.rs:24:48
    |
+7  |         #[derive(Debug, Snafu)]
+   |                         ----- private associated function defined here
+...
 24 |     let _ = self::outer::inner::PubInPathSnafu.build();
    |                                                ^^^^^ private associated function
 
 error[E0624]: associated function `build` is private
   --> $DIR/visibility.rs:28:46
    |
+7  |         #[derive(Debug, Snafu)]
+   |                         ----- private associated function defined here
+...
 28 |     let _ = self::outer::inner::PrivateSnafu.build();
    |                                              ^^^^^ private associated function

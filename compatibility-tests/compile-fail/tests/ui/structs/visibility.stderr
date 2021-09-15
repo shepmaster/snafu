@@ -14,5 +14,8 @@ note: the unit struct `Snafu` is defined here
 error[E0624]: associated function `build` is private
   --> $DIR/visibility.rs:11:26
    |
+6  |     #[derive(Debug, Snafu)]
+   |                     ----- private associated function defined here
+...
 11 |     let _ = inner::Snafu.build();
    |                          ^^^^^ private associated function
