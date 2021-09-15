@@ -9,3 +9,4 @@ snafu = { path = "../..", default-features = false, features = ["backtraces"] }
 
 # These versions are the last versions to support Rust 1.34
 backtrace = "= 0.3.35"
+rustc-demangle = "= 0.1.20"
