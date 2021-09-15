@@ -138,6 +138,7 @@ v1_34_test_task:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
   primary_test_script:
+    - rustup self update
     - cd compatibility-tests/v1_34/
     - rustc --version
     - cargo test
