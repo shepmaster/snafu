@@ -20,7 +20,7 @@ pub trait TryFutureExt: TryFuture + Sized {
     /// ```rust
     /// # use futures_crate as futures;
     /// use futures::future::TryFuture;
-    /// use snafu::{futures::TryFutureExt, Snafu};
+    /// use snafu::prelude::*;
     ///
     /// #[derive(Debug, Snafu)]
     /// enum Error {
@@ -58,7 +58,7 @@ pub trait TryFutureExt: TryFuture + Sized {
     /// ```rust
     /// # use futures_crate as futures;
     /// use futures::future::TryFuture;
-    /// use snafu::{futures::TryFutureExt, Snafu};
+    /// use snafu::prelude::*;
     ///
     /// #[derive(Debug, Snafu)]
     /// enum Error {
@@ -106,7 +106,7 @@ pub trait TryFutureExt: TryFuture + Sized {
     /// ```rust
     /// # use futures_crate as futures;
     /// use futures::future::TryFuture;
-    /// use snafu::{futures::TryFutureExt, Whatever};
+    /// use snafu::{prelude::*, Whatever};
     ///
     /// fn example() -> impl TryFuture<Ok = i32, Error = Whatever> {
     ///     api_function().whatever_context("The API failed")
@@ -134,7 +134,7 @@ pub trait TryFutureExt: TryFuture + Sized {
     /// ```rust
     /// # use futures_crate as futures;
     /// use futures::future::TryFuture;
-    /// use snafu::{futures::TryFutureExt, Whatever};
+    /// use snafu::{prelude::*, Whatever};
     ///
     /// fn example(arg: &'static str) -> impl TryFuture<Ok = i32, Error = Whatever> {
     ///     api_function(arg)

@@ -1,4 +1,4 @@
-use snafu::{ChainCompat, Snafu};
+use snafu::prelude::*;
 use std::fmt::Debug;
 
 #[derive(Debug, Clone, Snafu)]
@@ -28,7 +28,7 @@ fn assert_eq_debug(a: impl Debug, b: impl Debug) {
 
 #[test]
 fn chain_compat_iterates() {
-    use snafu::IntoError;
+    use snafu::{ChainCompat, IntoError};
 
     let bottom_error = InvalidUserSnafu { user_id: 12 }.build();
     let middle_error = CheckUserSnafu.into_error(bottom_error.clone());

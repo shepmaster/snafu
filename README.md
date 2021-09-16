@@ -10,7 +10,7 @@ SNAFU is a library to easily assign underlying errors into
 domain-specific errors while adding context.
 
 ```rust
-use snafu::{ResultExt, Snafu};
+use snafu::prelude::*;
 use std::{fs, io, path::PathBuf};
 
 #[derive(Debug, Snafu)]

@@ -21,7 +21,7 @@ them, such as `filename.display()`.
 **Example**
 
 ```rust
-# use snafu::Snafu;
+# use snafu::prelude::*;
 #[derive(Debug, Snafu)]
 enum Error {
     #[snafu(display("The user {} could not log in", username))]
@@ -48,7 +48,7 @@ if it is omitted, the summary of the documentation comment will be
 used. If that is not present, the name of the variant will be used.
 
 ```rust
-# use snafu::Snafu;
+# use snafu::prelude::*;
 #[derive(Debug, Snafu)]
 enum Error {
     /// No user available.
@@ -79,7 +79,7 @@ the suffix entirely, you can use `#[snafu(context(suffix(false)))]`.
 **Example**
 
 ```rust
-# use snafu::Snafu;
+# use snafu::prelude::*;
 #
 #[derive(Debug, Snafu)]
 enum Error {
@@ -118,7 +118,7 @@ actionable error from a frustrating one.
 **Example**
 
 ```rust
-# use snafu::Snafu;
+# use snafu::prelude::*;
 #
 #[derive(Debug, Snafu)]
 enum Error {
@@ -162,7 +162,7 @@ There are multiple forms of the attribute:
 - `#[snafu(visibility)]` will reset back to private visibility.
 
 ```
-# use snafu::Snafu;
+# use snafu::prelude::*;
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub(crate)))] // Sets the default visibility for these context selectors
 pub(crate) enum Error {
@@ -188,11 +188,11 @@ indicate if a field is an underlying cause or not:
 
 ```rust
 # mod another {
-#     use snafu::Snafu;
+#     use snafu::prelude::*;
 #     #[derive(Debug, Snafu)]
 #     pub enum Error {}
 # }
-# use snafu::Snafu;
+# use snafu::prelude::*;
 #[derive(Debug, Snafu)]
 enum Error {
     SourceIsNotAnError {
@@ -216,11 +216,11 @@ that type to the type held by the error.
 
 ```rust
 # mod another {
-#     use snafu::Snafu;
+#     use snafu::prelude::*;
 #     #[derive(Debug, Snafu)]
 #     pub enum Error {}
 # }
-# use snafu::Snafu;
+# use snafu::prelude::*;
 #[derive(Debug, Snafu)]
 enum Error {
     SourceNeedsToBeBoxed {
@@ -248,7 +248,7 @@ cannot be named `backtrace`, or if it contains a field named
  backtrace or not:
 
 ```rust
-# use snafu::{Backtrace, Snafu};
+# use snafu::{prelude::*, Backtrace};
 #[derive(Debug, Snafu)]
 enum Error {
     BacktraceIsNotABacktrace {
@@ -270,11 +270,11 @@ source field representing the other error:
 
 ```rust
 # mod another {
-#     use snafu::Snafu;
+#     use snafu::prelude::*;
 #     #[derive(Debug, Snafu)]
 #     pub enum Error {}
 # }
-# use snafu::Snafu;
+# use snafu::prelude::*;
 #[derive(Debug, Snafu)]
 enum Error {
     MyError {
@@ -293,7 +293,7 @@ be able to use the type with the [`whatever!`][] macro as well as
 `whatever_context` methods, such as [`ResultExt::whatever_context`][].
 
 ```rust
-# use snafu::Snafu;
+# use snafu::prelude::*;
 #[derive(Debug, Snafu)]
 enum Error {
     SpecificError {

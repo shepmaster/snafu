@@ -1,4 +1,4 @@
-use snafu::Snafu;
+use snafu::prelude::*;
 
 #[test]
 fn defaults_to_name_of_struct() {

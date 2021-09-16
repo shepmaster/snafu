@@ -20,7 +20,7 @@ pub trait TryStreamExt: TryStream + Sized {
     /// # use futures_crate as futures;
     /// use futures::TryStream;
     /// # use futures::stream;
-    /// use snafu::{futures::TryStreamExt, Snafu};
+    /// use snafu::prelude::*;
     ///
     /// #[derive(Debug, Snafu)]
     /// enum Error {
@@ -59,7 +59,7 @@ pub trait TryStreamExt: TryStream + Sized {
     /// # use futures_crate as futures;
     /// use futures::TryStream;
     /// # use futures::stream;
-    /// use snafu::{futures::TryStreamExt, Snafu};
+    /// use snafu::prelude::*;
     ///
     /// #[derive(Debug, Snafu)]
     /// enum Error {
@@ -108,7 +108,7 @@ pub trait TryStreamExt: TryStream + Sized {
     /// # use futures_crate as futures;
     /// use futures::TryStream;
     /// # use futures::stream;
-    /// use snafu::{futures::TryStreamExt, Whatever};
+    /// use snafu::{prelude::*, Whatever};
     ///
     /// fn example() -> impl TryStream<Ok = i32, Error = Whatever> {
     ///     stock_prices().whatever_context("Couldn't get stock prices")
@@ -137,7 +137,7 @@ pub trait TryStreamExt: TryStream + Sized {
     /// # use futures_crate as futures;
     /// use futures::TryStream;
     /// # use futures::stream;
-    /// use snafu::{futures::TryStreamExt, Whatever};
+    /// use snafu::{prelude::*, Whatever};
     ///
     /// fn example(symbol: &'static str) -> impl TryStream<Ok = i32, Error = Whatever> {
     ///     stock_prices(symbol)

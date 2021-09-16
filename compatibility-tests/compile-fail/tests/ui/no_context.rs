@@ -1,6 +1,6 @@
 extern crate snafu;
 
-use snafu::Snafu;
+use snafu::prelude::*;
 
 type BoxError = Box<dyn std::error::Error>;
 

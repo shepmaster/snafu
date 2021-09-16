@@ -1,5 +1,5 @@
 mod inner {
-    use snafu::{ensure, Snafu};
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     pub struct Error(InnerError);

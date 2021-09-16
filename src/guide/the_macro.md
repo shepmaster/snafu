@@ -10,7 +10,7 @@ This procedural macro:
 ## Detailed example
 
 ```rust
-use snafu::{Backtrace, Snafu};
+use snafu::{prelude::*, Backtrace};
 use std::path::PathBuf;
 
 #[derive(Debug, Snafu)]

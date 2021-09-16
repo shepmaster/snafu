@@ -8,7 +8,7 @@ the error type is defined in one module and constructed in another.
 **project_error.rs**
 
 ```rust,ignore
-use snafu::Snafu;
+use snafu::prelude::*;
 use std::io;
 
 #[derive(Debug, Snafu)]
@@ -28,7 +28,7 @@ pub enum ProjectError {
 mod project_error;
 
 use project_error::ProjectError;
-use snafu::ResultExt;
+use snafu::prelude::*;
 use std::fs;
 
 const CONFIG_PATH: &str = "/etc/example/conf.conf";

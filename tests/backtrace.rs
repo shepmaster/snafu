@@ -1,4 +1,4 @@
-use snafu::{ensure, Backtrace, ErrorCompat, ResultExt, Snafu};
+use snafu::{prelude::*, Backtrace, ErrorCompat};
 
 type AnotherError = Box<dyn std::error::Error>;
 

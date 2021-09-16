@@ -1,4 +1,4 @@
-use snafu::{ResultExt, Snafu};
+use snafu::prelude::*;
 
 #[derive(Debug, Snafu)]
 enum InnerError {

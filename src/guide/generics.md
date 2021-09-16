@@ -5,7 +5,7 @@ Error types enhanced by SNAFU may contain generic type and lifetime parameters.
 ## Types
 
 ```rust
-# use snafu::{Snafu, ensure};
+# use snafu::prelude::*;
 #
 #[derive(Debug, Snafu)]
 enum Error<T>
@@ -59,7 +59,7 @@ fn validate_string(value: &str) -> Result<&str, Error<String>> {
 ## Lifetimes
 
 ```rust
-# use snafu::{Snafu, ensure};
+# use snafu::prelude::*;
 #
 #[derive(Debug, Snafu)]
 enum Error<'a> {
@@ -99,7 +99,7 @@ choose to expose a generic opaque error, you will likely need to add
 explicit duplicate type constraints:
 
 ```rust
-use snafu::Snafu;
+use snafu::prelude::*;
 
 #[derive(Debug, Snafu)]
 struct ApiError<T>(Error<T>)

@@ -1,5 +1,5 @@
 mod wrong_error_types {
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Snafu)]
     union AUnion {
@@ -13,7 +13,7 @@ mod wrong_error_types {
 }
 
 mod other_attributes {
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     enum Error {
@@ -23,7 +23,7 @@ mod other_attributes {
 }
 
 mod display {
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     enum FailedAttributeParsing {
@@ -42,7 +42,7 @@ mod display {
 }
 
 mod opaque {
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     struct UnitStruct;

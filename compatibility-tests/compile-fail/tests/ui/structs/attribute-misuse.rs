@@ -1,5 +1,5 @@
 mod unknown_attributes {
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     #[snafu(unknown_attribute)]
@@ -7,7 +7,7 @@ mod unknown_attributes {
 }
 
 mod invalid_on_struct {
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     #[snafu(source(true))]
@@ -16,7 +16,7 @@ mod invalid_on_struct {
 }
 
 mod invalid_on_field {
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     struct Error {

@@ -1,4 +1,4 @@
-use snafu::{ResultExt, Snafu};
+use snafu::prelude::*;
 use std::{
     error::Error as StdError,
     fs, io,

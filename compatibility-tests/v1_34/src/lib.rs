@@ -12,7 +12,7 @@ fn implements_error<T: std::error::Error>() {}
 
 mod enum_style {
     use super::*;
-    use snafu::{ResultExt, Snafu};
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     enum Error {
@@ -43,7 +43,7 @@ mod enum_style {
 
 mod struct_style {
     use super::*;
-    use snafu::{ResultExt, Snafu};
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     #[snafu(display("Without a source: {}", id))]
@@ -77,7 +77,7 @@ mod struct_style {
 
 mod opaque_style {
     use super::*;
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     struct Dummy;

@@ -21,7 +21,7 @@ use crate::{Snafu, ResultExt};
 ///
 /// ```
 /// # use snafu::guide::examples::basic::*;
-/// use snafu::ensure;
+/// use snafu::prelude::*;
 ///
 /// fn always_fails() -> Result<(), Error> {
 ///     LeafSnafu { user_id: 42 }.fail()
@@ -41,7 +41,7 @@ use crate::{Snafu, ResultExt};
 ///
 /// ```
 /// # use snafu::guide::examples::basic::*;
-/// use snafu::ResultExt;
+/// use snafu::prelude::*;
 ///
 /// fn load_config_file() -> Result<usize, Error> {
 ///     let config = std::fs::read_to_string("/path/to/my/config/file").context(IntermediateSnafu)?;

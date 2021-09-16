@@ -1,5 +1,5 @@
 mod default_with_lifetime {
-    use snafu::{AsErrorSource, Snafu};
+    use snafu::{prelude::*, AsErrorSource};
     use std::fmt::{Debug, Display};
 
     #[derive(Debug, Snafu)]

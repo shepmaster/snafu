@@ -1,4 +1,4 @@
-use snafu::{whatever, ResultExt, Whatever};
+use snafu::{prelude::*, Whatever};
 
 fn inner_outer() -> Result<(), Whatever> {
     not_a_whatever().with_whatever_context(|_| format!("Outer failure"))

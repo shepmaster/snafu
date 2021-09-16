@@ -1,7 +1,7 @@
-use snafu::{ErrorCompat, ResultExt, Snafu};
+use snafu::{prelude::*, ErrorCompat};
 
 mod house {
-    use snafu::{Backtrace, Snafu};
+    use snafu::{prelude::*, Backtrace};
 
     #[derive(Debug, Snafu)]
     pub enum Error {

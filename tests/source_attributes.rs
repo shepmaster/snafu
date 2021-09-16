@@ -1,4 +1,4 @@
-use snafu::Snafu;
+use snafu::prelude::*;
 
 #[derive(Debug, Snafu)]
 enum InnerError {
@@ -11,7 +11,6 @@ fn inner() -> Result<(), InnerError> {
 
 mod enabling {
     use super::*;
-    use snafu::{ResultExt, Snafu};
 
     #[derive(Debug, Snafu)]
     enum Error {
@@ -54,7 +53,6 @@ mod enabling {
 
 mod transformation {
     use super::*;
-    use snafu::{ResultExt, Snafu};
     use std::io;
 
     #[derive(Debug, Snafu)]

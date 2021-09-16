@@ -6,7 +6,7 @@ struct:
 
 ```rust
 # use std::convert::TryFrom;
-# use snafu::Snafu;
+# use snafu::prelude::*;
 #[derive(Debug, Snafu)]
 #[snafu(display("Unable to parse {} as MyEnum", value))]
 struct ParseError {

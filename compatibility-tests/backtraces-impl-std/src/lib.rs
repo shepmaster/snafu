@@ -1,7 +1,7 @@
 #![cfg(test)]
 #![feature(backtrace)]
 
-use snafu::{Backtrace, ErrorCompat, Snafu};
+use snafu::{prelude::*, Backtrace, ErrorCompat};
 
 #[derive(Debug, Snafu)]
 enum Error {
