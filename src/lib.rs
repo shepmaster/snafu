@@ -156,7 +156,7 @@
 //!     ConfigFile {
 //!         source: std::io::Error,
 //!         path: String,
-//!     }
+//!     },
 //! }
 //!
 //! fn read_config_file(path: &str) -> Result<String, Error> {
@@ -180,8 +180,8 @@
 //!     Whatever {
 //!         message: String,
 //!         #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
-//!         source: Option<Box<dyn std::error::Error>,>
-//!     }
+//!         source: Option<Box<dyn std::error::Error>>,
+//!     },
 //! }
 //!
 //! fn is_valid_id(id: u16) -> Result<(), Error> {
@@ -360,7 +360,10 @@ macro_rules! ensure {
 /// fn get_bank_account_balance(account_id: &str) -> Result<u8> {
 /// # fn moon_is_rising() -> bool { false }
 ///     if moon_is_rising() {
-///         whatever!("We are recalibrating the dynamos for account {}, sorry", account_id);
+///         whatever!(
+///             "We are recalibrating the dynamos for account {}, sorry",
+///             account_id,
+///         );
 ///     }
 ///
 ///     Ok(100)
@@ -555,7 +558,10 @@ pub trait ResultExt<T, E>: Sized {
     /// }
     ///
     /// let err = example().unwrap_err();
-    /// assert_eq!("couldn't open the file /this/does/not/exist", err.to_string());
+    /// assert_eq!(
+    ///     "couldn't open the file /this/does/not/exist",
+    ///     err.to_string(),
+    /// );
     /// ```
     ///
     /// The closure is not called when the `Result` is `Ok`:
@@ -747,8 +753,7 @@ pub trait OptionExt<T>: Sized {
     /// use snafu::{OptionExt, Whatever};
     ///
     /// fn example(env_var_name: &str) -> Result<(), Whatever> {
-    ///     std::env::var_os(env_var_name)
-    ///         .whatever_context("couldn't get the environment variable")?;
+    ///     std::env::var_os(env_var_name).whatever_context("couldn't get the environment variable")?;
     ///     Ok(())
     /// }
     ///

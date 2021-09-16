@@ -140,9 +140,8 @@ pub trait TryStreamExt: TryStream + Sized {
     /// use snafu::{futures::TryStreamExt, Whatever};
     ///
     /// fn example(symbol: &'static str) -> impl TryStream<Ok = i32, Error = Whatever> {
-    ///     stock_prices(symbol).with_whatever_context(move |_| {
-    ///         format!("Couldn't get stock prices for {}", symbol)
-    ///     })
+    ///     stock_prices(symbol)
+    ///         .with_whatever_context(move |_| format!("Couldn't get stock prices for {}", symbol))
     /// }
     ///
     /// # type ApiError = Box<dyn std::error::Error>;
