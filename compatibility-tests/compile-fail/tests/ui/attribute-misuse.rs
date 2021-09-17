@@ -1,5 +1,5 @@
 mod enum_misuse {
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     #[snafu(display("display should not work here"))]
@@ -13,7 +13,7 @@ mod enum_misuse {
 }
 
 mod variant_misuse {
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     enum EnumError {
@@ -27,7 +27,7 @@ mod variant_misuse {
 }
 
 mod field_misuse {
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     enum EnumError {
@@ -44,7 +44,7 @@ mod field_misuse {
 }
 
 mod struct_misuse {
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     enum UsableError {}

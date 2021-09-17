@@ -1,5 +1,5 @@
 mod and_context {
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     #[snafu(context, whatever)]
@@ -7,7 +7,7 @@ mod and_context {
 }
 
 mod with_arguments {
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     #[snafu(whatever(true))]
@@ -15,7 +15,7 @@ mod with_arguments {
 }
 
 mod missing_message {
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     #[snafu(whatever)]
@@ -23,7 +23,7 @@ mod missing_message {
 }
 
 mod double_message {
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Snafu)]
     #[snafu(whatever)]
@@ -34,7 +34,7 @@ mod double_message {
 }
 
 mod with_context_fields {
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     #[snafu(whatever)]

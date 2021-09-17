@@ -1,6 +1,6 @@
 #![deny(single_use_lifetimes)]
 
-use snafu::Snafu;
+use snafu::prelude::*;
 
 #[derive(Debug, Snafu)]
 pub enum Enum<'id> {

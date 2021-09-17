@@ -11,8 +11,8 @@ If you wanted to do something similar with SNAFU, you can use the
 [`Whatever`](crate::Whatever) type:
 
 ```rust
+use snafu::{prelude::*, Whatever};
 use std::ops::Range;
-use snafu::{Whatever,  whatever};
 
 fn check_range(x: usize, range: Range<usize>) -> Result<usize, Whatever> {
     if x < range.start {
@@ -36,7 +36,7 @@ required, and you can include any extra information relevant to the
 error:
 
 ```rust
-use snafu::{ensure, Snafu};
+use snafu::prelude::*;
 use std::ops::Range;
 
 #[derive(Debug, Snafu)]
@@ -49,8 +49,20 @@ enum Error {
 }
 
 fn check_range(value: usize, range: Range<usize>) -> Result<usize, Error> {
-    ensure!(value >= range.start, BelowSnafu { value, bound: range.start });
-    ensure!(value < range.end, AboveSnafu { value, bound: range.end });
+    ensure!(
+        value >= range.start,
+        BelowSnafu {
+            value,
+            bound: range.start,
+        },
+    );
+    ensure!(
+        value < range.end,
+        AboveSnafu {
+            value,
+            bound: range.end,
+        },
+    );
     Ok(value)
 }
 ```
@@ -59,7 +71,7 @@ You do not have to have a one-to-one relationship between an
 underlying error and an error variant:
 
 ```rust
-use snafu::{ResultExt, Snafu};
+use snafu::prelude::*;
 use std::num::ParseIntError;
 
 #[derive(Debug, Snafu)]
@@ -102,7 +114,7 @@ users can match on without knowing the details of your error
 implementation.
 
 ```rust
-use snafu::Snafu;
+use snafu::prelude::*;
 
 #[derive(Debug, Snafu)]
 enum InnerError {

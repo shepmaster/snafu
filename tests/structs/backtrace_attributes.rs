@@ -1,4 +1,4 @@
-use snafu::{Backtrace, Snafu};
+use snafu::{prelude::*, Backtrace};
 
 #[test]
 fn no_argument_treated_as_backtrace() {

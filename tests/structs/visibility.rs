@@ -1,7 +1,7 @@
 // There are also sad-path tests
 
 pub mod inner {
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     #[snafu(visibility(pub(crate)))]

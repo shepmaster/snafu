@@ -1,4 +1,4 @@
-use snafu::{whatever, ResultExt, Whatever};
+use snafu::{prelude::*, Whatever};
 
 type Result<T, E = Whatever> = std::result::Result<T, E>;
 

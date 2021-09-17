@@ -31,7 +31,7 @@
 //! [`Whatever`][] type and the [`whatever!`][] macro:
 //!
 //! ```rust
-//! use snafu::{Whatever, whatever};
+//! use snafu::{prelude::*, Whatever};
 //!
 //! fn is_valid_id(id: u16) -> Result<(), Whatever> {
 //!     if id < 10 {
@@ -44,7 +44,7 @@
 //! You can also use it to wrap any other error:
 //!
 //! ```rust
-//! use snafu::{ResultExt, Whatever, whatever};
+//! use snafu::{prelude::*, Whatever};
 //!
 //! fn read_config_file(path: &str) -> Result<String, Whatever> {
 //!     std::fs::read_to_string(path)
@@ -56,7 +56,7 @@
 //! [`Backtrace`][] for every error:
 //!
 //! ```rust
-//! use snafu::{ErrorCompat, ResultExt, Whatever};
+//! use snafu::{prelude::*, ErrorCompat, Whatever};
 //!
 //! fn main() {
 //! # fn returns_an_error() -> Result<(), Whatever> { Ok(()) }
@@ -84,7 +84,7 @@
 //! ergonomic error creation:
 //!
 //! ```rust
-//! use snafu::{ensure, Snafu};
+//! use snafu::prelude::*;
 //!
 //! #[derive(Debug, Snafu)]
 //! #[snafu(display("ID may not be less than 10, but it was {}", id))]
@@ -103,7 +103,7 @@
 //! extension method:
 //!
 //! ```rust
-//! use snafu::{ResultExt, Snafu};
+//! use snafu::prelude::*;
 //!
 //! #[derive(Debug, Snafu)]
 //! #[snafu(display("Could not read file {}", path))]
@@ -129,7 +129,7 @@
 //! macro to provide ergonomic error creation:
 //!
 //! ```rust
-//! use snafu::{ensure, Snafu};
+//! use snafu::prelude::*;
 //!
 //! #[derive(Debug, Snafu)]
 //! enum Error {
@@ -148,7 +148,7 @@
 //! extension method:
 //!
 //! ```rust
-//! use snafu::{ResultExt, Snafu};
+//! use snafu::prelude::*;
 //!
 //! #[derive(Debug, Snafu)]
 //! enum Error {
@@ -156,7 +156,7 @@
 //!     ConfigFile {
 //!         source: std::io::Error,
 //!         path: String,
-//!     }
+//!     },
 //! }
 //!
 //! fn read_config_file(path: &str) -> Result<String, Error> {
@@ -169,7 +169,7 @@
 //! [`Whatever`][] and are moving to a custom error type:
 //!
 //! ```rust
-//! use snafu::{ensure, whatever, Snafu};
+//! use snafu::prelude::*;
 //!
 //! #[derive(Debug, Snafu)]
 //! enum Error {
@@ -180,8 +180,8 @@
 //!     Whatever {
 //!         message: String,
 //!         #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
-//!         source: Option<Box<dyn std::error::Error>,>
-//!     }
+//!         source: Option<Box<dyn std::error::Error>>,
+//!     },
 //! }
 //!
 //! fn is_valid_id(id: u16) -> Result<(), Error> {
@@ -190,6 +190,26 @@
 //!     Ok(())
 //! }
 //! ```
+
+pub mod prelude {
+    //! Traits and macros used by most projects. Add `use
+    //! snafu::prelude::*` to your code to quickly get started with
+    //! SNAFU.
+
+    pub use crate::{ensure, OptionExt as _, ResultExt as _};
+
+    // https://github.com/rust-lang/rust/issues/89020
+    doc_comment::doc_comment! {
+        include_str!("Snafu.md"),
+        pub use snafu_derive::Snafu;
+    }
+
+    #[cfg(any(feature = "std", test))]
+    pub use crate::whatever;
+
+    #[cfg(feature = "futures")]
+    pub use crate::futures::{TryFutureExt as _, TryStreamExt as _};
+}
 
 #[cfg(all(
     not(feature = "backtraces"),
@@ -312,7 +332,7 @@ pub use no_std_error::Error;
 /// with an error.
 ///
 /// ```rust
-/// use snafu::{ensure, Snafu};
+/// use snafu::prelude::*;
 ///
 /// #[derive(Debug, Snafu)]
 /// enum Error {
@@ -348,7 +368,7 @@ macro_rules! ensure {
 /// unconditionally exit the calling function with an error.
 ///
 /// ```rust
-/// use snafu::{Snafu, whatever};
+/// use snafu::prelude::*;
 ///
 /// #[derive(Debug, Snafu)]
 /// #[snafu(whatever, display("Error was: {}", message))]
@@ -360,7 +380,10 @@ macro_rules! ensure {
 /// fn get_bank_account_balance(account_id: &str) -> Result<u8> {
 /// # fn moon_is_rising() -> bool { false }
 ///     if moon_is_rising() {
-///         whatever!("We are recalibrating the dynamos for account {}, sorry", account_id);
+///         whatever!(
+///             "We are recalibrating the dynamos for account {}, sorry",
+///             account_id,
+///         );
 ///     }
 ///
 ///     Ok(100)
@@ -377,7 +400,7 @@ macro_rules! ensure {
 /// `Result`.
 ///
 /// ```rust
-/// use snafu::{Snafu, whatever};
+/// use snafu::prelude::*;
 ///
 /// #[derive(Debug, Snafu)]
 /// #[snafu(whatever, display("Error was: {}", message))]
@@ -430,7 +453,7 @@ pub trait ResultExt<T, E>: Sized {
     /// [`Result`]: std::result::Result
     ///
     /// ```rust
-    /// use snafu::{ResultExt, Snafu};
+    /// use snafu::prelude::*;
     ///
     /// #[derive(Debug, Snafu)]
     /// enum Error {
@@ -469,7 +492,7 @@ pub trait ResultExt<T, E>: Sized {
     /// [`Result`]: std::result::Result
     ///
     /// ```rust
-    /// use snafu::{ResultExt, Snafu};
+    /// use snafu::prelude::*;
     ///
     /// #[derive(Debug, Snafu)]
     /// enum Error {
@@ -518,7 +541,7 @@ pub trait ResultExt<T, E>: Sized {
     /// string literal.
     ///
     /// ```rust
-    /// use snafu::{ResultExt, Whatever};
+    /// use snafu::{prelude::*, Whatever};
     ///
     /// fn example() -> Result<(), Whatever> {
     ///     std::fs::read_to_string("/this/does/not/exist")
@@ -545,7 +568,7 @@ pub trait ResultExt<T, E>: Sized {
     /// attribute. The premade [`Whatever`] type is also available.
     ///
     /// ```rust
-    /// use snafu::{ResultExt, Whatever};
+    /// use snafu::{prelude::*, Whatever};
     ///
     /// fn example() -> Result<(), Whatever> {
     ///     let filename = "/this/does/not/exist";
@@ -555,13 +578,16 @@ pub trait ResultExt<T, E>: Sized {
     /// }
     ///
     /// let err = example().unwrap_err();
-    /// assert_eq!("couldn't open the file /this/does/not/exist", err.to_string());
+    /// assert_eq!(
+    ///     "couldn't open the file /this/does/not/exist",
+    ///     err.to_string(),
+    /// );
     /// ```
     ///
     /// The closure is not called when the `Result` is `Ok`:
     ///
     /// ```rust
-    /// use snafu::{ResultExt, Whatever};
+    /// use snafu::{prelude::*, Whatever};
     ///
     /// let value: std::io::Result<i32> = Ok(42);
     /// let result = value.with_whatever_context::<_, String, Whatever>(|_| {
@@ -662,7 +688,7 @@ pub trait OptionExt<T>: Sized {
     /// [Result]: std::option::Result
     ///
     /// ```rust
-    /// use snafu::{OptionExt, Snafu};
+    /// use snafu::prelude::*;
     ///
     /// #[derive(Debug, Snafu)]
     /// enum Error {
@@ -696,7 +722,7 @@ pub trait OptionExt<T>: Sized {
     /// [`Result`]: std::result::Result
     ///
     /// ```
-    /// use snafu::{OptionExt, Snafu};
+    /// use snafu::prelude::*;
     ///
     /// #[derive(Debug, Snafu)]
     /// enum Error {
@@ -744,11 +770,10 @@ pub trait OptionExt<T>: Sized {
     /// suited for when you have a string literal.
     ///
     /// ```rust
-    /// use snafu::{OptionExt, Whatever};
+    /// use snafu::{prelude::*, Whatever};
     ///
     /// fn example(env_var_name: &str) -> Result<(), Whatever> {
-    ///     std::env::var_os(env_var_name)
-    ///         .whatever_context("couldn't get the environment variable")?;
+    ///     std::env::var_os(env_var_name).whatever_context("couldn't get the environment variable")?;
     ///     Ok(())
     /// }
     ///
@@ -770,7 +795,7 @@ pub trait OptionExt<T>: Sized {
     /// attribute. The premade [`Whatever`][] type is also available.
     ///
     /// ```rust
-    /// use snafu::{OptionExt, Whatever};
+    /// use snafu::{prelude::*, Whatever};
     ///
     /// fn example(env_var_name: &str) -> Result<(), Whatever> {
     ///     std::env::var_os(env_var_name).with_whatever_context(|| {
@@ -789,7 +814,7 @@ pub trait OptionExt<T>: Sized {
     /// The closure is not called when the `Option` is `Some`:
     ///
     /// ```rust
-    /// use snafu::{OptionExt, Whatever};
+    /// use snafu::{prelude::*, Whatever};
     ///
     /// let value = Some(42);
     /// let result = value.with_whatever_context::<_, String, Whatever>(|| {
@@ -876,7 +901,7 @@ impl<T> OptionExt<T> for Option<T> {
 /// supporting a newer version of Rust.
 ///
 /// ```
-/// # use snafu::{Snafu, ErrorCompat};
+/// # use snafu::{prelude::*, ErrorCompat};
 /// # #[derive(Debug, Snafu)] enum Example {};
 /// # fn example(error: Example) {
 /// ErrorCompat::backtrace(&error); // Recommended
@@ -1121,7 +1146,7 @@ impl GenerateBacktrace for Backtrace {
 /// ## Examples
 ///
 /// ```rust
-/// use snafu::{whatever, ResultExt};
+/// use snafu::prelude::*;
 ///
 /// type Result<T, E = snafu::Whatever> = std::result::Result<T, E>;
 ///

@@ -1,4 +1,4 @@
-use snafu::{Backtrace, Snafu};
+use snafu::{prelude::*, Backtrace};
 
 #[derive(Debug, Snafu)]
 enum EnumError {

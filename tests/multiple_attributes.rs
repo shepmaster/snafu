@@ -1,4 +1,4 @@
-use snafu::{ResultExt, Snafu};
+use snafu::prelude::*;
 
 #[derive(Debug, Snafu)]
 enum InnerError {
@@ -7,7 +7,7 @@ enum InnerError {
 
 mod error {
     use super::InnerError;
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     pub(super) enum Error {

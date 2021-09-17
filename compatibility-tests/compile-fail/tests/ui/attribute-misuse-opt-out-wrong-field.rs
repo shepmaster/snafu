@@ -1,5 +1,5 @@
 mod source {
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     enum EnumError {
@@ -11,7 +11,7 @@ mod source {
 }
 
 mod backtrace {
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     enum EnumError {

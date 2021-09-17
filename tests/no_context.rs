@@ -1,6 +1,4 @@
-extern crate snafu;
-
-use snafu::Snafu;
+use snafu::prelude::*;
 
 #[derive(Debug, Snafu)]
 enum AlphaError {
@@ -46,7 +44,7 @@ fn implements_error() {
 
 mod with_backtraces {
     use super::*;
-    use snafu::{Backtrace, Snafu};
+    use snafu::Backtrace;
 
     #[derive(Debug, Snafu)]
     enum Error {
@@ -65,7 +63,6 @@ mod with_backtraces {
 
 mod with_bounds {
     use super::*;
-    use snafu::Snafu;
     use std::fmt::{Debug, Display};
 
     #[derive(Debug, Snafu)]

@@ -1,4 +1,4 @@
-use snafu::{Backtrace, ErrorCompat, IntoError, Snafu};
+use snafu::{prelude::*, Backtrace, ErrorCompat};
 
 #[test]
 fn can_include_a_backtrace_in_leaf() {
@@ -14,6 +14,8 @@ fn can_include_a_backtrace_in_leaf() {
 
 #[test]
 fn can_include_a_backtrace_with_source() {
+    use snafu::IntoError;
+
     #[derive(Debug, Snafu)]
     struct InnerError;
 

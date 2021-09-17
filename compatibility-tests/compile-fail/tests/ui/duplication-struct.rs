@@ -1,4 +1,4 @@
-use snafu::Snafu;
+use snafu::prelude::*;
 
 #[derive(Debug, Snafu)]
 enum UsableError {}

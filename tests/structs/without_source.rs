@@ -1,4 +1,4 @@
-use snafu::{ensure, Snafu};
+use snafu::prelude::*;
 use std::error::Error as StdError;
 
 #[derive(Debug, Snafu)]

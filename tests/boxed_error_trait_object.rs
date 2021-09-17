@@ -1,6 +1,6 @@
 // This test asserts that a boxed error trait object can be used as a source.
 
-use snafu::{ResultExt, Snafu};
+use snafu::prelude::*;
 
 mod trait_object {
     pub type Error = Box<dyn std::error::Error + 'static>;

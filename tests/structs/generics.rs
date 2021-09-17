@@ -1,5 +1,5 @@
 mod lifetimes {
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     struct Error<'a> {
@@ -15,7 +15,7 @@ mod lifetimes {
 }
 
 mod types {
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     struct Error<T> {
@@ -30,7 +30,7 @@ mod types {
     }
 
     mod with_defaults {
-        use snafu::{AsErrorSource, ResultExt, Snafu};
+        use snafu::{prelude::*, AsErrorSource};
         use std::{error::Error as StdError, fmt::Debug, io};
 
         #[derive(Debug, Snafu)]
@@ -56,7 +56,7 @@ mod types {
 
 mod bounds {
     mod inline {
-        use snafu::Snafu;
+        use snafu::prelude::*;
         use std::fmt::Display;
 
         #[derive(Debug, Snafu)]
@@ -74,7 +74,7 @@ mod bounds {
     }
 
     mod where_clause {
-        use snafu::Snafu;
+        use snafu::prelude::*;
         use std::fmt::Display;
 
         #[derive(Debug, Snafu)]

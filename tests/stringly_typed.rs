@@ -2,7 +2,7 @@
 // THOUGHT: Source must always be an `Option`. This seems to force the `from()`
 
 mod message_only {
-    use snafu::{whatever, Snafu};
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     enum Error {
@@ -40,7 +40,7 @@ mod message_only {
 // No, it *can* be a fixed type, but that's very limiting
 
 mod message_and_source {
-    use snafu::{ensure, whatever, ResultExt, Snafu};
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     struct UnderlyingError;
@@ -149,7 +149,7 @@ mod message_and_source {
 }
 
 mod message_source_and_backtrace {
-    use snafu::{ensure, whatever, Backtrace, Snafu};
+    use snafu::{prelude::*, Backtrace, ErrorCompat};
 
     #[derive(Debug, Snafu)]
     struct UnderlyingError;
@@ -192,7 +192,7 @@ mod message_source_and_backtrace {
 
     #[test]
     fn has_a_backtrace() {
-        use snafu::ErrorCompat;
+        use snafu::prelude::*;
 
         fn exercise(success: bool) -> Result<i32> {
             let v = whatever!(underlying(success), "Something else happened {}", 42);
@@ -207,7 +207,7 @@ mod message_source_and_backtrace {
 
 mod struck {
     mod message_source_and_backtrace {
-        use snafu::{whatever, Backtrace, Snafu};
+        use snafu::{prelude::*, Backtrace};
 
         #[derive(Debug, Snafu)]
         #[snafu(whatever, display("{}", message))]

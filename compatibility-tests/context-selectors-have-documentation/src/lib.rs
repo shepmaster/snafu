@@ -2,7 +2,7 @@
 
 //! Crate docs
 
-use snafu::Snafu;
+use snafu::prelude::*;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]

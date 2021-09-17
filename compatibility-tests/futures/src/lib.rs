@@ -2,7 +2,7 @@
 
 mod api {
     use futures::{stream, StreamExt, TryStream};
-    use snafu::Snafu;
+    use snafu::prelude::*;
 
     #[derive(Debug, Snafu)]
     pub enum Error {
@@ -22,10 +22,7 @@ use futures::{
     future,
     stream::{StreamExt as _, TryStreamExt as _},
 };
-use snafu::{
-    futures::{TryFutureExt as _, TryStreamExt as _},
-    ResultExt, Snafu,
-};
+use snafu::prelude::*;
 
 #[derive(Debug, Snafu)]
 enum Error {

@@ -12,7 +12,7 @@ deriving `Snafu` for a newtype struct that contains another SNAFU
 error:
 
 ```rust
-# use snafu::Snafu;
+# use snafu::prelude::*;
 #[derive(Debug, Snafu)]
 pub struct Error(InnerError);
 

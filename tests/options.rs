@@ -1,4 +1,4 @@
-use snafu::{Backtrace, OptionExt, Snafu};
+use snafu::{prelude::*, Backtrace};
 use std::collections::HashMap;
 
 #[derive(Debug, Snafu)]

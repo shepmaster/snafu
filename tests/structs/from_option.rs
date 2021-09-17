@@ -1,4 +1,4 @@
-use snafu::{Backtrace, OptionExt, Snafu};
+use snafu::{prelude::*, Backtrace};
 
 #[derive(Debug, Snafu)]
 #[snafu(display("The argument at index {} was missing", idx))]

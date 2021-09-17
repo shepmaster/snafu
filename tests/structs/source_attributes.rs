@@ -1,8 +1,7 @@
-use snafu::Snafu;
+use snafu::prelude::*;
 
 mod enabling {
     use super::*;
-    use snafu::{ResultExt, Snafu};
 
     #[test]
     fn no_argument_treated_as_source() {
@@ -51,7 +50,6 @@ mod enabling {
 
 mod transformation {
     use super::*;
-    use snafu::{ResultExt, Snafu};
     use std::{error::Error as StdError, io};
 
     #[test]

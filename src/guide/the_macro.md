@@ -10,7 +10,7 @@ This procedural macro:
 ## Detailed example
 
 ```rust
-use snafu::{Backtrace, Snafu};
+use snafu::{prelude::*, Backtrace};
 use std::path::PathBuf;
 
 #[derive(Debug, Snafu)]
@@ -27,7 +27,11 @@ enum Error {
     #[snafu(display("The user id {} is invalid", user_id))]
     UserIdInvalid { user_id: i32, backtrace: Backtrace },
 
-    #[snafu(display("Could not validate config with key {}: checksum was {}", key, checksum))]
+    #[snafu(display(
+        "Could not validate config with key {}: checksum was {}",
+        key,
+        checksum,
+    ))]
     ConfigValidationFailed {
         checksum: u64,
         key: String,

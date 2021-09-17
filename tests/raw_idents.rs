@@ -1,4 +1,4 @@
-use snafu::{ensure, ResultExt, Snafu};
+use snafu::prelude::*;
 
 #[derive(Debug, Snafu)]
 enum Error {

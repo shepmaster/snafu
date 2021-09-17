@@ -1,7 +1,7 @@
 // This test asserts that `ResultExt::eager_context` can be used even
 // when `try!` or `?` is not used.
 
-use snafu::{ResultExt, Snafu};
+use snafu::prelude::*;
 
 #[derive(Debug, Snafu)]
 enum InnerError {

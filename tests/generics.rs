@@ -1,4 +1,4 @@
-use snafu::{Backtrace, ResultExt, Snafu};
+use snafu::{prelude::*, Backtrace};
 
 type BoxError = Box<dyn std::error::Error>;
 
@@ -52,7 +52,7 @@ fn implements_error() {
 
 mod bounds {
     mod inline {
-        use snafu::Snafu;
+        use snafu::prelude::*;
         use std::fmt::{Debug, Display};
 
         #[derive(Debug, Snafu)]
@@ -73,7 +73,7 @@ mod bounds {
     }
 
     mod where_clause {
-        use snafu::Snafu;
+        use snafu::prelude::*;
         use std::fmt::{Debug, Display};
 
         #[derive(Debug, Snafu)]
