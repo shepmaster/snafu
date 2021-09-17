@@ -20,14 +20,38 @@ where
 }
 
 fn validate_number(value: u8) -> Result<u8, Error<u8>> {
-    ensure!(value <= 200, TooLargeSnafu { value, limit: 100u32 });
-    ensure!(value >= 100, TooSmallSnafu { value, limit: 200u32 });
+    ensure!(
+        value <= 200,
+        TooLargeSnafu {
+            value,
+            limit: 100u32,
+        },
+    );
+    ensure!(
+        value >= 100,
+        TooSmallSnafu {
+            value,
+            limit: 200u32,
+        },
+    );
     Ok(value)
 }
 
 fn validate_string(value: &str) -> Result<&str, Error<String>> {
-    ensure!(value.len() <= 20, TooLargeSnafu { value, limit: 10u32 });
-    ensure!(value.len() >= 10, TooSmallSnafu { value, limit: 20u32 });
+    ensure!(
+        value.len() <= 20,
+        TooLargeSnafu {
+            value,
+            limit: 10u32,
+        },
+    );
+    ensure!(
+        value.len() >= 10,
+        TooSmallSnafu {
+            value,
+            limit: 20u32,
+        },
+    );
     Ok(value)
 }
 ```
@@ -44,8 +68,20 @@ enum Error<'a> {
 }
 
 fn validate_username<'a>(value: &'a str) -> Result<&'a str, Error<'a>> {
-    ensure!(!value.contains("stinks"), BadWordSnafu { value, word: "stinks" });
-    ensure!(!value.contains("smells"), BadWordSnafu { value, word: "smells" });
+    ensure!(
+        !value.contains("stinks"),
+        BadWordSnafu {
+            value,
+            word: "stinks",
+        },
+    );
+    ensure!(
+        !value.contains("smells"),
+        BadWordSnafu {
+            value,
+            word: "smells",
+        },
+    );
     Ok(value)
 }
 ```
@@ -67,8 +103,9 @@ use snafu::Snafu;
 
 #[derive(Debug, Snafu)]
 struct ApiError<T>(Error<T>)
-where                        // These lines are required to
-   T: std::fmt::Debug;       // ensure that delegation can work.
+// The bound is required to ensure that delegation can work.
+where
+    T: std::fmt::Debug;
 
 #[derive(Debug, Snafu)]
 enum Error<T>

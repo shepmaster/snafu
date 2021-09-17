@@ -49,8 +49,20 @@ enum Error {
 }
 
 fn check_range(value: usize, range: Range<usize>) -> Result<usize, Error> {
-    ensure!(value >= range.start, BelowSnafu { value, bound: range.start });
-    ensure!(value < range.end, AboveSnafu { value, bound: range.end });
+    ensure!(
+        value >= range.start,
+        BelowSnafu {
+            value,
+            bound: range.start,
+        },
+    );
+    ensure!(
+        value < range.end,
+        AboveSnafu {
+            value,
+            bound: range.end,
+        },
+    );
     Ok(value)
 }
 ```

@@ -30,7 +30,12 @@ enum Error {
 
 fn main() {
     assert_eq!(
-        InvalidLoginSnafu { username: "Stefani", password: "Germanotta" }.build().to_string(),
+        InvalidLoginSnafu {
+            username: "Stefani",
+            password: "Germanotta"
+        }
+        .build()
+        .to_string(),
         "The user Stefani could not log in",
     );
 }
@@ -57,10 +62,7 @@ fn main() {
         MissingUserSnafu.build().to_string(),
         "No user available. You may need to specify one.",
     );
-    assert_eq!(
-        MissingPasswordSnafu.build().to_string(),
-        "MissingPassword",
-    );
+    assert_eq!(MissingPasswordSnafu.build().to_string(), "MissingPassword");
 }
 ```
 
@@ -294,7 +296,9 @@ be able to use the type with the [`whatever!`][] macro as well as
 # use snafu::Snafu;
 #[derive(Debug, Snafu)]
 enum Error {
-    SpecificError { username: String },
+    SpecificError {
+        username: String,
+    },
 
     #[snafu(whatever, display("{}", message))]
     GenericError {
@@ -304,7 +308,7 @@ enum Error {
         // have this specific attribute and type:
         #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
         source: Option<Box<dyn std::error::Error>>,
-    }
+    },
 }
 ```
 

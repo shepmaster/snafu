@@ -30,7 +30,7 @@ impl TryFrom<u8> for MyEnum {
             0 => Ok(Self::Alpha),
             1 => Ok(Self::Beta),
             2 => Ok(Self::Gamma),
-            value => ParseSnafu { value }.fail()
+            value => ParseSnafu { value }.fail(),
         }
     }
 }
