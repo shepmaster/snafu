@@ -8,16 +8,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A crate prelude containing common macros and traits can be imported
+  via `use snafu::prelude::*`.
+
 - A ready-to-use error type `Whatever` is available to quickly start
   reporting errors with little hassle.
 
 - "Stringly typed" error cases can be added to existing error types,
   allowing you to construct errors without defining them first.
 
+- Formatting shorthand syntax for error type data fields is now supported:
+  `#[snafu(display("Hello {name}"))]`.
+
+- `snafu::Location` can be added to an error type to provide
+  lightweight tracking of the source location where the error was
+  created.
+
+- `[snafu(implicit)]` can be specified on context selector data fields
+  to automatically generate it via `snafu::GenerateImplicitData` when
+  the error is created.
+
+- `ErrorCompat::iter_chain` provides an iterator over the list of
+  causal errors.
+
 ### Changed
 
 - Generated context selectors now have the suffix `Snafu`. This is a
   **breaking change**.
+
+- The `GenerateBacktrace` trait has been split into
+  `GenerateImplicitData` and `AsBacktrace`. This is a **breaking
+  change**.
 
 - Rust 1.34 is now the minimum supported Rust version. This is a
   **breaking change**.
@@ -25,7 +46,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - String attribute parsing (`#[snafu(foo = "...")]`) is no longer
-  supported.
+  supported. This is a **breaking change**.
+
+- The deprecated `eager_context` and `with_eager_context` methods have
+  been removed. This is a **breaking change**.
 
 [0.7.0]: https://github.com/shepmaster/snafu/releases/tag/0.7.0
 
