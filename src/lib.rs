@@ -1020,11 +1020,15 @@ pub trait FromString {
     fn with_source(source: Self::Source, message: String) -> Self;
 }
 
-/// Construct a backtrace, allowing it to be optional.
-pub trait GenerateBacktrace {
-    /// Generate a new backtrace instance
+/// Construct data to be included as part of an error. The data must
+/// require no arguments to be created.
+pub trait GenerateImplicitData {
+    /// Build the data.
     fn generate() -> Self;
+}
 
+/// View a backtrace-like value as an optional backtrace.
+pub trait AsBacktrace {
     /// Retrieve the optional backtrace
     fn as_backtrace(&self) -> Option<&Backtrace>;
 }
@@ -1039,7 +1043,7 @@ pub trait GenerateBacktrace {
 /// changing the environment variable after it has been checked will
 /// have no effect.
 #[cfg(any(feature = "std", test))]
-impl GenerateBacktrace for Option<Backtrace> {
+impl GenerateImplicitData for Option<Backtrace> {
     fn generate() -> Self {
         use std::env;
         use std::sync::{
@@ -1064,29 +1068,38 @@ impl GenerateBacktrace for Option<Backtrace> {
             None
         }
     }
+}
 
+#[cfg(any(feature = "std", test))]
+impl AsBacktrace for Option<Backtrace> {
     fn as_backtrace(&self) -> Option<&Backtrace> {
         self.as_ref()
     }
 }
 
 #[cfg(feature = "backtraces-impl-backtrace-crate")]
-impl GenerateBacktrace for Backtrace {
+impl GenerateImplicitData for Backtrace {
     fn generate() -> Self {
         Backtrace::new()
     }
+}
 
+#[cfg(feature = "backtraces-impl-backtrace-crate")]
+impl AsBacktrace for Backtrace {
     fn as_backtrace(&self) -> Option<&Backtrace> {
         Some(self)
     }
 }
 
 #[cfg(feature = "unstable-backtraces-impl-std")]
-impl GenerateBacktrace for Backtrace {
+impl GenerateImplicitData for Backtrace {
     fn generate() -> Self {
         Backtrace::force_capture()
     }
+}
 
+#[cfg(feature = "unstable-backtraces-impl-std")]
+impl AsBacktrace for Backtrace {
     fn as_backtrace(&self) -> Option<&Backtrace> {
         Some(self)
     }

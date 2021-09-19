@@ -2,7 +2,7 @@
 //!
 //! Start by looking at the error type [`Error`].
 
-use crate::{Snafu, Backtrace, ErrorCompat, GenerateBacktrace};
+use crate::{Snafu, Backtrace, ErrorCompat, GenerateImplicitData};
 
 /// Backtraces aren't yet supported by the stable Rust compiler. SNAFU
 /// provides a stable-compatible way of getting backtraces as well as
@@ -70,10 +70,10 @@ pub enum Error {
 
     /// When an error is expected to be created frequently but the
     /// backtrace is rarely needed, you can wrap it in an
-    /// `Option`. See
-    /// [GenerateBacktrace](GenerateBacktrace#impl-GenerateBacktrace-for-Option<Backtrace>)
-    /// for instructions on how to access the backtrace in this
-    /// case.
+    /// `Option`. See [the instructions][] on how to access the
+    /// backtrace in this case.
+    ///
+    /// [the instructions]: GenerateImplicitData#impl-GenerateImplicitData-for-Option<Backtrace>
     UsedInTightLoop {
         backtrace: Option<Backtrace>,
     },
