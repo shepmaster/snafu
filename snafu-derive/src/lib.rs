@@ -539,12 +539,12 @@ fn parse_snafu_enum(
     let mut enum_errors = errors.scoped(ErrorLocation::OnEnum);
 
     for attr in attributes_from_syn(attrs)? {
+        use SnafuAttribute as Att;
+
         match attr {
-            SnafuAttribute::Visibility(tokens, v) => {
-                default_visibilities.add(v, tokens);
-            }
-            SnafuAttribute::Display(tokens, ..) => enum_errors.add(tokens, ATTR_DISPLAY),
-            SnafuAttribute::Source(tokens, ss) => {
+            Att::Visibility(tokens, v) => default_visibilities.add(v, tokens),
+            Att::Display(tokens, ..) => enum_errors.add(tokens, ATTR_DISPLAY),
+            Att::Source(tokens, ss) => {
                 for s in ss {
                     match s {
                         Source::Flag(..) => enum_errors.add(tokens.clone(), ATTR_SOURCE_BOOL),
@@ -552,13 +552,11 @@ fn parse_snafu_enum(
                     }
                 }
             }
-            SnafuAttribute::CrateRoot(tokens, root) => {
-                crate_roots.add(root, tokens);
-            }
-            SnafuAttribute::Backtrace(tokens, ..) => enum_errors.add(tokens, ATTR_BACKTRACE),
-            SnafuAttribute::Context(tokens, ..) => enum_errors.add(tokens, ATTR_CONTEXT),
-            SnafuAttribute::Whatever(tokens) => enum_errors.add(tokens, ATTR_WHATEVER),
-            SnafuAttribute::DocComment(..) => { /* Just a regular doc comment. */ }
+            Att::CrateRoot(tokens, root) => crate_roots.add(root, tokens),
+            Att::Backtrace(tokens, ..) => enum_errors.add(tokens, ATTR_BACKTRACE),
+            Att::Context(tokens, ..) => enum_errors.add(tokens, ATTR_CONTEXT),
+            Att::Whatever(tokens) => enum_errors.add(tokens, ATTR_WHATEVER),
+            Att::DocComment(..) => { /* Just a regular doc comment. */ }
         }
     }
 
@@ -635,15 +633,17 @@ fn field_container(
     let mut reached_end_of_doc_comment = false;
 
     for attr in attrs {
+        use SnafuAttribute as Att;
+
         match attr {
-            SnafuAttribute::Display(tokens, d) => display_formats.add(d, tokens),
-            SnafuAttribute::Visibility(tokens, v) => visibilities.add(v, tokens),
-            SnafuAttribute::Context(tokens, c) => contexts.add(c, tokens),
-            SnafuAttribute::Whatever(tokens) => whatevers.add((), tokens),
-            SnafuAttribute::Source(tokens, ..) => outer_errors.add(tokens, ATTR_SOURCE),
-            SnafuAttribute::Backtrace(tokens, ..) => outer_errors.add(tokens, ATTR_BACKTRACE),
-            SnafuAttribute::CrateRoot(tokens, ..) => outer_errors.add(tokens, ATTR_CRATE_ROOT),
-            SnafuAttribute::DocComment(_tts, doc_comment_line) => {
+            Att::Display(tokens, d) => display_formats.add(d, tokens),
+            Att::Visibility(tokens, v) => visibilities.add(v, tokens),
+            Att::Context(tokens, c) => contexts.add(c, tokens),
+            Att::Whatever(tokens) => whatevers.add((), tokens),
+            Att::Source(tokens, ..) => outer_errors.add(tokens, ATTR_SOURCE),
+            Att::Backtrace(tokens, ..) => outer_errors.add(tokens, ATTR_BACKTRACE),
+            Att::CrateRoot(tokens, ..) => outer_errors.add(tokens, ATTR_CRATE_ROOT),
+            Att::DocComment(_tts, doc_comment_line) => {
                 // We join all the doc comment attributes with a space,
                 // but end once the summary of the doc comment is
                 // complete, which is indicated by an empty line.
@@ -698,8 +698,10 @@ fn field_container(
         let mut field_errors = errors.scoped(ErrorLocation::OnField);
 
         for attr in attributes_from_syn(syn_field.attrs.clone())? {
+            use SnafuAttribute as Att;
+
             match attr {
-                SnafuAttribute::Source(tokens, ss) => {
+                Att::Source(tokens, ss) => {
                     for s in ss {
                         match s {
                             Source::Flag(v) => {
@@ -729,7 +731,7 @@ fn field_container(
                         }
                     }
                 }
-                SnafuAttribute::Backtrace(tokens, v) => {
+                Att::Backtrace(tokens, v) => {
                     if v {
                         backtrace_attrs.add((), tokens);
                     } else if name == "backtrace" {
@@ -738,12 +740,12 @@ fn field_container(
                         field_errors.add(tokens, ATTR_BACKTRACE_FALSE);
                     }
                 }
-                SnafuAttribute::Visibility(tokens, ..) => field_errors.add(tokens, ATTR_VISIBILITY),
-                SnafuAttribute::Display(tokens, ..) => field_errors.add(tokens, ATTR_DISPLAY),
-                SnafuAttribute::Context(tokens, ..) => field_errors.add(tokens, ATTR_CONTEXT),
-                SnafuAttribute::Whatever(tokens) => field_errors.add(tokens, ATTR_WHATEVER),
-                SnafuAttribute::CrateRoot(tokens, ..) => field_errors.add(tokens, ATTR_CRATE_ROOT),
-                SnafuAttribute::DocComment(..) => { /* Just a regular doc comment. */ }
+                Att::Visibility(tokens, ..) => field_errors.add(tokens, ATTR_VISIBILITY),
+                Att::Display(tokens, ..) => field_errors.add(tokens, ATTR_DISPLAY),
+                Att::Context(tokens, ..) => field_errors.add(tokens, ATTR_CONTEXT),
+                Att::Whatever(tokens) => field_errors.add(tokens, ATTR_WHATEVER),
+                Att::CrateRoot(tokens, ..) => field_errors.add(tokens, ATTR_CRATE_ROOT),
+                Att::DocComment(..) => { /* Just a regular doc comment. */ }
             }
         }
 
@@ -994,10 +996,12 @@ fn parse_snafu_tuple_struct(
     let mut struct_errors = errors.scoped(ErrorLocation::OnTupleStruct);
 
     for attr in attributes_from_syn(attrs)? {
+        use SnafuAttribute as Att;
+
         match attr {
-            SnafuAttribute::Display(tokens, ..) => struct_errors.add(tokens, ATTR_DISPLAY),
-            SnafuAttribute::Visibility(tokens, ..) => struct_errors.add(tokens, ATTR_VISIBILITY),
-            SnafuAttribute::Source(tokens, ss) => {
+            Att::Display(tokens, ..) => struct_errors.add(tokens, ATTR_DISPLAY),
+            Att::Visibility(tokens, ..) => struct_errors.add(tokens, ATTR_VISIBILITY),
+            Att::Source(tokens, ss) => {
                 for s in ss {
                     match s {
                         Source::Flag(..) => struct_errors.add(tokens.clone(), ATTR_SOURCE_BOOL),
@@ -1005,11 +1009,11 @@ fn parse_snafu_tuple_struct(
                     }
                 }
             }
-            SnafuAttribute::Backtrace(tokens, ..) => struct_errors.add(tokens, ATTR_BACKTRACE),
-            SnafuAttribute::Context(tokens, ..) => struct_errors.add(tokens, ATTR_CONTEXT),
-            SnafuAttribute::Whatever(tokens) => struct_errors.add(tokens, ATTR_CONTEXT),
-            SnafuAttribute::CrateRoot(tokens, root) => crate_roots.add(root, tokens),
-            SnafuAttribute::DocComment(..) => { /* Just a regular doc comment. */ }
+            Att::Backtrace(tokens, ..) => struct_errors.add(tokens, ATTR_BACKTRACE),
+            Att::Context(tokens, ..) => struct_errors.add(tokens, ATTR_CONTEXT),
+            Att::Whatever(tokens) => struct_errors.add(tokens, ATTR_CONTEXT),
+            Att::CrateRoot(tokens, root) => crate_roots.add(root, tokens),
+            Att::DocComment(..) => { /* Just a regular doc comment. */ }
         }
     }
 
