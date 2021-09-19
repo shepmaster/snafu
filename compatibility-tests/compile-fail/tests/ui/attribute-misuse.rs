@@ -7,6 +7,7 @@ mod enum_misuse {
     #[snafu(source(true))]
     #[snafu(backtrace)]
     #[snafu(context)]
+    #[snafu(implicit)]
     enum EnumError {
         AVariant,
     }
@@ -22,6 +23,7 @@ mod variant_misuse {
         #[snafu(source)]
         #[snafu(backtrace)]
         #[snafu(crate_root(XXXX))]
+        #[snafu(implicit)]
         AVariant,
     }
 }
@@ -56,6 +58,7 @@ mod struct_misuse {
     #[snafu(source(true))]
     #[snafu(backtrace)]
     #[snafu(context)]
+    #[snafu(implicit)]
     struct StructError(Box<UsableError>);
 }
 

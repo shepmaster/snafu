@@ -7,6 +7,7 @@ unique situations.
 - [`context`](#controlling-context)
 - [`crate_root`](#controlling-how-the-snafu-crate-is-resolved)
 - [`display`](#controlling-display)
+- [`implicit`](#controlling-implicitly-generated-data)
 - [`source`](#controlling-error-sources)
 - [`visibility`](#controlling-visibility)
 - [`whatever`](#controlling-stringly-typed-errors)
@@ -283,6 +284,46 @@ enum Error {
     },
 }
 ```
+
+## Controlling implicitly generated data
+
+Sometimes, you can capture contextual error data without needing any
+arguments. [Backtraces][`Backtrace`] are a common example, but other
+global information like the current time or thread ID could also be
+useful. In these cases, you can use `#[snafu(implicit)]` on a field
+that implements [`GenerateImplicitData`] to remove the need to specify
+that data at error construction time:
+
+```rust
+use snafu::prelude::*;
+use std::time::Instant;
+
+#[derive(Debug, PartialEq)]
+struct Timestamp(Instant);
+
+impl snafu::GenerateImplicitData for Timestamp {
+    fn generate() -> Self {
+        Timestamp(Instant::now())
+    }
+}
+
+#[derive(Debug, Snafu)]
+struct RequestError {
+    #[snafu(implicit)]
+    timestamp: Timestamp,
+}
+
+fn do_request() -> Result<(), RequestError> {
+    // ...
+    # let request_count = 10;
+    ensure!(request_count < 3, RequestSnafu);
+
+    Ok(())
+}
+```
+
+You can use `#[snafu(implicit(false))]` if a field is incorrectly
+automatically identified as containing implicit data.
 
 ## Controlling stringly-typed errors
 

@@ -1,0 +1,5 @@
+error: Multiple `implicit` attributes are not supported on a field
+  --> $DIR/duplication-implicit-attributes.rs:17:17
+   |
+17 |         #[snafu(implicit)]
+   |                 ^^^^^^^^

@@ -13,6 +13,7 @@ pub mod context_selector {
     #[derive(Copy, Clone)]
     pub(crate) struct ContextSelector<'a> {
         pub backtrace_field: Option<&'a Field>,
+        pub implicit_fields: &'a [Field],
         pub crate_root: &'a dyn ToTokens,
         pub error_constructor_name: &'a dyn ToTokens,
         pub original_generics_without_defaults: &'a [TokenStream],
@@ -121,12 +122,16 @@ pub mod context_selector {
                 .collect()
         }
 
-        fn construct_implicit_fields(&self) -> Option<TokenStream> {
-            self.backtrace_field.map(|field| {
-                let crate_root = self.crate_root;
-                let name = &field.name;
-                quote! { #name: #crate_root::GenerateImplicitData::generate(), }
-            })
+        fn construct_implicit_fields(&self) -> TokenStream {
+            self.implicit_fields
+                .iter()
+                .chain(self.backtrace_field)
+                .map(|field| {
+                    let crate_root = self.crate_root;
+                    let name = &field.name;
+                    quote! { #name: #crate_root::GenerateImplicitData::generate(), }
+                })
+                .collect()
         }
 
         fn generate_type(self) -> TokenStream {
@@ -373,6 +378,7 @@ pub mod display {
 
     pub(crate) struct DisplayMatchArm<'a> {
         pub(crate) backtrace_field: Option<&'a crate::Field>,
+        pub(crate) implicit_fields: &'a [crate::Field],
         pub(crate) default_name: &'a dyn ToTokens,
         pub(crate) display_format: Option<&'a dyn ToTokens>,
         pub(crate) doc_comment: &'a str,
@@ -384,6 +390,7 @@ pub mod display {
         fn to_tokens(&self, stream: &mut TokenStream) {
             let Self {
                 backtrace_field,
+                implicit_fields,
                 default_name,
                 display_format,
                 doc_comment,
@@ -410,6 +417,7 @@ pub mod display {
             let field_names = user_fields
                 .iter()
                 .chain(backtrace_field)
+                .chain(implicit_fields)
                 .chain(message_field)
                 .map(Field::name)
                 .chain(source_field.map(SourceField::name));
