@@ -15,9 +15,9 @@ mod kw {
     custom_keyword!(context);
     custom_keyword!(crate_root);
     custom_keyword!(display);
-    custom_keyword!(whatever);
     custom_keyword!(source);
     custom_keyword!(visibility);
+    custom_keyword!(whatever);
 
     custom_keyword!(from);
 
@@ -62,9 +62,9 @@ enum Attribute {
     Context(Context),
     CrateRoot(CrateRoot),
     Display(Display),
-    Whatever(Whatever),
     Source(Source),
     Visibility(Visibility),
+    Whatever(Whatever),
 }
 
 impl From<Attribute> for SnafuAttribute {
@@ -76,9 +76,9 @@ impl From<Attribute> for SnafuAttribute {
             Context(c) => SnafuAttribute::Context(c.to_token_stream(), c.into_component()),
             CrateRoot(cr) => SnafuAttribute::CrateRoot(cr.to_token_stream(), cr.into_arbitrary()),
             Display(d) => SnafuAttribute::Display(d.to_token_stream(), d.into_arbitrary()),
-            Whatever(o) => SnafuAttribute::Whatever(o.to_token_stream()),
             Source(s) => SnafuAttribute::Source(s.to_token_stream(), s.into_components()),
             Visibility(v) => SnafuAttribute::Visibility(v.to_token_stream(), v.into_arbitrary()),
+            Whatever(o) => SnafuAttribute::Whatever(o.to_token_stream()),
         }
     }
 }
@@ -94,12 +94,12 @@ impl Parse for Attribute {
             input.parse().map(Attribute::CrateRoot)
         } else if lookahead.peek(kw::display) {
             input.parse().map(Attribute::Display)
-        } else if lookahead.peek(kw::whatever) {
-            input.parse().map(Attribute::Whatever)
         } else if lookahead.peek(kw::source) {
             input.parse().map(Attribute::Source)
         } else if lookahead.peek(kw::visibility) {
             input.parse().map(Attribute::Visibility)
+        } else if lookahead.peek(kw::whatever) {
+            input.parse().map(Attribute::Whatever)
         } else {
             Err(lookahead.error())
         }
@@ -370,24 +370,6 @@ impl ToTokens for DocComment {
     }
 }
 
-struct Whatever {
-    whatever_token: kw::whatever,
-}
-
-impl Parse for Whatever {
-    fn parse(input: ParseStream) -> Result<Self> {
-        Ok(Self {
-            whatever_token: input.parse()?,
-        })
-    }
-}
-
-impl ToTokens for Whatever {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.whatever_token.to_tokens(tokens);
-    }
-}
-
 struct Source {
     source_token: kw::source,
     args: MaybeArg<Punctuated<SourceArg, token::Comma>>,
@@ -511,6 +493,24 @@ impl ToTokens for Visibility {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.visibility_token.to_tokens(tokens);
         self.visibility.to_tokens(tokens);
+    }
+}
+
+struct Whatever {
+    whatever_token: kw::whatever,
+}
+
+impl Parse for Whatever {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(Self {
+            whatever_token: input.parse()?,
+        })
+    }
+}
+
+impl ToTokens for Whatever {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.whatever_token.to_tokens(tokens);
     }
 }
 

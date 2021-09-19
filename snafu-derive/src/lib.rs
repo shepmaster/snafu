@@ -1077,14 +1077,14 @@ enum Source {
 /// with the data.  The location can be used to give accurate error messages in case there was a
 /// problem with the use of the attribute.
 enum SnafuAttribute {
-    Display(proc_macro2::TokenStream, UserInput),
-    Visibility(proc_macro2::TokenStream, UserInput),
-    Source(proc_macro2::TokenStream, Vec<Source>),
     Backtrace(proc_macro2::TokenStream, bool),
     Context(proc_macro2::TokenStream, Context),
-    Whatever(proc_macro2::TokenStream),
     CrateRoot(proc_macro2::TokenStream, UserInput),
+    Display(proc_macro2::TokenStream, UserInput),
     DocComment(proc_macro2::TokenStream, String),
+    Source(proc_macro2::TokenStream, Vec<Source>),
+    Visibility(proc_macro2::TokenStream, UserInput),
+    Whatever(proc_macro2::TokenStream),
 }
 
 fn default_crate_root() -> UserInput {
