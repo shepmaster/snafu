@@ -108,12 +108,12 @@ impl Parse for Attribute {
 
 struct Backtrace {
     backtrace_token: kw::backtrace,
-    arg: MaybeArg<BacktraceArg>,
+    arg: MaybeArg<LitBool>,
 }
 
 impl Backtrace {
     fn into_bool(self) -> bool {
-        self.arg.into_option().map_or(true, |a| a.value.value)
+        self.arg.into_option().map_or(true, |a| a.value)
     }
 }
 
@@ -130,24 +130,6 @@ impl ToTokens for Backtrace {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.backtrace_token.to_tokens(tokens);
         self.arg.to_tokens(tokens);
-    }
-}
-
-struct BacktraceArg {
-    value: LitBool,
-}
-
-impl Parse for BacktraceArg {
-    fn parse(input: ParseStream) -> Result<Self> {
-        Ok(Self {
-            value: input.parse()?,
-        })
-    }
-}
-
-impl ToTokens for BacktraceArg {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.value.to_tokens(tokens);
     }
 }
 
