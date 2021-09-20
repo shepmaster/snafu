@@ -603,27 +603,6 @@ pub trait ResultExt<T, E>: Sized {
         S: Into<String>,
         E2: FromString,
         E: Into<E2::Source>;
-
-    #[doc(hidden)]
-    #[deprecated(since = "0.4.0", note = "use ResultExt::context instead")]
-    fn eager_context<C, E2>(self, context: C) -> Result<T, E2>
-    where
-        C: IntoError<E2, Source = E>,
-        E2: Error + ErrorCompat,
-    {
-        self.context(context)
-    }
-
-    #[doc(hidden)]
-    #[deprecated(since = "0.4.0", note = "use ResultExt::with_context instead")]
-    fn with_eager_context<F, C, E2>(self, context: F) -> Result<T, E2>
-    where
-        F: FnOnce() -> C,
-        C: IntoError<E2, Source = E>,
-        E2: Error + ErrorCompat,
-    {
-        self.with_context(context)
-    }
 }
 
 impl<T, E> ResultExt<T, E> for Result<T, E> {
@@ -829,27 +808,6 @@ pub trait OptionExt<T>: Sized {
         F: FnOnce() -> S,
         S: Into<String>,
         E: FromString;
-
-    #[doc(hidden)]
-    #[deprecated(since = "0.4.0", note = "use OptionExt::context instead")]
-    fn eager_context<C, E>(self, context: C) -> Result<T, E>
-    where
-        C: IntoError<E, Source = NoneError>,
-        E: Error + ErrorCompat,
-    {
-        self.context(context).map_err(Into::into)
-    }
-
-    #[doc(hidden)]
-    #[deprecated(since = "0.4.0", note = "use OptionExt::with_context instead")]
-    fn with_eager_context<F, C, E>(self, context: F) -> Result<T, E>
-    where
-        F: FnOnce() -> C,
-        C: IntoError<E, Source = NoneError>,
-        E: Error + ErrorCompat,
-    {
-        self.with_context(context).map_err(Into::into)
-    }
 }
 
 impl<T> OptionExt<T> for Option<T> {
