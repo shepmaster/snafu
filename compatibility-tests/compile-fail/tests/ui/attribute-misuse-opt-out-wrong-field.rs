@@ -22,4 +22,16 @@ mod backtrace {
     }
 }
 
+mod implicit {
+    use snafu::prelude::*;
+
+    #[derive(Debug, Snafu)]
+    enum EnumError {
+        AVariant {
+            #[snafu(implicit(false))]
+            not_location: u8,
+        },
+    }
+}
+
 fn main() {}

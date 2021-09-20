@@ -506,6 +506,11 @@ const ATTR_IMPLICIT: OnlyValidOn = OnlyValidOn {
     valid_on: "enum variant or struct fields with a name",
 };
 
+const ATTR_IMPLICIT_FALSE: WrongField = WrongField {
+    attribute: "implicit(false)",
+    valid_field: "location",
+};
+
 const ATTR_VISIBILITY: OnlyValidOn = OnlyValidOn {
     attribute: "visibility",
     valid_on: "an enum, enum variants, or a struct with named fields",
@@ -704,6 +709,7 @@ fn field_container(
         // exclude fields even if they have the "source" or "backtrace" name.
         let mut source_opt_out = false;
         let mut backtrace_opt_out = false;
+        let mut implicit_opt_out = false;
 
         let mut field_errors = errors.scoped(ErrorLocation::OnField);
 
@@ -753,6 +759,10 @@ fn field_container(
                 Att::Implicit(tokens, v) => {
                     if v {
                         implicit_attrs.add((), tokens);
+                    } else if name == "location" {
+                        implicit_opt_out = true;
+                    } else {
+                        field_errors.add(tokens, ATTR_IMPLICIT_FALSE);
                     }
                 }
                 Att::Visibility(tokens, ..) => field_errors.add(tokens, ATTR_VISIBILITY),
@@ -789,7 +799,8 @@ fn field_container(
             }
         });
 
-        let implicit_attr = implicit_attr.is_some();
+        let implicit_attr =
+            implicit_attr.is_some() || (field.name == "location" && !implicit_opt_out);
 
         if let Some((maybe_transformation, location)) = source_attr {
             let Field { name, ty, .. } = field;

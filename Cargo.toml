@@ -25,10 +25,13 @@ exclude = [
 features = [ "std", "backtraces", "futures", "guide" ]
 
 [features]
-default = ["std"]
+default = ["std", "rust_1_46"]
 
 # Implement the `std::error::Error` trait.
 std = []
+
+# Add support for `#[track_caller]`
+rust_1_46 = ["snafu-derive/rust_1_46"]
 
 # Makes the backtrace type live
 backtraces = ["std", "backtrace"]

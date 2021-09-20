@@ -172,10 +172,13 @@ pub mod context_selector {
             let transfer_user_fields = self.transfer_user_fields();
             let construct_implicit_fields = self.construct_implicit_fields();
 
+            let track_caller = track_caller();
+
             quote! {
                 impl<#(#user_field_generics,)*> #parameterized_selector_name {
                     #[doc = "Consume the selector and return the associated error"]
                     #[must_use]
+                    #track_caller
                     #visibility fn build<#(#original_generics_without_defaults,)*>(self) -> #parameterized_error_name
                     where
                         #(#extended_where_clauses),*
@@ -187,6 +190,7 @@ pub mod context_selector {
                     }
 
                     #[doc = "Consume the selector and return a `Result` with the associated error"]
+                    #track_caller
                     #visibility fn fail<#(#original_generics_without_defaults,)* __T>(self) -> ::core::result::Result<__T, #parameterized_error_name>
                     where
                         #(#extended_where_clauses),*
@@ -216,6 +220,8 @@ pub mod context_selector {
                 None => (quote! { #crate_root::NoneError }, quote! {}),
             };
 
+            let track_caller = track_caller();
+
             quote! {
                 impl<#(#original_generics_without_defaults,)* #(#user_field_generics,)*> #crate_root::IntoError<#parameterized_error_name> for #parameterized_selector_name
                 where
@@ -224,6 +230,7 @@ pub mod context_selector {
                 {
                     type Source = #source_ty;
 
+                    #track_caller
                     fn into_error(self, error: Self::Source) -> #parameterized_error_name {
                         #error_constructor_name {
                             #transfer_source_field
@@ -264,10 +271,13 @@ pub mod context_selector {
 
             let message_field_name = &message_field.name;
 
+            let track_caller = track_caller();
+
             quote! {
                 impl #crate_root::FromString for #parameterized_error_name {
                     type Source = #source_ty;
 
+                    #track_caller
                     fn without_source(message: String) -> Self {
                         #error_constructor_name {
                             #empty_source_field
@@ -276,6 +286,7 @@ pub mod context_selector {
                         }
                     }
 
+                    #track_caller
                     fn with_source(error: Self::Source, message: String) -> Self {
                         #error_constructor_name {
                             #transfer_source_field
@@ -297,11 +308,14 @@ pub mod context_selector {
 
             let (source_field_type, transfer_source_field) = build_source_info(source_field);
 
+            let track_caller = track_caller();
+
             quote! {
                 impl<#(#original_generics_without_defaults,)* #(#user_field_generics,)*> ::core::convert::From<#source_field_type> for #parameterized_error_name
                 where
                     #(#where_clauses),*
                 {
+                    #track_caller
                     fn from(error: #source_field_type) -> Self {
                         #error_constructor_name {
                             #transfer_source_field
@@ -323,6 +337,14 @@ pub mod context_selector {
             source_field_type,
             quote! { #source_field_name: (#source_transformation)(error), },
         )
+    }
+
+    fn track_caller() -> proc_macro2::TokenStream {
+        if cfg!(feature = "rust_1_46") {
+            quote::quote! { #[track_caller] }
+        } else {
+            quote::quote! {}
+        }
     }
 }
 

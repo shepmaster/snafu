@@ -1,5 +1,7 @@
 #![cfg(test)]
 
+mod location;
+
 mod api {
     use futures::{stream, StreamExt, TryStream};
     use snafu::prelude::*;

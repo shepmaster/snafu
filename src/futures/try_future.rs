@@ -230,17 +230,24 @@ where
 {
     type Output = Result<Fut::Ok, E>;
 
+    #[cfg_attr(feature = "rust_1_46", track_caller)]
     fn poll(self: Pin<&mut Self>, ctx: &mut TaskContext) -> Poll<Self::Output> {
         let this = self.project();
         let inner = this.inner;
         let context = this.context;
 
-        inner.try_poll(ctx).map_err(|error| {
-            context
-                .take()
-                .expect("Cannot poll Context after it resolves")
-                .into_error(error)
-        })
+        // https://github.com/rust-lang/rust/issues/74042
+        match inner.try_poll(ctx) {
+            Poll::Ready(Ok(v)) => Poll::Ready(Ok(v)),
+            Poll::Ready(Err(error)) => {
+                let error = context
+                    .take()
+                    .expect("Cannot poll Context after it resolves")
+                    .into_error(error);
+                Poll::Ready(Err(error))
+            }
+            Poll::Pending => Poll::Pending,
+        }
     }
 }
 
@@ -266,18 +273,26 @@ where
 {
     type Output = Result<Fut::Ok, E>;
 
+    #[cfg_attr(feature = "rust_1_46", track_caller)]
     fn poll(self: Pin<&mut Self>, ctx: &mut TaskContext) -> Poll<Self::Output> {
         let this = self.project();
         let inner = this.inner;
         let context = this.context;
 
-        inner.try_poll(ctx).map_err(|error| {
-            let context = context
-                .take()
-                .expect("Cannot poll WithContext after it resolves");
+        // https://github.com/rust-lang/rust/issues/74042
+        match inner.try_poll(ctx) {
+            Poll::Ready(Ok(v)) => Poll::Ready(Ok(v)),
+            Poll::Ready(Err(error)) => {
+                let context = context
+                    .take()
+                    .expect("Cannot poll WithContext after it resolves");
 
-            context().into_error(error)
-        })
+                let error = context().into_error(error);
+
+                Poll::Ready(Err(error))
+            }
+            Poll::Pending => Poll::Pending,
+        }
     }
 }
 
@@ -305,17 +320,25 @@ where
 {
     type Output = Result<Fut::Ok, E>;
 
+    #[cfg_attr(feature = "rust_1_46", track_caller)]
     fn poll(self: Pin<&mut Self>, ctx: &mut TaskContext) -> Poll<Self::Output> {
         let this = self.project();
         let inner = this.inner;
         let context = this.context;
 
-        inner.try_poll(ctx).map_err(|error| {
-            let context = context
-                .take()
-                .expect("Cannot poll WhateverContext after it resolves");
-            FromString::with_source(error.into(), context.into())
-        })
+        // https://github.com/rust-lang/rust/issues/74042
+        match inner.try_poll(ctx) {
+            Poll::Ready(Ok(v)) => Poll::Ready(Ok(v)),
+            Poll::Ready(Err(error)) => {
+                let context = context
+                    .take()
+                    .expect("Cannot poll WhateverContext after it resolves");
+                let error = FromString::with_source(error.into(), context.into());
+
+                Poll::Ready(Err(error))
+            }
+            Poll::Pending => Poll::Pending,
+        }
     }
 }
 
@@ -345,17 +368,25 @@ where
 {
     type Output = Result<Fut::Ok, E>;
 
+    #[cfg_attr(feature = "rust_1_46", track_caller)]
     fn poll(self: Pin<&mut Self>, ctx: &mut TaskContext) -> Poll<Self::Output> {
         let this = self.project();
         let inner = this.inner;
         let context = this.context;
 
-        inner.try_poll(ctx).map_err(|error| {
-            let context = context
-                .take()
-                .expect("Cannot poll WhateverContext after it resolves");
-            let context = context(&error);
-            FromString::with_source(error.into(), context.into())
-        })
+        // https://github.com/rust-lang/rust/issues/74042
+        match inner.try_poll(ctx) {
+            Poll::Ready(Ok(v)) => Poll::Ready(Ok(v)),
+            Poll::Ready(Err(error)) => {
+                let context = context
+                    .take()
+                    .expect("Cannot poll WhateverContext after it resolves");
+                let context = context(&error);
+                let error = FromString::with_source(error.into(), context.into());
+
+                Poll::Ready(Err(error))
+            }
+            Poll::Pending => Poll::Pending,
+        }
     }
 }

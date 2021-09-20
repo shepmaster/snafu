@@ -191,6 +191,8 @@
 //! }
 //! ```
 
+use core::fmt;
+
 pub mod prelude {
     //! Traits and macros used by most projects. Add `use
     //! snafu::prelude::*` to your code to quickly get started with
@@ -606,37 +608,53 @@ pub trait ResultExt<T, E>: Sized {
 }
 
 impl<T, E> ResultExt<T, E> for Result<T, E> {
+    #[cfg_attr(feature = "rust_1_46", track_caller)]
     fn context<C, E2>(self, context: C) -> Result<T, E2>
     where
         C: IntoError<E2, Source = E>,
         E2: Error + ErrorCompat,
     {
-        self.map_err(|error| context.into_error(error))
+        // https://github.com/rust-lang/rust/issues/74042
+        match self {
+            Ok(v) => Ok(v),
+            Err(error) => Err(context.into_error(error)),
+        }
     }
 
+    #[cfg_attr(feature = "rust_1_46", track_caller)]
     fn with_context<F, C, E2>(self, context: F) -> Result<T, E2>
     where
         F: FnOnce() -> C,
         C: IntoError<E2, Source = E>,
         E2: Error + ErrorCompat,
     {
-        self.map_err(|error| {
-            let context = context();
-            context.into_error(error)
-        })
+        // https://github.com/rust-lang/rust/issues/74042
+        match self {
+            Ok(v) => Ok(v),
+            Err(error) => {
+                let context = context();
+                Err(context.into_error(error))
+            }
+        }
     }
 
     #[cfg(any(feature = "std", test))]
+    #[cfg_attr(feature = "rust_1_46", track_caller)]
     fn whatever_context<S, E2>(self, context: S) -> Result<T, E2>
     where
         S: Into<String>,
         E2: FromString,
         E: Into<E2::Source>,
     {
-        self.map_err(|e| FromString::with_source(e.into(), context.into()))
+        // https://github.com/rust-lang/rust/issues/74042
+        match self {
+            Ok(v) => Ok(v),
+            Err(error) => Err(FromString::with_source(error.into(), context.into())),
+        }
     }
 
     #[cfg(any(feature = "std", test))]
+    #[cfg_attr(feature = "rust_1_46", track_caller)]
     fn with_whatever_context<F, S, E2>(self, context: F) -> Result<T, E2>
     where
         F: FnOnce(&E) -> S,
@@ -644,10 +662,14 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
         E2: FromString,
         E: Into<E2::Source>,
     {
-        self.map_err(|e| {
-            let context = context(&e);
-            FromString::with_source(e.into(), context.into())
-        })
+        // https://github.com/rust-lang/rust/issues/74042
+        match self {
+            Ok(t) => Ok(t),
+            Err(e) => {
+                let context = context(&e);
+                Err(FromString::with_source(e.into(), context.into()))
+            }
+        }
     }
 }
 
@@ -811,43 +833,61 @@ pub trait OptionExt<T>: Sized {
 }
 
 impl<T> OptionExt<T> for Option<T> {
+    #[cfg_attr(feature = "rust_1_46", track_caller)]
     fn context<C, E>(self, context: C) -> Result<T, E>
     where
         C: IntoError<E, Source = NoneError>,
         E: Error + ErrorCompat,
     {
-        self.ok_or_else(|| context.into_error(NoneError))
+        // https://github.com/rust-lang/rust/issues/74042
+        match self {
+            Some(v) => Ok(v),
+            None => Err(context.into_error(NoneError)),
+        }
     }
 
+    #[cfg_attr(feature = "rust_1_46", track_caller)]
     fn with_context<F, C, E>(self, context: F) -> Result<T, E>
     where
         F: FnOnce() -> C,
         C: IntoError<E, Source = NoneError>,
         E: Error + ErrorCompat,
     {
-        self.ok_or_else(|| context().into_error(NoneError))
+        // https://github.com/rust-lang/rust/issues/74042
+        match self {
+            Some(v) => Ok(v),
+            None => Err(context().into_error(NoneError)),
+        }
     }
 
     #[cfg(any(feature = "std", test))]
+    #[cfg_attr(feature = "rust_1_46", track_caller)]
     fn whatever_context<S, E>(self, context: S) -> Result<T, E>
     where
         S: Into<String>,
         E: FromString,
     {
-        self.ok_or_else(|| FromString::without_source(context.into()))
+        match self {
+            Some(v) => Ok(v),
+            None => Err(FromString::without_source(context.into())),
+        }
     }
 
     #[cfg(any(feature = "std", test))]
+    #[cfg_attr(feature = "rust_1_46", track_caller)]
     fn with_whatever_context<F, S, E>(self, context: F) -> Result<T, E>
     where
         F: FnOnce() -> S,
         S: Into<String>,
         E: FromString,
     {
-        self.ok_or_else(|| {
-            let context = context();
-            FromString::without_source(context.into())
-        })
+        match self {
+            Some(v) => Ok(v),
+            None => {
+                let context = context();
+                Err(FromString::without_source(context.into()))
+            }
+        }
     }
 }
 
@@ -1103,6 +1143,152 @@ impl AsBacktrace for Backtrace {
     fn as_backtrace(&self) -> Option<&Backtrace> {
         Some(self)
     }
+}
+
+/// The source code location where the error was reported.
+///
+/// To use it, add a field `location: Location` to your error. This
+/// will automatically register it as [implicitly generated
+/// data][implicit].
+///
+/// [implicit]: Snafu#controlling-implicitly-generated-data
+///
+/// ## Limitations
+///
+/// ### Rust 1.46
+///
+/// You need to enable the [`rust_1_46` feature flag][flag] for
+/// implicit location capture. If you cannot enable that, you can
+/// still use the [`location!`] macro at the expense of more typing.
+///
+/// [flag]: guide::compatibility#rust_1_46
+///
+/// ### Disabled context selectors
+///
+/// If you have [disabled the context selector][disabled], SNAFU will
+/// not be able to capture an accurate location.
+///
+/// As a workaround, re-enable the context selector.
+///
+/// [disabled]: Snafu#disabling-the-context-selector
+///
+/// ### Asynchronous code
+///
+/// When using SNAFU's
+#[cfg_attr(feature = "futures", doc = " [`TryFutureExt`][futures::TryFutureExt]")]
+#[cfg_attr(not(feature = "futures"), doc = " `TryFutureExt`")]
+/// or
+#[cfg_attr(feature = "futures", doc = " [`TryStreamExt`][futures::TryStreamExt]")]
+#[cfg_attr(not(feature = "futures"), doc = " `TryStreamExt`")]
+/// extension traits, the automatically captured location will
+/// correspond to where the future or stream was **polled**, not where
+/// it was created. Additionally, many `Future` or `Stream`
+/// combinators do not forward the caller's location to their
+/// closures, causing the recorded location to be inside of the future
+/// combinator's library.
+///
+/// There are two workarounds:
+/// 1. Use the [`location!`] macro
+/// 1. Use [`ResultExt`] instead
+///
+/// ```rust
+/// # #[cfg(feature = "futures")] {
+/// # use snafu::{prelude::*, Location, location};
+/// // Non-ideal: will report where `wrapped_error_future` is `.await`ed.
+/// # let error_future = async { AnotherSnafu.fail::<()>() };
+/// let wrapped_error_future = error_future.context(ImplicitLocationSnafu);
+///
+/// // Better: will report the location of `.context`.
+/// # let error_future = async { AnotherSnafu.fail::<()>() };
+/// let wrapped_error_future = async { error_future.await.context(ImplicitLocationSnafu) };
+///
+/// // Better: Will report the location of `location!`
+/// # let error_future = async { AnotherSnafu.fail::<()>() };
+/// let wrapped_error_future = error_future.with_context(|| ExplicitLocationSnafu {
+///     location: location!(),
+/// });
+///
+/// # #[derive(Debug, Snafu)] struct AnotherError;
+/// #[derive(Debug, Snafu)]
+/// struct ImplicitLocationError {
+///     source: AnotherError,
+///     location: Location,
+/// }
+///
+/// #[derive(Debug, Snafu)]
+/// struct ExplicitLocationError {
+///     source: AnotherError,
+///     #[snafu(implicit(false))]
+///     location: Location,
+/// }
+/// # }
+/// ```
+#[derive(Debug, Copy, Clone)]
+pub struct Location {
+    /// The file where the error was reported
+    pub file: &'static str,
+    /// The line where the error was reported
+    pub line: u32,
+    /// The column where the error was reported
+    pub column: u32,
+
+    // Use `#[non_exhaustive]` when we upgrade to Rust 1.40
+    _other: (),
+}
+
+impl Location {
+    /// Constructs a `Location` using the given information
+    pub fn new(file: &'static str, line: u32, column: u32) -> Self {
+        Self {
+            file,
+            line,
+            column,
+            _other: (),
+        }
+    }
+}
+
+#[cfg(feature = "rust_1_46")]
+impl Default for Location {
+    #[track_caller]
+    fn default() -> Self {
+        let loc = core::panic::Location::caller();
+        Self {
+            file: loc.file(),
+            line: loc.line(),
+            column: loc.column(),
+            _other: (),
+        }
+    }
+}
+
+#[cfg(feature = "rust_1_46")]
+impl GenerateImplicitData for Location {
+    #[inline]
+    #[track_caller]
+    fn generate() -> Self {
+        Self::default()
+    }
+}
+
+impl fmt::Display for Location {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{file}:{line}:{column}",
+            file = self.file,
+            line = self.line,
+            column = self.column,
+        )
+    }
+}
+
+/// Constructs a [`Location`] using the current file, line, and column.
+#[macro_export]
+macro_rules! location {
+    () => {
+        Location::new(file!(), line!(), column!())
+    };
 }
 
 /// A basic error type that you can use as a first step to better
