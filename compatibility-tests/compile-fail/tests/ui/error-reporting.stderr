@@ -4,7 +4,7 @@ error: Can only derive `Snafu` for an enum or a newtype
 5 |     union AUnion {
   |     ^^^^^
 
-error: Only struct-like and unit enum variants are supported
+error: Can only derive `Snafu` for enums with struct-like and unit enum variants
   --> $DIR/error-reporting.rs:11:14
    |
 11 |         Alpha(i32),

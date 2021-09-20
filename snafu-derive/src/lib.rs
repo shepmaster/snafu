@@ -589,7 +589,7 @@ fn parse_snafu_enum(
                 Fields::Unnamed(_) => {
                     return Err(vec![syn::Error::new(
                         variant.fields.span(),
-                        "Only struct-like and unit enum variants are supported",
+                        "Can only derive `Snafu` for enums with struct-like and unit enum variants",
                     )]);
                 }
                 Fields::Unit => vec![],
