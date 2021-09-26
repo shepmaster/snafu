@@ -7,11 +7,13 @@ use core::fmt;
 #[derive(Debug)]
 pub struct Backtrace(());
 
-impl crate::GenerateBacktrace for Backtrace {
+impl crate::GenerateImplicitData for Backtrace {
     fn generate() -> Self {
         Backtrace(())
     }
+}
 
+impl crate::AsBacktrace for Backtrace {
     fn as_backtrace(&self) -> Option<&Backtrace> {
         Some(self)
     }

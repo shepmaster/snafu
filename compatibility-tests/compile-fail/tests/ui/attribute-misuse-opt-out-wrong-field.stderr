@@ -9,3 +9,9 @@ error: `backtrace(false)` attribute is only valid on a field named "backtrace", 
    |
 19 |             #[snafu(backtrace(false))]
    |                     ^^^^^^^^^^^^^^^^
+
+error: `implicit(false)` attribute is only valid on a field named "location", not on other fields
+  --> $DIR/attribute-misuse-opt-out-wrong-field.rs:31:21
+   |
+31 |             #[snafu(implicit(false))]
+   |                     ^^^^^^^^^^^^^^^

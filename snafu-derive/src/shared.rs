@@ -13,6 +13,7 @@ pub mod context_selector {
     #[derive(Copy, Clone)]
     pub(crate) struct ContextSelector<'a> {
         pub backtrace_field: Option<&'a Field>,
+        pub implicit_fields: &'a [Field],
         pub crate_root: &'a dyn ToTokens,
         pub error_constructor_name: &'a dyn ToTokens,
         pub original_generics_without_defaults: &'a [TokenStream],
@@ -121,12 +122,16 @@ pub mod context_selector {
                 .collect()
         }
 
-        fn construct_backtrace_field(&self) -> Option<TokenStream> {
-            self.backtrace_field.map(|field| {
-                let crate_root = self.crate_root;
-                let name = &field.name;
-                quote! { #name: #crate_root::GenerateBacktrace::generate(), }
-            })
+        fn construct_implicit_fields(&self) -> TokenStream {
+            self.implicit_fields
+                .iter()
+                .chain(self.backtrace_field)
+                .map(|field| {
+                    let crate_root = self.crate_root;
+                    let name = &field.name;
+                    quote! { #name: #crate_root::GenerateImplicitData::generate(), }
+                })
+                .collect()
         }
 
         fn generate_type(self) -> TokenStream {
@@ -165,23 +170,27 @@ pub mod context_selector {
             let visibility = self.visibility;
             let extended_where_clauses = self.extended_where_clauses();
             let transfer_user_fields = self.transfer_user_fields();
-            let construct_backtrace_field = self.construct_backtrace_field();
+            let construct_implicit_fields = self.construct_implicit_fields();
+
+            let track_caller = track_caller();
 
             quote! {
                 impl<#(#user_field_generics,)*> #parameterized_selector_name {
                     #[doc = "Consume the selector and return the associated error"]
                     #[must_use]
+                    #track_caller
                     #visibility fn build<#(#original_generics_without_defaults,)*>(self) -> #parameterized_error_name
                     where
                         #(#extended_where_clauses),*
                     {
                         #error_constructor_name {
-                            #construct_backtrace_field
+                            #construct_implicit_fields
                             #(#transfer_user_fields,)*
                         }
                     }
 
                     #[doc = "Consume the selector and return a `Result` with the associated error"]
+                    #track_caller
                     #visibility fn fail<#(#original_generics_without_defaults,)* __T>(self) -> ::core::result::Result<__T, #parameterized_error_name>
                     where
                         #(#extended_where_clauses),*
@@ -201,7 +210,7 @@ pub mod context_selector {
             let user_field_generics = self.user_field_generics();
             let extended_where_clauses = self.extended_where_clauses();
             let transfer_user_fields = self.transfer_user_fields();
-            let construct_backtrace_field = self.construct_backtrace_field();
+            let construct_implicit_fields = self.construct_implicit_fields();
 
             let (source_ty, transfer_source_field) = match source_field {
                 Some(source_field) => {
@@ -211,6 +220,8 @@ pub mod context_selector {
                 None => (quote! { #crate_root::NoneError }, quote! {}),
             };
 
+            let track_caller = track_caller();
+
             quote! {
                 impl<#(#original_generics_without_defaults,)* #(#user_field_generics,)*> #crate_root::IntoError<#parameterized_error_name> for #parameterized_selector_name
                 where
@@ -219,10 +230,11 @@ pub mod context_selector {
                 {
                     type Source = #source_ty;
 
+                    #track_caller
                     fn into_error(self, error: Self::Source) -> #parameterized_error_name {
                         #error_constructor_name {
                             #transfer_source_field
-                            #construct_backtrace_field
+                            #construct_implicit_fields
                             #(#transfer_user_fields),*
                         }
                     }
@@ -238,7 +250,7 @@ pub mod context_selector {
             let crate_root = self.crate_root;
             let parameterized_error_name = self.parameterized_error_name;
             let error_constructor_name = self.error_constructor_name;
-            let construct_backtrace_field = self.construct_backtrace_field();
+            let construct_implicit_fields = self.construct_implicit_fields();
 
             // testme: transform
 
@@ -259,23 +271,27 @@ pub mod context_selector {
 
             let message_field_name = &message_field.name;
 
+            let track_caller = track_caller();
+
             quote! {
                 impl #crate_root::FromString for #parameterized_error_name {
                     type Source = #source_ty;
 
+                    #track_caller
                     fn without_source(message: String) -> Self {
                         #error_constructor_name {
                             #empty_source_field
                             #message_field_name: message,
-                            #construct_backtrace_field
+                            #construct_implicit_fields
                         }
                     }
 
+                    #track_caller
                     fn with_source(error: Self::Source, message: String) -> Self {
                         #error_constructor_name {
                             #transfer_source_field
                             #message_field_name: message,
-                            #construct_backtrace_field
+                            #construct_implicit_fields
                         }
                     }
                 }
@@ -285,22 +301,25 @@ pub mod context_selector {
         fn generate_from_source(self, source_field: &crate::SourceField) -> TokenStream {
             let parameterized_error_name = self.parameterized_error_name;
             let error_constructor_name = self.error_constructor_name;
-            let construct_backtrace_field = self.construct_backtrace_field();
+            let construct_implicit_fields = self.construct_implicit_fields();
             let original_generics_without_defaults = self.original_generics_without_defaults;
             let user_field_generics = self.user_field_generics();
             let where_clauses = self.where_clauses;
 
             let (source_field_type, transfer_source_field) = build_source_info(source_field);
 
+            let track_caller = track_caller();
+
             quote! {
                 impl<#(#original_generics_without_defaults,)* #(#user_field_generics,)*> ::core::convert::From<#source_field_type> for #parameterized_error_name
                 where
                     #(#where_clauses),*
                 {
+                    #track_caller
                     fn from(error: #source_field_type) -> Self {
                         #error_constructor_name {
                             #transfer_source_field
-                            #construct_backtrace_field
+                            #construct_implicit_fields
                         }
                     }
                 }
@@ -318,6 +337,14 @@ pub mod context_selector {
             source_field_type,
             quote! { #source_field_name: (#source_transformation)(error), },
         )
+    }
+
+    fn track_caller() -> proc_macro2::TokenStream {
+        if cfg!(feature = "rust_1_46") {
+            quote::quote! { #[track_caller] }
+        } else {
+            quote::quote! {}
+        }
     }
 }
 
@@ -373,6 +400,7 @@ pub mod display {
 
     pub(crate) struct DisplayMatchArm<'a> {
         pub(crate) backtrace_field: Option<&'a crate::Field>,
+        pub(crate) implicit_fields: &'a [crate::Field],
         pub(crate) default_name: &'a dyn ToTokens,
         pub(crate) display_format: Option<&'a dyn ToTokens>,
         pub(crate) doc_comment: &'a str,
@@ -384,6 +412,7 @@ pub mod display {
         fn to_tokens(&self, stream: &mut TokenStream) {
             let Self {
                 backtrace_field,
+                implicit_fields,
                 default_name,
                 display_format,
                 doc_comment,
@@ -410,6 +439,7 @@ pub mod display {
             let field_names = user_fields
                 .iter()
                 .chain(backtrace_field)
+                .chain(implicit_fields)
                 .chain(message_field)
                 .map(Field::name)
                 .chain(source_field.map(SourceField::name));
@@ -633,7 +663,7 @@ pub mod error_compat {
                         name: field_name, ..
                     } = backtrace_field;
                     quote! {
-                        #pattern_ident { ref #field_name, .. } => { #crate_root::GenerateBacktrace::as_backtrace(#field_name) }
+                        #pattern_ident { ref #field_name, .. } => { #crate_root::AsBacktrace::as_backtrace(#field_name) }
                     }
                 }
                 _ => {

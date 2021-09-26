@@ -15,6 +15,7 @@ mod kw {
     custom_keyword!(context);
     custom_keyword!(crate_root);
     custom_keyword!(display);
+    custom_keyword!(implicit);
     custom_keyword!(source);
     custom_keyword!(visibility);
     custom_keyword!(whatever);
@@ -62,6 +63,7 @@ enum Attribute {
     Context(Context),
     CrateRoot(CrateRoot),
     Display(Display),
+    Implicit(Implicit),
     Source(Source),
     Visibility(Visibility),
     Whatever(Whatever),
@@ -76,6 +78,7 @@ impl From<Attribute> for SnafuAttribute {
             Context(c) => SnafuAttribute::Context(c.to_token_stream(), c.into_component()),
             CrateRoot(cr) => SnafuAttribute::CrateRoot(cr.to_token_stream(), cr.into_arbitrary()),
             Display(d) => SnafuAttribute::Display(d.to_token_stream(), d.into_arbitrary()),
+            Implicit(d) => SnafuAttribute::Implicit(d.to_token_stream(), d.into_bool()),
             Source(s) => SnafuAttribute::Source(s.to_token_stream(), s.into_components()),
             Visibility(v) => SnafuAttribute::Visibility(v.to_token_stream(), v.into_arbitrary()),
             Whatever(o) => SnafuAttribute::Whatever(o.to_token_stream()),
@@ -94,6 +97,8 @@ impl Parse for Attribute {
             input.parse().map(Attribute::CrateRoot)
         } else if lookahead.peek(kw::display) {
             input.parse().map(Attribute::Display)
+        } else if lookahead.peek(kw::implicit) {
+            input.parse().map(Attribute::Implicit)
         } else if lookahead.peek(kw::source) {
             input.parse().map(Attribute::Source)
         } else if lookahead.peek(kw::visibility) {
@@ -367,6 +372,33 @@ impl ToTokens for DocComment {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.eq_token.to_tokens(tokens);
         self.str.to_tokens(tokens);
+    }
+}
+
+struct Implicit {
+    implicit_token: kw::implicit,
+    arg: MaybeArg<LitBool>,
+}
+
+impl Implicit {
+    fn into_bool(self) -> bool {
+        self.arg.into_option().map_or(true, |a| a.value)
+    }
+}
+
+impl Parse for Implicit {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(Self {
+            implicit_token: input.parse()?,
+            arg: input.parse()?,
+        })
+    }
+}
+
+impl ToTokens for Implicit {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.implicit_token.to_tokens(tokens);
+        self.arg.to_tokens(tokens);
     }
 }
 

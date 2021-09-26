@@ -41,6 +41,7 @@ struct EnumInfo {
 struct FieldContainer {
     name: syn::Ident,
     backtrace_field: Option<Field>,
+    implicit_fields: Vec<Field>,
     selector_kind: ContextSelectorKind,
     display_format: Option<UserInput>,
     doc_comment: String,
@@ -500,6 +501,16 @@ const ATTR_BACKTRACE_FALSE: WrongField = WrongField {
     valid_field: "backtrace",
 };
 
+const ATTR_IMPLICIT: OnlyValidOn = OnlyValidOn {
+    attribute: "implicit",
+    valid_on: "enum variant or struct fields with a name",
+};
+
+const ATTR_IMPLICIT_FALSE: WrongField = WrongField {
+    attribute: "implicit(false)",
+    valid_field: "location",
+};
+
 const ATTR_VISIBILITY: OnlyValidOn = OnlyValidOn {
     attribute: "visibility",
     valid_on: "an enum, enum variants, or a struct with named fields",
@@ -554,6 +565,7 @@ fn parse_snafu_enum(
             }
             Att::CrateRoot(tokens, root) => crate_roots.add(root, tokens),
             Att::Backtrace(tokens, ..) => enum_errors.add(tokens, ATTR_BACKTRACE),
+            Att::Implicit(tokens, ..) => enum_errors.add(tokens, ATTR_IMPLICIT),
             Att::Context(tokens, ..) => enum_errors.add(tokens, ATTR_CONTEXT),
             Att::Whatever(tokens) => enum_errors.add(tokens, ATTR_WHATEVER),
             Att::DocComment(..) => { /* Just a regular doc comment. */ }
@@ -642,6 +654,7 @@ fn field_container(
             Att::Whatever(tokens) => whatevers.add((), tokens),
             Att::Source(tokens, ..) => outer_errors.add(tokens, ATTR_SOURCE),
             Att::Backtrace(tokens, ..) => outer_errors.add(tokens, ATTR_BACKTRACE),
+            Att::Implicit(tokens, ..) => outer_errors.add(tokens, ATTR_IMPLICIT),
             Att::CrateRoot(tokens, ..) => outer_errors.add(tokens, ATTR_CRATE_ROOT),
             Att::DocComment(_tts, doc_comment_line) => {
                 // We join all the doc comment attributes with a space,
@@ -665,6 +678,7 @@ fn field_container(
     let mut user_fields = Vec::new();
     let mut source_fields = AtMostOne::new("source", inner_error_location);
     let mut backtrace_fields = AtMostOne::new("backtrace", inner_error_location);
+    let mut implicit_fields = Vec::new();
 
     for syn_field in fields {
         let original = syn_field.clone();
@@ -689,11 +703,13 @@ fn field_container(
         // don't need any more data.
         let mut source_attrs = AtMostOne::new("source", ErrorLocation::OnField);
         let mut backtrace_attrs = AtMostOne::new("backtrace", ErrorLocation::OnField);
+        let mut implicit_attrs = AtMostOne::new("implicit", ErrorLocation::OnField);
 
         // Keep track of the negative markers so we can check for inconsistencies and
         // exclude fields even if they have the "source" or "backtrace" name.
         let mut source_opt_out = false;
         let mut backtrace_opt_out = false;
+        let mut implicit_opt_out = false;
 
         let mut field_errors = errors.scoped(ErrorLocation::OnField);
 
@@ -740,6 +756,15 @@ fn field_container(
                         field_errors.add(tokens, ATTR_BACKTRACE_FALSE);
                     }
                 }
+                Att::Implicit(tokens, v) => {
+                    if v {
+                        implicit_attrs.add((), tokens);
+                    } else if name == "location" {
+                        implicit_opt_out = true;
+                    } else {
+                        field_errors.add(tokens, ATTR_IMPLICIT_FALSE);
+                    }
+                }
                 Att::Visibility(tokens, ..) => field_errors.add(tokens, ATTR_VISIBILITY),
                 Att::Display(tokens, ..) => field_errors.add(tokens, ATTR_DISPLAY),
                 Att::Context(tokens, ..) => field_errors.add(tokens, ATTR_CONTEXT),
@@ -753,6 +778,9 @@ fn field_container(
         let (source_attr, errs) = source_attrs.finish_with_location();
         errors.extend(errs);
         let (backtrace_attr, errs) = backtrace_attrs.finish_with_location();
+        errors.extend(errs);
+
+        let (implicit_attr, errs) = implicit_attrs.finish();
         errors.extend(errs);
 
         let source_attr = source_attr.or_else(|| {
@@ -770,6 +798,9 @@ fn field_container(
                 None
             }
         });
+
+        let implicit_attr =
+            implicit_attr.is_some() || (field.name == "location" && !implicit_opt_out);
 
         if let Some((maybe_transformation, location)) = source_attr {
             let Field { name, ty, .. } = field;
@@ -789,6 +820,8 @@ fn field_container(
             );
         } else if let Some((_, location)) = backtrace_attr {
             backtrace_fields.add(field, location);
+        } else if implicit_attr {
+            implicit_fields.push(field);
         } else {
             user_fields.push(field);
         }
@@ -906,6 +939,7 @@ fn field_container(
     Ok(FieldContainer {
         name,
         backtrace_field: backtrace.map(|(val, _tts)| val),
+        implicit_fields,
         selector_kind,
         display_format,
         doc_comment,
@@ -1010,6 +1044,7 @@ fn parse_snafu_tuple_struct(
                 }
             }
             Att::Backtrace(tokens, ..) => struct_errors.add(tokens, ATTR_BACKTRACE),
+            Att::Implicit(tokens, ..) => struct_errors.add(tokens, ATTR_IMPLICIT),
             Att::Context(tokens, ..) => struct_errors.add(tokens, ATTR_CONTEXT),
             Att::Whatever(tokens) => struct_errors.add(tokens, ATTR_CONTEXT),
             Att::CrateRoot(tokens, root) => crate_roots.add(root, tokens),
@@ -1086,6 +1121,7 @@ enum SnafuAttribute {
     CrateRoot(proc_macro2::TokenStream, UserInput),
     Display(proc_macro2::TokenStream, UserInput),
     DocComment(proc_macro2::TokenStream, String),
+    Implicit(proc_macro2::TokenStream, bool),
     Source(proc_macro2::TokenStream, Vec<Source>),
     Visibility(proc_macro2::TokenStream, UserInput),
     Whatever(proc_macro2::TokenStream),
@@ -1275,6 +1311,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
 
         let context_selector = ContextSelector {
             backtrace_field: self.1.backtrace_field.as_ref(),
+            implicit_fields: &self.1.implicit_fields,
             crate_root: &self.0.crate_root,
             error_constructor_name: &quote! { #enum_name::#variant_name },
             original_generics_without_defaults: &self.0.provided_generics_without_defaults(),
@@ -1306,6 +1343,7 @@ impl<'a> quote::ToTokens for DisplayImpl<'a> {
             .map(|variant| {
                 let FieldContainer {
                     backtrace_field,
+                    implicit_fields,
                     display_format,
                     doc_comment,
                     name: variant_name,
@@ -1315,6 +1353,7 @@ impl<'a> quote::ToTokens for DisplayImpl<'a> {
 
                 let arm = DisplayMatchArm {
                     backtrace_field: backtrace_field.as_ref(),
+                    implicit_fields: &implicit_fields,
                     default_name: &variant_name,
                     display_format: display_format.as_ref().map(|f| &**f),
                     doc_comment,
@@ -1434,6 +1473,7 @@ impl NamedStructInfo {
                     name,
                     selector_kind,
                     backtrace_field,
+                    implicit_fields,
                     display_format,
                     doc_comment,
                     visibility,
@@ -1489,6 +1529,7 @@ impl NamedStructInfo {
 
         let arm = DisplayMatchArm {
             backtrace_field: backtrace_field.as_ref(),
+            implicit_fields: &implicit_fields,
             default_name: &name,
             display_format: display_format.as_ref().map(|f| &**f),
             doc_comment: &doc_comment,
@@ -1510,6 +1551,7 @@ impl NamedStructInfo {
 
         let context_selector = ContextSelector {
             backtrace_field: backtrace_field.as_ref(),
+            implicit_fields: implicit_fields,
             crate_root: &crate_root,
             error_constructor_name: &name,
             original_generics_without_defaults: &original_generics,
