@@ -1,11 +1,13 @@
+use std::collections::BTreeSet;
+
 use crate::SnafuAttribute;
 use proc_macro2::TokenStream;
-use quote::ToTokens;
+use quote::{format_ident, ToTokens};
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream, Result},
     punctuated::Punctuated,
-    token, Expr, Ident, LitBool, LitStr, Path, Type,
+    token, Expr, Ident, Lit, LitBool, LitStr, Path, Type,
 };
 
 mod kw {
@@ -77,7 +79,7 @@ impl From<Attribute> for SnafuAttribute {
             Backtrace(b) => SnafuAttribute::Backtrace(b.to_token_stream(), b.into_bool()),
             Context(c) => SnafuAttribute::Context(c.to_token_stream(), c.into_component()),
             CrateRoot(cr) => SnafuAttribute::CrateRoot(cr.to_token_stream(), cr.into_arbitrary()),
-            Display(d) => SnafuAttribute::Display(d.to_token_stream(), d.into_arbitrary()),
+            Display(d) => SnafuAttribute::Display(d.to_token_stream(), d.into_display()),
             Implicit(d) => SnafuAttribute::Implicit(d.to_token_stream(), d.into_bool()),
             Source(s) => SnafuAttribute::Source(s.to_token_stream(), s.into_components()),
             Visibility(v) => SnafuAttribute::Visibility(v.to_token_stream(), v.into_arbitrary()),
@@ -316,10 +318,62 @@ struct Display {
 }
 
 impl Display {
-    // TODO: Remove boxed trait object
-    fn into_arbitrary(self) -> Box<dyn ToTokens> {
-        Box::new(self.args)
+    fn into_display(self) -> crate::Display {
+        let exprs: Vec<_> = self.args.into_iter().collect();
+        let mut shorthand_names = BTreeSet::new();
+        let mut assigned_names = BTreeSet::new();
+
+        // Do a best-effort parsing here; if we fail, the compiler
+        // will likely spit out something more useful when it tries to
+        // parse it.
+        if let Some((Expr::Lit(l), args)) = exprs.split_first() {
+            if let Lit::Str(s) = &l.lit {
+                let format_str = s.value();
+                let names = extract_field_names(&format_str).map(|n| format_ident!("{}", n));
+                shorthand_names.extend(names);
+            }
+
+            for arg in args {
+                if let Expr::Assign(a) = arg {
+                    if let Expr::Path(p) = &*a.left {
+                        assigned_names.extend(p.path.get_ident().cloned());
+                    }
+                }
+            }
+        }
+
+        crate::Display {
+            exprs,
+            shorthand_names,
+            assigned_names,
+        }
     }
+}
+
+fn extract_field_names(mut s: &str) -> impl Iterator<Item = &str> {
+    std::iter::from_fn(move || loop {
+        let open_curly = s.find('{')?;
+        s = &s[open_curly + '{'.len_utf8()..];
+
+        if s.starts_with('{') {
+            s = &s['{'.len_utf8()..];
+            continue;
+        }
+
+        let end_curly = s.find('}')?;
+        let format_contents = &s[..end_curly];
+
+        let name = match format_contents.find(':') {
+            Some(idx) => &format_contents[..idx],
+            None => format_contents,
+        };
+
+        if name.is_empty() {
+            continue;
+        }
+
+        return Some(name);
+    })
 }
 
 impl Parse for Display {
@@ -596,5 +650,44 @@ impl<T: ToTokens> ToTokens for MaybeArg<T> {
                 content.to_tokens(tokens);
             });
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn names(s: &str) -> Vec<&str> {
+        extract_field_names(s).collect::<Vec<_>>()
+    }
+
+    #[test]
+    fn ignores_positional_arguments() {
+        assert_eq!(names("{}"), [] as [&str; 0]);
+    }
+
+    #[test]
+    fn finds_named_argument() {
+        assert_eq!(names("{a}"), ["a"]);
+    }
+
+    #[test]
+    fn finds_multiple_named_arguments() {
+        assert_eq!(names("{a} {b}"), ["a", "b"]);
+    }
+
+    #[test]
+    fn ignores_escaped_braces() {
+        assert_eq!(names("{{a}}"), [] as [&str; 0]);
+    }
+
+    #[test]
+    fn finds_named_arguments_around_escaped() {
+        assert_eq!(names("{a} {{b}} {c}"), ["a", "c"]);
+    }
+
+    #[test]
+    fn ignores_format_spec() {
+        assert_eq!(names("{a:?}"), ["a"]);
     }
 }

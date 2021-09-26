@@ -5,7 +5,7 @@ extern crate proc_macro;
 use crate::parse::attributes_from_syn;
 use proc_macro::TokenStream;
 use quote::quote;
-use std::collections::VecDeque;
+use std::collections::{BTreeSet, VecDeque};
 use std::fmt;
 
 mod parse;
@@ -43,7 +43,7 @@ struct FieldContainer {
     backtrace_field: Option<Field>,
     implicit_fields: Vec<Field>,
     selector_kind: ContextSelectorKind,
-    display_format: Option<UserInput>,
+    display_format: Option<Display>,
     doc_comment: String,
     visibility: Option<UserInput>,
 }
@@ -1108,6 +1108,12 @@ enum Source {
     From(syn::Type, syn::Expr),
 }
 
+struct Display {
+    exprs: Vec<syn::Expr>,
+    shorthand_names: BTreeSet<syn::Ident>,
+    assigned_names: BTreeSet<syn::Ident>,
+}
+
 /// A SnafuAttribute represents one SNAFU-specific attribute inside of `#[snafu(...)]`.  For
 /// example, in `#[snafu(visibility(pub), display("hi"))]`, `visibility(pub)` and `display("hi")`
 /// are each a SnafuAttribute.
@@ -1119,7 +1125,7 @@ enum SnafuAttribute {
     Backtrace(proc_macro2::TokenStream, bool),
     Context(proc_macro2::TokenStream, Context),
     CrateRoot(proc_macro2::TokenStream, UserInput),
-    Display(proc_macro2::TokenStream, UserInput),
+    Display(proc_macro2::TokenStream, Display),
     DocComment(proc_macro2::TokenStream, String),
     Implicit(proc_macro2::TokenStream, bool),
     Source(proc_macro2::TokenStream, Vec<Source>),
@@ -1355,7 +1361,7 @@ impl<'a> quote::ToTokens for DisplayImpl<'a> {
                     backtrace_field: backtrace_field.as_ref(),
                     implicit_fields: &implicit_fields,
                     default_name: &variant_name,
-                    display_format: display_format.as_ref().map(|f| &**f),
+                    display_format: display_format.as_ref(),
                     doc_comment,
                     pattern_ident: &quote! { #enum_name::#variant_name },
                     selector_kind,
@@ -1531,7 +1537,7 @@ impl NamedStructInfo {
             backtrace_field: backtrace_field.as_ref(),
             implicit_fields: &implicit_fields,
             default_name: &name,
-            display_format: display_format.as_ref().map(|f| &**f),
+            display_format: display_format.as_ref(),
             doc_comment: &doc_comment,
             pattern_ident: &quote! { Self },
             selector_kind: &selector_kind,
