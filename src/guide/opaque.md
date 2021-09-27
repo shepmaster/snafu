@@ -26,9 +26,9 @@ pub fn login(id: i32) -> Result<(), Error> {
 
 #[derive(Debug, Snafu)]
 enum InnerError {
-    #[snafu(display("User ID {} is invalid", user_id))]
+    #[snafu(display("User ID {user_id} is invalid"))]
     InvalidUser { user_id: i32 },
-    #[snafu(display("User ID {} is locked", user_id))]
+    #[snafu(display("User ID {user_id} is locked"))]
     UserLocked { user_id: i32 },
 }
 

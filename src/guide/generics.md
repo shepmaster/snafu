@@ -12,10 +12,10 @@ enum Error<T>
 where
     T: std::fmt::Display,
 {
-    #[snafu(display("The value {} was too large", value))]
+    #[snafu(display("The value {value} was too large"))]
     TooLarge { value: T, limit: u32 },
 
-    #[snafu(display("The value {} was too small", value))]
+    #[snafu(display("The value {value} was too small"))]
     TooSmall { value: T, limit: u32 },
 }
 
@@ -63,7 +63,7 @@ fn validate_string(value: &str) -> Result<&str, Error<String>> {
 #
 #[derive(Debug, Snafu)]
 enum Error<'a> {
-    #[snafu(display("The username {} contains the bad word {}", value, word))]
+    #[snafu(display("The username {value} contains the bad word {word}"))]
     BadWord { value: &'a str, word: &'static str },
 }
 
@@ -112,7 +112,7 @@ enum Error<T>
 where
     T: std::fmt::Debug,
 {
-    #[snafu(display("Boom: {:?}", value))]
+    #[snafu(display("Boom: {value:?}"))]
     Boom { value: T },
 }
 ```

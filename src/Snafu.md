@@ -342,7 +342,7 @@ enum Error {
         username: String,
     },
 
-    #[snafu(whatever, display("{}", message))]
+    #[snafu(whatever, display("{message}"))]
     GenericError {
         message: String,
 

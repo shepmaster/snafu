@@ -24,14 +24,10 @@ enum Error {
     #[snafu(display("Could not open config"))]
     SaveConfig { source: std::io::Error },
 
-    #[snafu(display("The user id {} is invalid", user_id))]
+    #[snafu(display("The user id {user_id} is invalid"))]
     UserIdInvalid { user_id: i32, backtrace: Backtrace },
 
-    #[snafu(display(
-        "Could not validate config with key {}: checksum was {}",
-        key,
-        checksum,
-    ))]
+    #[snafu(display("Could not validate config with key {key}: checksum was {checksum}"))]
     ConfigValidationFailed {
         checksum: u64,
         key: String,
@@ -152,9 +148,9 @@ impl std::fmt::Display for Error {
             Error::SaveConfig { source } =>
                 write!(f, "Could not open config"),
             Error::UserIdInvalid { user_id, backtrace } =>
-                write!(f, "The user id {} is invalid", user_id),
+                write!(f, "The user id {} is invalid", user_id = user_id),
             Error::ConfigValidationFailed { key, checksum, source } =>
-                write!(f, "Could not validate config with key {}: checksum was {}", key, checksum),
+                write!(f, "Could not validate config with key {}: checksum was {}", key = key, checksum = checksum),
         }
     }
 }
