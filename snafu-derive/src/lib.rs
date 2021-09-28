@@ -44,7 +44,7 @@ struct FieldContainer {
     implicit_fields: Vec<Field>,
     selector_kind: ContextSelectorKind,
     display_format: Option<Display>,
-    doc_comment: String,
+    doc_comment: Option<DocComment>,
     visibility: Option<UserInput>,
 }
 
@@ -641,7 +641,7 @@ fn field_container(
     let mut visibilities = AtMostOne::new("visibility", outer_error_location);
     let mut contexts = AtMostOne::new("context", outer_error_location);
     let mut whatevers = AtMostOne::new("whatever", outer_error_location);
-    let mut doc_comment = String::new();
+    let mut doc_comment = DocComment::default();
     let mut reached_end_of_doc_comment = false;
 
     for attr in attrs {
@@ -665,9 +665,6 @@ fn field_container(
                     if trimmed.is_empty() {
                         reached_end_of_doc_comment = true;
                     } else {
-                        if !doc_comment.is_empty() {
-                            doc_comment.push_str(" ");
-                        }
                         doc_comment.push_str(trimmed);
                     }
                 }
@@ -942,7 +939,7 @@ fn field_container(
         implicit_fields,
         selector_kind,
         display_format,
-        doc_comment,
+        doc_comment: doc_comment.finish(),
         visibility,
     })
 }
@@ -1112,6 +1109,34 @@ struct Display {
     exprs: Vec<syn::Expr>,
     shorthand_names: BTreeSet<syn::Ident>,
     assigned_names: BTreeSet<syn::Ident>,
+}
+
+#[derive(Default)]
+struct DocComment {
+    content: String,
+    shorthand_names: BTreeSet<syn::Ident>,
+}
+
+impl DocComment {
+    fn push_str(&mut self, s: &str) {
+        if !self.content.is_empty() {
+            self.content.push_str(" ");
+        }
+        self.content.push_str(s);
+    }
+
+    fn finish(mut self) -> Option<Self> {
+        if self.content.is_empty() {
+            None
+        } else {
+            self.shorthand_names.extend(
+                crate::parse::extract_field_names(&self.content)
+                    .map(|n| quote::format_ident!("{}", n)),
+            );
+
+            Some(self)
+        }
+    }
 }
 
 /// A SnafuAttribute represents one SNAFU-specific attribute inside of `#[snafu(...)]`.  For
@@ -1362,7 +1387,7 @@ impl<'a> quote::ToTokens for DisplayImpl<'a> {
                     implicit_fields: &implicit_fields,
                     default_name: &variant_name,
                     display_format: display_format.as_ref(),
-                    doc_comment,
+                    doc_comment: doc_comment.as_ref(),
                     pattern_ident: &quote! { #enum_name::#variant_name },
                     selector_kind,
                 };
@@ -1538,7 +1563,7 @@ impl NamedStructInfo {
             implicit_fields: &implicit_fields,
             default_name: &name,
             display_format: display_format.as_ref(),
-            doc_comment: &doc_comment,
+            doc_comment: doc_comment.as_ref(),
             pattern_ident: &quote! { Self },
             selector_kind: &selector_kind,
         };

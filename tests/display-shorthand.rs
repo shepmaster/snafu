@@ -22,6 +22,9 @@ enum Error {
 
     #[snafu(display("Person {name} with ID {id} denied", id = 99))]
     RedefinedNamedArguments { id: i32, name: &'static str },
+
+    /// Person {name} with ID {id} denied
+    ShorthandArgumentsInDocComments { id: i32, name: &'static str },
 }
 
 #[test]
@@ -84,4 +87,14 @@ fn does_not_redefine_user_provided_named_arguments() {
     }
     .build();
     assert_eq!(error.to_string(), "Person Anna with ID 99 denied");
+}
+
+#[test]
+fn allows_shorthand_in_doc_comments() {
+    let error = ShorthandArgumentsInDocCommentsSnafu {
+        id: 42,
+        name: "Anna",
+    }
+    .build();
+    assert_eq!(error.to_string(), "Person Anna with ID 42 denied");
 }

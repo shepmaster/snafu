@@ -350,7 +350,7 @@ impl Display {
     }
 }
 
-fn extract_field_names(mut s: &str) -> impl Iterator<Item = &str> {
+pub(crate) fn extract_field_names(mut s: &str) -> impl Iterator<Item = &str> {
     std::iter::from_fn(move || loop {
         let open_curly = s.find('{')?;
         s = &s[open_curly + '{'.len_utf8()..];

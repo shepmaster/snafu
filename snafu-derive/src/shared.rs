@@ -404,7 +404,7 @@ pub mod display {
         pub(crate) implicit_fields: &'a [crate::Field],
         pub(crate) default_name: &'a dyn ToTokens,
         pub(crate) display_format: Option<&'a crate::Display>,
-        pub(crate) doc_comment: &'a str,
+        pub(crate) doc_comment: Option<&'a crate::DocComment>,
         pub(crate) pattern_ident: &'a dyn ToTokens,
         pub(crate) selector_kind: &'a crate::ContextSelectorKind,
     }
@@ -428,21 +428,23 @@ pub mod display {
             let mut shorthand_names = &BTreeSet::new();
             let mut assigned_names = &BTreeSet::new();
 
-            let format = match (display_format, source_field) {
-                (Some(v), _) => {
+            let format = match (display_format, doc_comment, source_field) {
+                (Some(v), _, _) => {
                     let exprs = &v.exprs;
                     shorthand_names = &v.shorthand_names;
                     assigned_names = &v.assigned_names;
                     quote! { #(#exprs),* }
                 }
-                (None, _) if !doc_comment.is_empty() => {
-                    quote! { #doc_comment }
+                (_, Some(d), _) => {
+                    let content = &d.content;
+                    shorthand_names = &d.shorthand_names;
+                    quote! { #content }
                 }
-                (None, Some(f)) => {
+                (_, _, Some(f)) => {
                     let field_name = &f.name;
                     quote! { concat!(stringify!(#default_name), ": {}"), #field_name }
                 }
-                (None, None) => quote! { stringify!(#default_name)},
+                _ => quote! { stringify!(#default_name)},
             };
 
             let field_names = user_fields
