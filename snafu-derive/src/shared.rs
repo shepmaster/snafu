@@ -352,6 +352,7 @@ pub mod display {
     use crate::{Field, SourceField};
     use proc_macro2::TokenStream;
     use quote::{quote, ToTokens};
+    use std::collections::BTreeSet;
 
     struct StaticIdent(&'static str);
 
@@ -402,8 +403,8 @@ pub mod display {
         pub(crate) backtrace_field: Option<&'a crate::Field>,
         pub(crate) implicit_fields: &'a [crate::Field],
         pub(crate) default_name: &'a dyn ToTokens,
-        pub(crate) display_format: Option<&'a dyn ToTokens>,
-        pub(crate) doc_comment: &'a str,
+        pub(crate) display_format: Option<&'a crate::Display>,
+        pub(crate) doc_comment: Option<&'a crate::DocComment>,
         pub(crate) pattern_ident: &'a dyn ToTokens,
         pub(crate) selector_kind: &'a crate::ContextSelectorKind,
     }
@@ -424,16 +425,26 @@ pub mod display {
             let source_field = selector_kind.source_field();
             let message_field = selector_kind.message_field();
 
-            let format = match (display_format, source_field) {
-                (Some(v), _) => quote! { #v },
-                (None, _) if !doc_comment.is_empty() => {
-                    quote! { #doc_comment }
+            let mut shorthand_names = &BTreeSet::new();
+            let mut assigned_names = &BTreeSet::new();
+
+            let format = match (display_format, doc_comment, source_field) {
+                (Some(v), _, _) => {
+                    let exprs = &v.exprs;
+                    shorthand_names = &v.shorthand_names;
+                    assigned_names = &v.assigned_names;
+                    quote! { #(#exprs),* }
                 }
-                (None, Some(f)) => {
+                (_, Some(d), _) => {
+                    let content = &d.content;
+                    shorthand_names = &d.shorthand_names;
+                    quote! { #content }
+                }
+                (_, _, Some(f)) => {
                     let field_name = &f.name;
                     quote! { concat!(stringify!(#default_name), ": {}"), #field_name }
                 }
-                (None, None) => quote! { stringify!(#default_name)},
+                _ => quote! { stringify!(#default_name)},
             };
 
             let field_names = user_fields
@@ -442,13 +453,22 @@ pub mod display {
                 .chain(implicit_fields)
                 .chain(message_field)
                 .map(Field::name)
-                .chain(source_field.map(SourceField::name));
+                .chain(source_field.map(SourceField::name))
+                .collect::<BTreeSet<_>>();
 
-            let field_names = quote! { #(ref #field_names),* };
+            let field_names_pat = quote! { #(ref #field_names),* };
+
+            let shorthand_names = shorthand_names.iter().collect::<BTreeSet<_>>();
+            let assigned_names = assigned_names.iter().collect::<BTreeSet<_>>();
+
+            let shorthand_fields = &shorthand_names & &field_names;
+            let shorthand_fields = &shorthand_fields - &assigned_names;
+
+            let shorthand_assignments = quote! { #( #shorthand_fields = #shorthand_fields ),* };
 
             let match_arm = quote! {
-                #pattern_ident { #field_names } => {
-                    write!(#FORMATTER_ARG, #format)
+                #pattern_ident { #field_names_pat } => {
+                    write!(#FORMATTER_ARG, #format, #shorthand_assignments)
                 }
             };
 

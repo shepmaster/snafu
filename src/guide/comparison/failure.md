@@ -41,10 +41,10 @@ use std::ops::Range;
 
 #[derive(Debug, Snafu)]
 enum Error {
-    #[snafu(display("{} is below {}", value, bound))]
+    #[snafu(display("{value} is below {bound}"))]
     Below { value: usize, bound: usize },
 
-    #[snafu(display("{} is above {}", value, bound))]
+    #[snafu(display("{value} is above {bound}"))]
     Above { value: usize, bound: usize },
 }
 
@@ -76,13 +76,13 @@ use std::num::ParseIntError;
 
 #[derive(Debug, Snafu)]
 enum Error {
-    #[snafu(display(r#"Could not parse the area code from "{}": {}"#, value, source))]
+    #[snafu(display(r#"Could not parse the area code from "{value}": {source}"#))]
     AreaCodeInvalid {
         value: String,
         source: ParseIntError,
     },
 
-    #[snafu(display(r#"Could not parse the phone exchange from "{}": {}"#, value, source))]
+    #[snafu(display(r#"Could not parse the phone exchange from "{value}": {source}"#))]
     PhoneExchangeInvalid {
         value: String,
         source: ParseIntError,

@@ -87,7 +87,7 @@
 //! use snafu::prelude::*;
 //!
 //! #[derive(Debug, Snafu)]
-//! #[snafu(display("ID may not be less than 10, but it was {}", id))]
+//! #[snafu(display("ID may not be less than 10, but it was {id}"))]
 //! struct InvalidIdError {
 //!     id: u16,
 //! }
@@ -106,7 +106,7 @@
 //! use snafu::prelude::*;
 //!
 //! #[derive(Debug, Snafu)]
-//! #[snafu(display("Could not read file {}", path))]
+//! #[snafu(display("Could not read file {path}"))]
 //! struct ConfigFileError {
 //!     source: std::io::Error,
 //!     path: String,
@@ -133,7 +133,7 @@
 //!
 //! #[derive(Debug, Snafu)]
 //! enum Error {
-//!     #[snafu(display("ID may not be less than 10, but it was {}", id))]
+//!     #[snafu(display("ID may not be less than 10, but it was {id}"))]
 //!     InvalidId { id: u16 },
 //! }
 //!
@@ -152,7 +152,7 @@
 //!
 //! #[derive(Debug, Snafu)]
 //! enum Error {
-//!     #[snafu(display("Could not read file {}", path))]
+//!     #[snafu(display("Could not read file {path}"))]
 //!     ConfigFile {
 //!         source: std::io::Error,
 //!         path: String,
@@ -173,10 +173,10 @@
 //!
 //! #[derive(Debug, Snafu)]
 //! enum Error {
-//!     #[snafu(display("ID may not be less than 10, but it was {}", id))]
+//!     #[snafu(display("ID may not be less than 10, but it was {id}"))]
 //!     InvalidId { id: u16 },
 //!
-//!     #[snafu(whatever, display("{}", message))]
+//!     #[snafu(whatever, display("{message}"))]
 //!     Whatever {
 //!         message: String,
 //!         #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
@@ -373,7 +373,7 @@ macro_rules! ensure {
 /// use snafu::prelude::*;
 ///
 /// #[derive(Debug, Snafu)]
-/// #[snafu(whatever, display("Error was: {}", message))]
+/// #[snafu(whatever, display("Error was: {message}"))]
 /// struct Error {
 ///     message: String,
 /// }
@@ -405,7 +405,7 @@ macro_rules! ensure {
 /// use snafu::prelude::*;
 ///
 /// #[derive(Debug, Snafu)]
-/// #[snafu(whatever, display("Error was: {}", message))]
+/// #[snafu(whatever, display("Error was: {message}"))]
 /// struct Error {
 ///     message: String,
 ///     #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
@@ -1337,7 +1337,7 @@ macro_rules! location {
 #[derive(Debug, Snafu)]
 #[snafu(crate_root(crate))]
 #[snafu(whatever)]
-#[snafu(display("{}", message))]
+#[snafu(display("{message}"))]
 #[cfg(any(feature = "std", test))]
 pub struct Whatever {
     #[snafu(source(from(Box<dyn std::error::Error>, Some)))]

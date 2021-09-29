@@ -17,7 +17,9 @@ unique situations.
 You can specify how the `Display` trait will be implemented for each
 variant. The argument is a format string and the arguments. All of the
 fields of the variant will be available and you can call methods on
-them, such as `filename.display()`.
+them, such as `filename.display()`. As an extension to the current
+format string capabilities, a shorthand is available for named
+arguments that match a field.
 
 **Example**
 
@@ -25,19 +27,18 @@ them, such as `filename.display()`.
 # use snafu::prelude::*;
 #[derive(Debug, Snafu)]
 enum Error {
-    #[snafu(display("The user {} could not log in", username))]
-    InvalidLogin { username: String, password: String },
+    #[snafu(display("{username} may not log in until they pay USD {amount:E}"))]
+    UserMustPayForService { username: String, amount: f32 },
 }
-
 fn main() {
     assert_eq!(
-        InvalidLoginSnafu {
+        UserMustPayForServiceSnafu {
             username: "Stefani",
-            password: "Germanotta"
+            amount: 1_000_000.0,
         }
         .build()
         .to_string(),
-        "The user Stefani could not log in",
+        "Stefani may not log in until they pay USD 1E6",
     );
 }
 ```
@@ -341,7 +342,7 @@ enum Error {
         username: String,
     },
 
-    #[snafu(whatever, display("{}", message))]
+    #[snafu(whatever, display("{message}"))]
     GenericError {
         message: String,
 

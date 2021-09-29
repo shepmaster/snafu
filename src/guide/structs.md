@@ -8,7 +8,7 @@ struct:
 # use std::convert::TryFrom;
 # use snafu::prelude::*;
 #[derive(Debug, Snafu)]
-#[snafu(display("Unable to parse {} as MyEnum", value))]
+#[snafu(display("Unable to parse {value} as MyEnum"))]
 struct ParseError {
     value: u8,
 }
