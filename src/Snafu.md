@@ -105,6 +105,11 @@ fn my_code() -> Result<(), Error> {
 }
 ```
 
+`#[snafu(context(suffix))]` can be specified on an enum as the default
+suffix for variants of the enum. In that case, if you wish to have one
+variant with a suffix, you will need to express it explicitly with
+`#[snafu(context(suffix(SomeIdentifier)))]`.
+
 ### Disabling the context selector
 
 Sometimes, an underlying error can only occur in exactly one context

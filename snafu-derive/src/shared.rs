@@ -24,6 +24,7 @@ pub mod context_selector {
         pub user_fields: &'a [Field],
         pub visibility: Option<&'a dyn ToTokens>,
         pub where_clauses: &'a [TokenStream],
+        pub default_suffix: &'a SuffixKind,
     }
 
     impl ToTokens for ContextSelector<'_> {
@@ -75,14 +76,13 @@ pub mod context_selector {
             let selector_name = self.selector_name.to_string();
             let selector_name = selector_name.trim_end_matches("Error");
             let suffix: &dyn IdentFragment = match self.selector_kind {
-                ContextSelectorKind::Context {
-                    suffix: SuffixKind::Some(suffix),
-                    ..
-                } => suffix,
-                ContextSelectorKind::Context {
-                    suffix: SuffixKind::None,
-                    ..
-                } => &"",
+                ContextSelectorKind::Context { suffix, .. } => {
+                    match suffix.resolve_with_default(self.default_suffix) {
+                        SuffixKind::Some(s) => s,
+                        SuffixKind::None => &"",
+                        SuffixKind::Default => &DEFAULT_SUFFIX,
+                    }
+                }
                 _ => &DEFAULT_SUFFIX,
             };
             let selector_name = format_ident!(

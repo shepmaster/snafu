@@ -22,7 +22,7 @@ error: `backtrace` attribute is only valid on enum variant or struct fields with
 8 |     #[snafu(backtrace)]
   |             ^^^^^^^^^
 
-error: `context` attribute is only valid on enum variants or structs with named fields, not on an enum
+error: `context(bool)` attribute is only valid on enum variants or structs with named fields, not on an enum
  --> $DIR/attribute-misuse.rs:9:13
   |
 9 |     #[snafu(context)]
