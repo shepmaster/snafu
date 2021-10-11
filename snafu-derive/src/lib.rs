@@ -36,6 +36,7 @@ struct EnumInfo {
     generics: syn::Generics,
     variants: Vec<FieldContainer>,
     default_visibility: UserInput,
+    default_suffix: SuffixKind,
 }
 
 struct FieldContainer {
@@ -52,6 +53,18 @@ enum SuffixKind {
     Default,
     None,
     Some(syn::Ident),
+}
+
+impl SuffixKind {
+    fn resolve_with_default<'a>(&'a self, def: &'a Self) -> &'a Self {
+        use SuffixKind::*;
+
+        match self {
+            Default => def,
+            None => self,
+            Some(_) => self,
+        }
+    }
 }
 
 enum ContextSelectorKind {
@@ -521,6 +534,11 @@ const ATTR_CONTEXT: OnlyValidOn = OnlyValidOn {
     valid_on: "enum variants or structs with named fields",
 };
 
+const ATTR_CONTEXT_FLAG: OnlyValidOn = OnlyValidOn {
+    attribute: "context(bool)",
+    valid_on: "enum variants or structs with named fields",
+};
+
 const ATTR_WHATEVER: OnlyValidOn = OnlyValidOn {
     attribute: "whatever",
     valid_on: "enum variants or structs with named fields",
@@ -546,6 +564,7 @@ fn parse_snafu_enum(
     let mut errors = SyntaxErrors::default();
 
     let mut default_visibilities = AtMostOne::new("visibility", ErrorLocation::OnEnum);
+    let mut default_suffixes = AtMostOne::new("context(suffix)", ErrorLocation::OnEnum);
     let mut crate_roots = AtMostOne::new("crate_root", ErrorLocation::OnEnum);
     let mut enum_errors = errors.scoped(ErrorLocation::OnEnum);
 
@@ -564,9 +583,12 @@ fn parse_snafu_enum(
                 }
             }
             Att::CrateRoot(tokens, root) => crate_roots.add(root, tokens),
+            Att::Context(tokens, c) => match c {
+                Context::Suffix(s) => default_suffixes.add(s, tokens),
+                Context::Flag(_) => enum_errors.add(tokens, ATTR_CONTEXT_FLAG),
+            },
             Att::Backtrace(tokens, ..) => enum_errors.add(tokens, ATTR_BACKTRACE),
             Att::Implicit(tokens, ..) => enum_errors.add(tokens, ATTR_IMPLICIT),
-            Att::Context(tokens, ..) => enum_errors.add(tokens, ATTR_CONTEXT),
             Att::Whatever(tokens) => enum_errors.add(tokens, ATTR_WHATEVER),
             Att::DocComment(..) => { /* Just a regular doc comment. */ }
         }
@@ -574,6 +596,10 @@ fn parse_snafu_enum(
 
     let (maybe_default_visibility, errs) = default_visibilities.finish();
     let default_visibility = maybe_default_visibility.unwrap_or_else(private_visibility);
+    errors.extend(errs);
+
+    let (maybe_default_suffix, errs) = default_suffixes.finish();
+    let default_suffix = maybe_default_suffix.unwrap_or(SuffixKind::Default);
     errors.extend(errs);
 
     let (maybe_crate_root, errs) = crate_roots.finish();
@@ -620,6 +646,7 @@ fn parse_snafu_enum(
         generics,
         variants,
         default_visibility,
+        default_suffix,
     })
 }
 
@@ -1322,6 +1349,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
         use crate::shared::ContextSelector;
 
         let enum_name = &self.0.name;
+        let default_suffix = &self.0.default_suffix;
 
         let FieldContainer {
             name: variant_name,
@@ -1353,6 +1381,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
             user_fields: &selector_kind.user_fields(),
             visibility: Some(&visibility),
             where_clauses: &self.0.provided_where_clauses(),
+            default_suffix,
         };
 
         stream.extend(quote! { #context_selector });
@@ -1593,6 +1622,7 @@ impl NamedStructInfo {
             user_fields: &user_fields,
             visibility: visibility.as_ref().map(|x| &**x),
             where_clauses: &where_clauses,
+            default_suffix: &SuffixKind::Default,
         };
 
         quote! {
