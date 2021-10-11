@@ -70,7 +70,7 @@ pub trait TryFutureExt: TryFuture + Sized {
     /// }
     ///
     /// fn example() -> impl TryFuture<Ok = i32, Error = Error> {
-    ///     another_function().with_context(|| AuthenticatingSnafu {
+    ///     another_function().with_context(|_| AuthenticatingSnafu {
     ///         user_name: "admin".to_string(),
     ///         user_id: 42,
     ///     })
@@ -87,7 +87,7 @@ pub trait TryFutureExt: TryFuture + Sized {
     /// context selector will call [`Into::into`] on each field.
     fn with_context<F, C, E>(self, context: F) -> WithContext<Self, F, E>
     where
-        F: FnOnce() -> C,
+        F: FnOnce(&mut Self::Error) -> C,
         C: IntoError<E, Source = Self::Error>,
         E: Error + ErrorCompat;
 
@@ -149,7 +149,7 @@ pub trait TryFutureExt: TryFuture + Sized {
     /// ```
     fn with_whatever_context<F, S, E>(self, context: F) -> WithWhateverContext<Self, F, E>
     where
-        F: FnOnce(&Self::Error) -> S,
+        F: FnOnce(&mut Self::Error) -> S,
         S: Into<String>,
         E: FromString;
 }
@@ -172,7 +172,7 @@ where
 
     fn with_context<F, C, E>(self, context: F) -> WithContext<Self, F, E>
     where
-        F: FnOnce() -> C,
+        F: FnOnce(&mut Self::Error) -> C,
         C: IntoError<E, Source = Self::Error>,
         E: Error + ErrorCompat,
     {
@@ -197,7 +197,7 @@ where
 
     fn with_whatever_context<F, S, E>(self, context: F) -> WithWhateverContext<Self, F, E>
     where
-        F: FnOnce(&Self::Error) -> S,
+        F: FnOnce(&mut Self::Error) -> S,
         S: Into<String>,
         E: FromString,
     {
@@ -267,7 +267,7 @@ pub struct WithContext<Fut, F, E> {
 impl<Fut, F, C, E> Future for WithContext<Fut, F, E>
 where
     Fut: TryFuture,
-    F: FnOnce() -> C,
+    F: FnOnce(&mut Fut::Error) -> C,
     C: IntoError<E, Source = Fut::Error>,
     E: Error + ErrorCompat,
 {
@@ -282,12 +282,12 @@ where
         // https://github.com/rust-lang/rust/issues/74042
         match inner.try_poll(ctx) {
             Poll::Ready(Ok(v)) => Poll::Ready(Ok(v)),
-            Poll::Ready(Err(error)) => {
+            Poll::Ready(Err(mut error)) => {
                 let context = context
                     .take()
                     .expect("Cannot poll WithContext after it resolves");
 
-                let error = context().into_error(error);
+                let error = context(&mut error).into_error(error);
 
                 Poll::Ready(Err(error))
             }
@@ -361,7 +361,7 @@ pub struct WithWhateverContext<Fut, F, E> {
 impl<Fut, F, S, E> Future for WithWhateverContext<Fut, F, E>
 where
     Fut: TryFuture,
-    F: FnOnce(&Fut::Error) -> S,
+    F: FnOnce(&mut Fut::Error) -> S,
     S: Into<String>,
     E: FromString,
     Fut::Error: Into<E::Source>,
@@ -377,11 +377,11 @@ where
         // https://github.com/rust-lang/rust/issues/74042
         match inner.try_poll(ctx) {
             Poll::Ready(Ok(v)) => Poll::Ready(Ok(v)),
-            Poll::Ready(Err(error)) => {
+            Poll::Ready(Err(mut error)) => {
                 let context = context
                     .take()
                     .expect("Cannot poll WhateverContext after it resolves");
-                let context = context(&error);
+                let context = context(&mut error);
                 let error = FromString::with_source(error.into(), context.into());
 
                 Poll::Ready(Err(error))

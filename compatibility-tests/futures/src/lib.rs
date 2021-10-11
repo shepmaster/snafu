@@ -52,11 +52,12 @@ async fn load_stock_data_sequential() -> Result<String, Error> {
         .await
         .context(UnableToLoadAppleStockSnafu)?;
 
-    let google = api::fetch_page("google")
-        .await
-        .with_context(|| UnableToLoadGoogleStockSnafu {
-            name: String::from("sequential"),
-        })?;
+    let google =
+        api::fetch_page("google")
+            .await
+            .with_context(|_| UnableToLoadGoogleStockSnafu {
+                name: String::from("sequential"),
+            })?;
 
     let other_1 = api::fetch_page("other_1")
         .await
@@ -73,7 +74,7 @@ async fn load_stock_data_sequential() -> Result<String, Error> {
 // Can be used as a `Future` combinator
 async fn load_stock_data_concurrent() -> Result<String, Error> {
     let apple = api::fetch_page("apple").context(UnableToLoadAppleStockSnafu);
-    let google = api::fetch_page("google").with_context(|| UnableToLoadGoogleStockSnafu {
+    let google = api::fetch_page("google").with_context(|_| UnableToLoadGoogleStockSnafu {
         name: String::from("concurrent"),
     });
     let other_1 = api::fetch_page("other_1").whatever_context::<_, Error>("Oh no!");
@@ -94,7 +95,7 @@ async fn load_stock_data_sequential_again() -> Result<String, Error> {
         .await?;
 
     let google = api::fetch_page("google")
-        .with_context(|| UnableToLoadGoogleStockSnafu {
+        .with_context(|_| UnableToLoadGoogleStockSnafu {
             name: String::from("sequential"),
         })
         .await?;
@@ -114,7 +115,7 @@ async fn load_stock_data_sequential_again() -> Result<String, Error> {
 // Can be used as a `Stream` combinator
 async fn load_stock_data_series() -> Result<String, Error> {
     let apple = api::keep_fetching_page("apple").context(UnableToLoadAppleStockSnafu);
-    let google = api::keep_fetching_page("google").with_context(|| UnableToLoadGoogleStockSnafu {
+    let google = api::keep_fetching_page("google").with_context(|_| UnableToLoadGoogleStockSnafu {
         name: String::from("stream"),
     });
     let other_1 = api::keep_fetching_page("other_1").whatever_context("Oh no!");

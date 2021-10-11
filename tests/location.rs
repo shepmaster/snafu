@@ -145,7 +145,7 @@ mod track_caller {
         let base_line = line!();
         let wrap_no_user_fields = InnerSnafu
             .fail::<()>()
-            .with_context(|| WrapNoUserFieldsSnafu)
+            .with_context(|_| WrapNoUserFieldsSnafu)
             .unwrap_err();
         assert_eq!(
             wrap_no_user_fields.location.line,

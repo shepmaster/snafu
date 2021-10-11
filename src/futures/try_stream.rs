@@ -71,7 +71,7 @@ pub trait TryStreamExt: TryStream + Sized {
     /// }
     ///
     /// fn example() -> impl TryStream<Ok = i32, Error = Error> {
-    ///     stock_prices().with_context(|| AuthenticatingSnafu {
+    ///     stock_prices().with_context(|_| AuthenticatingSnafu {
     ///         user_name: "admin",
     ///         user_id: 42,
     ///     })
@@ -88,7 +88,7 @@ pub trait TryStreamExt: TryStream + Sized {
     /// context selector will call [`Into::into`] on each field.
     fn with_context<F, C, E>(self, context: F) -> WithContext<Self, F, E>
     where
-        F: FnMut() -> C,
+        F: FnMut(&mut Self::Error) -> C,
         C: IntoError<E, Source = Self::Error>,
         E: Error + ErrorCompat;
 
@@ -152,7 +152,7 @@ pub trait TryStreamExt: TryStream + Sized {
     /// ```
     fn with_whatever_context<F, S, E>(self, context: F) -> WithWhateverContext<Self, F, E>
     where
-        F: FnMut(&Self::Error) -> S,
+        F: FnMut(&mut Self::Error) -> S,
         S: Into<String>,
         E: FromString;
 }
@@ -175,7 +175,7 @@ where
 
     fn with_context<F, C, E>(self, context: F) -> WithContext<Self, F, E>
     where
-        F: FnMut() -> C,
+        F: FnMut(&mut Self::Error) -> C,
         C: IntoError<E, Source = Self::Error>,
         E: Error + ErrorCompat,
     {
@@ -200,7 +200,7 @@ where
 
     fn with_whatever_context<F, S, E>(self, context: F) -> WithWhateverContext<Self, F, E>
     where
-        F: FnMut(&Self::Error) -> S,
+        F: FnMut(&mut Self::Error) -> S,
         S: Into<String>,
         E: FromString,
     {
@@ -267,7 +267,7 @@ pub struct WithContext<St, F, E> {
 impl<St, F, C, E> Stream for WithContext<St, F, E>
 where
     St: TryStream,
-    F: FnMut() -> C,
+    F: FnMut(&mut St::Error) -> C,
     C: IntoError<E, Source = St::Error>,
     E: Error + ErrorCompat,
 {
@@ -283,8 +283,8 @@ where
             Poll::Pending => Poll::Pending,
             Poll::Ready(None) => Poll::Ready(None),
             Poll::Ready(Some(Ok(v))) => Poll::Ready(Some(Ok(v))),
-            Poll::Ready(Some(Err(error))) => {
-                let error = context().into_error(error);
+            Poll::Ready(Some(Err(mut error))) => {
+                let error = context(&mut error).into_error(error);
                 Poll::Ready(Some(Err(error)))
             }
         }
@@ -352,7 +352,7 @@ pub struct WithWhateverContext<St, F, E> {
 impl<St, F, S, E> Stream for WithWhateverContext<St, F, E>
 where
     St: TryStream,
-    F: FnMut(&St::Error) -> S,
+    F: FnMut(&mut St::Error) -> S,
     S: Into<String>,
     E: FromString,
     St::Error: Into<E::Source>,
@@ -369,8 +369,8 @@ where
             Poll::Pending => Poll::Pending,
             Poll::Ready(None) => Poll::Ready(None),
             Poll::Ready(Some(Ok(v))) => Poll::Ready(Some(Ok(v))),
-            Poll::Ready(Some(Err(error))) => {
-                let context = context(&error);
+            Poll::Ready(Some(Err(mut error))) => {
+                let context = context(&mut error);
                 let error = E::with_source(error.into(), context.into());
                 Poll::Ready(Some(Err(error)))
             }
