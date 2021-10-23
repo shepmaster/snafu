@@ -37,7 +37,7 @@ mod try_future {
         block_on(async {
             let base_line = line!();
             let error_future = async { InnerSnafu.fail::<()>() };
-            let wrapped_error_future = error_future.with_context(|| ManuallyWrappedSnafu {
+            let wrapped_error_future = error_future.with_context(|_| ManuallyWrappedSnafu {
                 location: location!(),
             });
             let wrapped_error = wrapped_error_future.await.unwrap_err();
@@ -92,7 +92,7 @@ mod try_future {
         block_on(async {
             let base_line = line!();
             let error_future = async { InnerSnafu.fail::<()>() };
-            let wrapped_error_future = error_future.with_context(|| WrappedSnafu);
+            let wrapped_error_future = error_future.with_context(|_| WrappedSnafu);
             let wrapped_error = wrapped_error_future.await.unwrap_err();
 
             // `.await` calls our implementation of `poll`, so the
@@ -153,7 +153,7 @@ mod try_stream {
         block_on(async {
             let base_line = line!();
             let error_stream = stream::repeat(InnerSnafu.fail::<()>());
-            let mut wrapped_error_stream = error_stream.with_context(|| ManuallyWrappedSnafu {
+            let mut wrapped_error_stream = error_stream.with_context(|_| ManuallyWrappedSnafu {
                 location: location!(),
             });
             let wrapped_error = wrapped_error_stream.next().await.unwrap().unwrap_err();
@@ -205,7 +205,7 @@ mod try_stream {
     fn track_caller_is_applied_on_with_context_poll() {
         block_on(async {
             let error_stream = stream::repeat(InnerSnafu.fail::<()>());
-            let mut wrapped_error_stream = error_stream.with_context(|| WrappedSnafu);
+            let mut wrapped_error_stream = error_stream.with_context(|_| WrappedSnafu);
             let wrapped_error = wrapped_error_stream.next().await.unwrap().unwrap_err();
 
             // `StreamExt::next` doesn't have `[track_caller]`, so the

@@ -506,7 +506,7 @@ pub trait ResultExt<T, E>: Sized {
     /// }
     ///
     /// fn example() -> Result<(), Error> {
-    ///     another_function().with_context(|| AuthenticatingSnafu {
+    ///     another_function().with_context(|_| AuthenticatingSnafu {
     ///         user_name: "admin".to_string(),
     ///         user_id: 42,
     ///     })?;
@@ -525,7 +525,7 @@ pub trait ResultExt<T, E>: Sized {
     /// field.
     fn with_context<F, C, E2>(self, context: F) -> Result<T, E2>
     where
-        F: FnOnce() -> C,
+        F: FnOnce(&mut E) -> C,
         C: IntoError<E2, Source = E>,
         E2: Error + ErrorCompat;
 
@@ -601,7 +601,7 @@ pub trait ResultExt<T, E>: Sized {
     #[cfg(any(feature = "std", test))]
     fn with_whatever_context<F, S, E2>(self, context: F) -> Result<T, E2>
     where
-        F: FnOnce(&E) -> S,
+        F: FnOnce(&mut E) -> S,
         S: Into<String>,
         E2: FromString,
         E: Into<E2::Source>;
@@ -624,15 +624,15 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
     #[cfg_attr(feature = "rust_1_46", track_caller)]
     fn with_context<F, C, E2>(self, context: F) -> Result<T, E2>
     where
-        F: FnOnce() -> C,
+        F: FnOnce(&mut E) -> C,
         C: IntoError<E2, Source = E>,
         E2: Error + ErrorCompat,
     {
         // https://github.com/rust-lang/rust/issues/74042
         match self {
             Ok(v) => Ok(v),
-            Err(error) => {
-                let context = context();
+            Err(mut error) => {
+                let context = context(&mut error);
                 Err(context.into_error(error))
             }
         }
@@ -657,7 +657,7 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
     #[cfg_attr(feature = "rust_1_46", track_caller)]
     fn with_whatever_context<F, S, E2>(self, context: F) -> Result<T, E2>
     where
-        F: FnOnce(&E) -> S,
+        F: FnOnce(&mut E) -> S,
         S: Into<String>,
         E2: FromString,
         E: Into<E2::Source>,
@@ -665,8 +665,8 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
         // https://github.com/rust-lang/rust/issues/74042
         match self {
             Ok(t) => Ok(t),
-            Err(e) => {
-                let context = context(&e);
+            Err(mut e) => {
+                let context = context(&mut e);
                 Err(FromString::with_source(e.into(), context.into()))
             }
         }
@@ -1204,7 +1204,7 @@ impl AsBacktrace for Backtrace {
 ///
 /// // Better: Will report the location of `location!`
 /// # let error_future = async { AnotherSnafu.fail::<()>() };
-/// let wrapped_error_future = error_future.with_context(|| ExplicitLocationSnafu {
+/// let wrapped_error_future = error_future.with_context(|_| ExplicitLocationSnafu {
 ///     location: location!(),
 /// });
 ///
