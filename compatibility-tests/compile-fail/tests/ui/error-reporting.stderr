@@ -25,7 +25,7 @@ error: format argument must be a string literal
 help: you might be missing a string literal to format with
    |
 36 |         #[snafu(display("{}", foo()))]
-   |                         ^^^^^
+   |                         +++++
 
 error: format argument must be a string literal
   --> $DIR/error-reporting.rs:39:25
@@ -36,7 +36,7 @@ error: format argument must be a string literal
 help: you might be missing a string literal to format with
    |
 39 |         #[snafu(display("{}", 42))]
-   |                         ^^^^^
+   |                         +++++
 
 error: Can only derive `Snafu` for tuple structs with exactly one field
   --> $DIR/error-reporting.rs:56:5
