@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Formatting shorthand syntax for error type data fields is now supported:
   `#[snafu(display("Hello {name}"))]`.
 
+- `[snafu(module)]` can be specified on an error type. This will
+  create a module for the error type and all associated context
+  selectors will be placed in that module.
+
 - `snafu::Location` can be added to an error type to provide
   lightweight tracking of the source location where the error was
   created.
@@ -35,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Generated context selectors now have the suffix `Snafu`. This is a
   **breaking change**.
+
+- `ResultExt::with_context`, `TryFutureExt::with_context`, and
+  `TryStreamExt::with_context` now pass the error into the
+  closure. This is a **breaking change**.
 
 - The `GenerateBacktrace` trait has been split into
   `GenerateImplicitData` and `AsBacktrace`. This is a **breaking
