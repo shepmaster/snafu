@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use crate::SnafuAttribute;
+use crate::{ModuleName, SnafuAttribute};
 use proc_macro2::TokenStream;
 use quote::{format_ident, ToTokens};
 use syn::{
@@ -18,6 +18,7 @@ mod kw {
     custom_keyword!(crate_root);
     custom_keyword!(display);
     custom_keyword!(implicit);
+    custom_keyword!(module);
     custom_keyword!(source);
     custom_keyword!(visibility);
     custom_keyword!(whatever);
@@ -66,6 +67,7 @@ enum Attribute {
     CrateRoot(CrateRoot),
     Display(Display),
     Implicit(Implicit),
+    Module(Module),
     Source(Source),
     Visibility(Visibility),
     Whatever(Whatever),
@@ -81,6 +83,7 @@ impl From<Attribute> for SnafuAttribute {
             CrateRoot(cr) => SnafuAttribute::CrateRoot(cr.to_token_stream(), cr.into_arbitrary()),
             Display(d) => SnafuAttribute::Display(d.to_token_stream(), d.into_display()),
             Implicit(d) => SnafuAttribute::Implicit(d.to_token_stream(), d.into_bool()),
+            Module(v) => SnafuAttribute::Module(v.to_token_stream(), v.into_value()),
             Source(s) => SnafuAttribute::Source(s.to_token_stream(), s.into_components()),
             Visibility(v) => SnafuAttribute::Visibility(v.to_token_stream(), v.into_arbitrary()),
             Whatever(o) => SnafuAttribute::Whatever(o.to_token_stream()),
@@ -101,6 +104,8 @@ impl Parse for Attribute {
             input.parse().map(Attribute::Display)
         } else if lookahead.peek(kw::implicit) {
             input.parse().map(Attribute::Implicit)
+        } else if lookahead.peek(kw::module) {
+            input.parse().map(Attribute::Module)
         } else if lookahead.peek(kw::source) {
             input.parse().map(Attribute::Source)
         } else if lookahead.peek(kw::visibility) {
@@ -452,6 +457,36 @@ impl Parse for Implicit {
 impl ToTokens for Implicit {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.implicit_token.to_tokens(tokens);
+        self.arg.to_tokens(tokens);
+    }
+}
+
+struct Module {
+    module_token: kw::module,
+    arg: MaybeArg<Ident>,
+}
+
+impl Module {
+    fn into_value(self) -> ModuleName {
+        match self.arg.into_option() {
+            None => ModuleName::Default,
+            Some(name) => ModuleName::Custom(name),
+        }
+    }
+}
+
+impl Parse for Module {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(Self {
+            module_token: input.parse()?,
+            arg: input.parse()?,
+        })
+    }
+}
+
+impl ToTokens for Module {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.module_token.to_tokens(tokens);
         self.arg.to_tokens(tokens);
     }
 }
