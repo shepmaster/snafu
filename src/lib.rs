@@ -20,7 +20,7 @@
 #![cfg_attr(feature = "futures", doc = "   - [`Futures`](futures::TryFutureExt)")]
 #![cfg_attr(feature = "futures", doc = "   - [`Streams`](futures::TryStreamExt)")]
 //! - Suitable for libraries and applications
-//! - `no-std` compatibility
+//! - `no_std` compatibility
 //! - Generic types and lifetimes
 //!
 //! For detailed information, please see the [user's guide](guide).
@@ -76,7 +76,7 @@
 //! that occurs, it's time to create your own error type by deriving
 //! [`Snafu`][]!
 //!
-//! ### Structs
+//! ### Struct style
 //!
 //! SNAFU will read your error struct definition and create a *context
 //! selector* type (called `InvalidIdSnafu` in this example). These
@@ -117,7 +117,7 @@
 //! }
 //! ```
 //!
-//! ### Enums
+//! ### Enum style
 //!
 //! While error structs are good for constrained cases, they don't
 //! allow for reporting multiple possible kinds of errors at one
