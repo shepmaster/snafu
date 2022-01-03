@@ -73,11 +73,12 @@ fn main() {
 
 ### Changing the context selector suffix
 
-When context selectors are generated, they have the suffix `Snafu`
-added by default. If you'd prefer a different suffix, such as `Ctx` or
-`Context`, you can specify that with
-`#[snafu(context(suffix(SomeIdentifier)))]`. If you'd like to disable
-the suffix entirely, you can use `#[snafu(context(suffix(false)))]`.
+When context selectors are generated, any `Error` suffix is removed
+and the suffix `Snafu` is added by default. If you'd prefer a
+different suffix, such as `Ctx` or `Context`, you can specify that
+with `#[snafu(context(suffix(SomeIdentifier)))]`. If you'd like to
+disable the suffix entirely, you can use
+`#[snafu(context(suffix(false)))]`.
 
 **Example**
 
@@ -86,7 +87,7 @@ the suffix entirely, you can use `#[snafu(context(suffix(false)))]`.
 #
 #[derive(Debug, Snafu)]
 enum Error {
-    UsesTheDefaultSuffix,
+    UsesTheDefaultSuffixError,
 
     #[snafu(context(suffix(Ctx)))]
     HasAnotherSuffix,

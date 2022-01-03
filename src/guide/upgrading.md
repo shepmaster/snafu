@@ -9,6 +9,12 @@
 
 ## Version 0.6 → 0.7
 
+Upgrading should be a tedious but straightforward process. To assist
+upgrading your code, you can use the [snafu-upgrade-assistant], which
+attempts to automatically update breaking changes.
+
+[snafu-upgrade-assistant]: https://github.com/shepmaster/snafu-upgrade-assistant
+
 ### Context selector names have changed
 
 Previously, context selector names for enum errors exactly matched
@@ -17,13 +23,55 @@ confusion for people new to SNAFU. It was also inconsistent with
 context selector names for struct errors.
 
 Now, context selectors for both enum and struct errors use the `Snafu`
-suffix.
+suffix. Any existing `Error` suffix is removed before `Snafu` is
+added.
 
-Upgrading should be a tedious but straightforward process. To assist
-upgrading your code, you can use the [snafu-upgrade-assistant], which
-attempts to locate all of your context selectors and rename them.
+#### Before
 
-[snafu-upgrade-assistant]: https://github.com/shepmaster/snafu-upgrade-assistant
+```rust,ignore
+#[derive(Debug, Snafu)]
+struct StructError;
+
+#[derive(Debug, Snafu)]
+enum EnumError {
+    VariantError,
+}
+
+ensure!(false, StructContext);
+ensure!(false, VariantError);
+```
+
+#### After
+
+```rust,ignore
+#[derive(Debug, Snafu)]
+struct StructError;
+
+#[derive(Debug, Snafu)]
+enum EnumError {
+    VariantError,
+}
+
+ensure!(false, StructSnafu);
+ensure!(false, VariantSnafu);
+```
+
+### `with_context` takes an argument
+
+`ResultExt::with_context`, `TryFutureExt::with_context`, and
+`TryStreamExt::with_context` now pass the error into the closure.
+
+#### Before
+
+```rust,ignore
+some_result.with_context(|| ContextSelector);
+```
+
+#### After
+
+```rust,ignore
+some_result.with_context(|_| ContextSelector);
+```
 
 ### String attribute parsing is no longer supported
 
@@ -75,7 +123,7 @@ The `backtrace-crate` feature flag has been renamed to
 `backtraces-impl-backtrace-crate`. The backtrace returned by
 `ErrorCompat::backtrace` is now the `backtrace::Backtrace` type when
 this flag is enabled, so the implementation of `AsRef` has been
-removed..
+removed.
 
 ### Futures
 

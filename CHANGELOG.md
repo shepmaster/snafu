@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+See the [upgrading guide][] for more detailed information about
+modifying code to account for new releases.
+
+[upgrading guide]: https://docs.rs/snafu/*/snafu/guide/upgrading/index.html
+
 ## [0.7.0] - XXXX-XX-XX
 
 ### Added
