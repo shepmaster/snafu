@@ -9,7 +9,7 @@ modifying code to account for new releases.
 
 [upgrading guide]: https://docs.rs/snafu/*/snafu/guide/upgrading/index.html
 
-## [0.7.0] - XXXX-XX-XX
+## [0.7.0] - 2022-01-03
 
 ### Added
 
