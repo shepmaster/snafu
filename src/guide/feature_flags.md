@@ -26,13 +26,12 @@ Most usages of SNAFU will want this feature enabled.
 
 ## `guide`
 
-**default**: enabled
+**default**: disabled
 
 When enabled, the `guide` module containing the user's guide will be
 built.
 
-Most usages of SNAFU will want this feature disabled. A future release
-will disable this by default.
+Most usages of SNAFU will want this feature disabled.
 
 ## `backtraces`
 
