@@ -11,6 +11,11 @@ modifying code to account for new releases.
 
 ## [0.7.0] - 2022-01-03
 
+Many breaking changes in this release can be automatically addressed
+with the [snafu-upgrade-assistant][]. 
+
+[snafu-upgrade-assistant]: https://github.com/shepmaster/snafu-upgrade-assistant
+
 ### Added
 
 - A crate prelude containing common macros and traits can be imported
