@@ -6,7 +6,7 @@ pub(crate) use self::error_compat::{ErrorCompat, ErrorCompatBacktraceMatchArm};
 
 pub mod context_module {
     use crate::ModuleName;
-    use heck::SnakeCase;
+    use heck::ToSnakeCase;
     use proc_macro2::TokenStream;
     use quote::{quote, ToTokens};
     use syn::Ident;
