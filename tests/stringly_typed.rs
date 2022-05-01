@@ -246,3 +246,51 @@ mod struck {
         }
     }
 }
+
+mod send_and_sync {
+    use snafu::prelude::*;
+
+    #[derive(Debug, Snafu)]
+    enum Error {
+        #[snafu(whatever, display("{}", message))]
+        Whatever {
+            #[snafu(source(from(Box<dyn std::error::Error + Send + Sync>, Some)))]
+            source: Option<Box<dyn std::error::Error + Send + Sync>>,
+            message: String,
+        },
+    }
+
+    type Result<T, E = Error> = std::result::Result<T, E>;
+
+    #[test]
+    fn implements_error() {
+        fn check<T: std::error::Error>() {}
+        check::<Error>();
+    }
+
+    #[test]
+    fn implements_send() {
+        fn check<T: Send>() {}
+        check::<Error>();
+    }
+
+    #[test]
+    fn implements_sync() {
+        fn check<T: Sync>() {}
+        check::<Error>();
+    }
+
+    #[test]
+    fn can_be_constructed() {
+        fn inner() -> Result<()> {
+            whatever!("The inner case")
+        }
+
+        fn outer() -> Result<()> {
+            whatever!(inner(), "The outer case");
+            Ok(())
+        }
+
+        assert!(outer().is_err());
+    }
+}
