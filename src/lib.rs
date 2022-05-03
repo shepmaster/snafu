@@ -190,6 +190,10 @@
 //!     Ok(())
 //! }
 //! ```
+//!
+//! You may wish to make the type `Send` and/or `Sync`, allowing
+//! your error type to be used in multithreaded programs, by changing
+//! `dyn std::error::Error` to `dyn std::error::Error + Send + Sync`.
 
 use core::fmt;
 
