@@ -207,7 +207,7 @@ pub mod prelude {
     }
 
     #[cfg(any(feature = "std", test))]
-    pub use crate::whatever;
+    pub use crate::{ensure_whatever, whatever};
 
     #[cfg(feature = "futures")]
     pub use crate::futures::{TryFutureExt as _, TryStreamExt as _};
@@ -333,6 +333,8 @@ pub use no_std_error::Error;
 /// Ensure a condition is true. If it is not, return from the function
 /// with an error.
 ///
+/// ## Examples
+///
 /// ```rust
 /// use snafu::prelude::*;
 ///
@@ -369,26 +371,33 @@ macro_rules! ensure {
 /// Provide a format string and any optional arguments. The macro will
 /// unconditionally exit the calling function with an error.
 ///
+/// ## Examples
+///
 /// ```rust
-/// use snafu::prelude::*;
+/// use snafu::{Whatever, prelude::*};
 ///
-/// #[derive(Debug, Snafu)]
-/// #[snafu(whatever, display("Error was: {message}"))]
-/// struct Error {
-///     message: String,
+/// type Result<T, E = Whatever> = std::result::Result<T, E>;
+///
+/// enum Status {
+///     Sleeping,
+///     Chilling,
+///     Working,
 /// }
-/// type Result<T, E = Error> = std::result::Result<T, E>;
 ///
-/// fn get_bank_account_balance(account_id: &str) -> Result<u8> {
-/// # fn moon_is_rising() -> bool { false }
-///     if moon_is_rising() {
-///         whatever!(
-///             "We are recalibrating the dynamos for account {}, sorry",
-///             account_id,
-///         );
+/// # fn stand_up() {}
+/// # fn go_downstairs() {}
+/// fn do_laundry(status: Status, items: u8) -> Result<()> {
+///     match status {
+///         Status::Sleeping => whatever!("Cannot launder {items} clothes when I am asleep"),
+///         Status::Chilling => {
+///             stand_up();
+///             go_downstairs();
+///         }
+///         Status::Working => {
+///             go_downstairs();
+///         }
 ///     }
-///
-///     Ok(100)
+///     Ok(())
 /// }
 /// ```
 ///
@@ -400,6 +409,8 @@ macro_rules! ensure {
 /// will exist the calling function with an error. If the `Result` is
 /// not an error, the macro will evaluate to the `Ok` value of the
 /// `Result`.
+///
+/// ## Examples
 ///
 /// ```rust
 /// use snafu::prelude::*;
@@ -444,6 +455,45 @@ macro_rules! whatever {
                     )
                 });
             }
+        }
+    };
+}
+
+/// Ensure a condition is true. If it is not, return a stringly-typed
+/// error message.
+///
+/// This can be used with the provided [`Whatever`][] type or with a
+/// custom error type that uses `snafu(whatever)`.
+///
+/// ## Examples
+///
+/// ```rust
+/// use snafu::prelude::*;
+///
+/// #[derive(Debug, Snafu)]
+/// #[snafu(whatever, display("Error was: {message}"))]
+/// struct Error {
+///     message: String,
+/// }
+/// type Result<T, E = Error> = std::result::Result<T, E>;
+///
+/// fn get_bank_account_balance(account_id: &str) -> Result<u8> {
+/// # fn moon_is_rising() -> bool { false }
+///     ensure_whatever!(
+///         moon_is_rising(),
+///         "We are recalibrating the dynamos for account {}, sorry",
+///         account_id,
+///     );
+///
+///     Ok(100)
+/// }
+/// ```
+#[macro_export]
+#[cfg(any(feature = "std", test))]
+macro_rules! ensure_whatever {
+    ($predicate:expr, $fmt:literal$(, $($arg:expr),* $(,)?)?) => {
+        if !$predicate {
+            $crate::whatever!($fmt$(, $($arg),*)*);
         }
     };
 }
