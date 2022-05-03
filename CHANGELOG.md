@@ -9,10 +9,26 @@ modifying code to account for new releases.
 
 [upgrading guide]: https://docs.rs/snafu/*/snafu/guide/upgrading/index.html
 
+## [0.7.1] - 2022-05-02
+
+### Added
+
+- The macro `ensure_whatever` provides the functionality of the
+  `ensure` macro for stringly-typed errors.
+
+### Changed
+
+- No longer require the `futures` feature flag to support the shim
+  implementations of standard library errors that have existed since
+  Rust 1.34.
+
+- Documentation improved to demonstrate that custom Whatever errors
+  can optionally be made `Send` and `Sync`.
+
 ## [0.7.0] - 2022-01-03
 
 Many breaking changes in this release can be automatically addressed
-with the [snafu-upgrade-assistant][]. 
+with the [snafu-upgrade-assistant][].
 
 [snafu-upgrade-assistant]: https://github.com/shepmaster/snafu-upgrade-assistant
 
