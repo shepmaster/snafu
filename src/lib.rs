@@ -1274,7 +1274,7 @@ impl AsBacktrace for Backtrace {
 /// }
 /// # }
 /// ```
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub struct Location {
     /// The file where the error was reported
     pub file: &'static str,
@@ -1319,6 +1319,16 @@ impl GenerateImplicitData for Location {
     #[track_caller]
     fn generate() -> Self {
         Self::default()
+    }
+}
+
+impl fmt::Debug for Location {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Location")
+            .field("file", &self.file)
+            .field("line", &self.line)
+            .field("column", &self.column)
+            .finish()
     }
 }
 
