@@ -263,9 +263,6 @@ doc_comment::doc_comment! {
 }
 
 macro_rules! generate_guide {
-    (pub mod $name:ident; $($rest:tt)*) => {
-        generate_guide!(@gen ".", pub mod $name { } $($rest)*);
-    };
     (pub mod $name:ident { $($children:tt)* } $($rest:tt)*) => {
         generate_guide!(@gen ".", pub mod $name { $($children)* } $($rest)*);
     };
