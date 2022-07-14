@@ -13,6 +13,44 @@ unique situations.
 - [`visibility`](#controlling-visibility)
 - [`whatever`](#controlling-stringly-typed-errors)
 
+## Attribute cheat sheet
+
+Use this as a quick reminder of what each attribute can do and where
+it is valid. Detailed information on each attribute is below.
+
+### Enum
+
+| Option (inside `#[snafu(...)]`) | Description                                                                                                 |
+|---------------------------------|-------------------------------------------------------------------------------------------------------------|
+| `visibility(V)`                 | Sets the default visibility of the generated context selectors to `V` (e.g. `pub`)                          |
+| `module`                        | Puts the generated context selectors into a module (module name is the enum name converted to `snake_case`) |
+| `module(N)`                     | Same as above, but with the module named `N` instead                                                        |
+| `context(suffix(N))`            | Changes the default context selector suffix from `Snafu` to `N`                                             |
+| `crate_root(C)`                 | Generated code refers to a crate named `C` instead of the default `snafu`                                   |
+
+### Enum variant or struct
+
+| Option (inside `#[snafu(...)]`) | Description                                                                                                                                                                                     |
+|---------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `display("{field:?}: {}", foo)` | Sets the display implementation for this error variant using `format_args!` syntax. If this is omitted, the default is `"VariantName: {source}"` if there is a source or `"VariantName"` if not |
+| `context(false)`                | Skips creation of the context selector, implements `From` for the mandatory source error                                                                                                        |
+| `context(suffix(N))`            | Changes the suffix of the generated context selector to `N`                                                                                                                                     |
+| `context(suffix(false))`        | No suffix for the generated context selector                                                                                                                                                    |
+| `visibility(v)`                 | Sets the visibility of the generated context selector to `v` (e.g. `pub`)                                                                                                                       |
+| `visibility`                    | Resets visibility back to private                                                                                                                                                               |
+| `whatever`                      | Stringly-typed error. Message field must be called `message`. Source optional, but if present must be of a specific [format](#controlling-stringly-typed-errors)                                |
+
+### Context fields
+
+| Option (inside `#[snafu(...)]`) | Description                                                                                               |
+|---------------------------------|-----------------------------------------------------------------------------------------------------------|
+| `source`                        | Marks a field as the source error (even if not called `source`)                                           |
+| `source(from(type, transform))` | As above, plus converting from `type` to the field type by calling `transform`                            |
+| `source(false)`                 | Marks a field that is named `source` as a regular field                                                   |
+| `backtrace`                     | Marks a field as backtrace (even if not called `backtrace`)                                               |
+| `backtrace(false)`              | Marks a field that is named `backtrace` as a regular field                                                |
+| `implicit`                      | Marks a field as implicit (Type needs to implement [`GenerateImplicitData`](crate::GenerateImplicitData)) |
+
 ## Controlling `Display`
 
 You can specify how the `Display` trait will be implemented for each
