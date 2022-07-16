@@ -1637,10 +1637,10 @@ impl NamedStructInfo {
 
         let error_impl = Error {
             crate_root: &crate_root,
-            parameterized_error_name: &parameterized_struct_name,
             description_arms: &[error_description_match_arm],
-            source_arms: &[error_source_match_arm],
             original_generics: &original_generics,
+            parameterized_error_name: &parameterized_struct_name,
+            source_arms: &[error_source_match_arm],
             where_clauses: &where_clauses,
         };
         let error_impl = quote! { #error_impl };

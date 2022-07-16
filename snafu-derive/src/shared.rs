@@ -530,10 +530,10 @@ pub mod error {
 
     pub(crate) struct Error<'a> {
         pub(crate) crate_root: &'a dyn ToTokens,
-        pub(crate) parameterized_error_name: &'a dyn ToTokens,
         pub(crate) description_arms: &'a [TokenStream],
-        pub(crate) source_arms: &'a [TokenStream],
         pub(crate) original_generics: &'a [TokenStream],
+        pub(crate) parameterized_error_name: &'a dyn ToTokens,
+        pub(crate) source_arms: &'a [TokenStream],
         pub(crate) where_clauses: &'a [TokenStream],
     }
 
@@ -541,10 +541,10 @@ pub mod error {
         fn to_tokens(&self, stream: &mut TokenStream) {
             let Self {
                 crate_root,
-                parameterized_error_name,
                 description_arms,
-                source_arms,
                 original_generics,
+                parameterized_error_name,
+                source_arms,
                 where_clauses,
             } = *self;
 
