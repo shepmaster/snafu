@@ -703,7 +703,7 @@ pub mod error {
                 })
                 .collect();
 
-            let provide_ref_names = provide_refs.iter().map(|(_, name)| quote! { ref #name });
+            let field_names = super::AllFieldNames(field_container).field_names();
 
             let provide_ref_calls = provide_refs.iter().map(|(ty, name)| {
                 quote! { provide_ref::<#ty>(#name) }
@@ -716,7 +716,7 @@ pub mod error {
             let provide_arg = PROVIDE_ARG;
 
             let arm = quote! {
-                #pattern_ident { #(#provide_ref_names,)* .. } => {
+                #pattern_ident { #(ref #field_names,)* .. } => {
                     #(#provide_arg.#provide_ref_calls;)*
                     #(#provide_arg.#provide_value_calls;)*
                 }
