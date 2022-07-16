@@ -1521,28 +1521,27 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         use self::shared::{Error, ErrorSourceMatchArm};
 
-        let (variants_to_description, variants_to_source): (Vec<_>, Vec<_>) = self
-            .0
-            .variants
-            .iter()
-            .map(|field_container| {
-                let enum_name = &self.0.name;
-                let variant_name = &field_container.name;
-                let pattern_ident = &quote! { #enum_name::#variant_name };
+        let mut variants_to_description = Vec::with_capacity(self.0.variants.len());
+        let mut variants_to_source = Vec::with_capacity(self.0.variants.len());
 
-                let error_description_match_arm = quote! {
-                    #pattern_ident { .. } => stringify!(#pattern_ident),
-                };
+        for field_container in &self.0.variants {
+            let enum_name = &self.0.name;
+            let variant_name = &field_container.name;
+            let pattern_ident = &quote! { #enum_name::#variant_name };
 
-                let error_source_match_arm = ErrorSourceMatchArm {
-                    field_container,
-                    pattern_ident,
-                };
-                let error_source_match_arm = quote! { #error_source_match_arm };
+            let error_description_match_arm = quote! {
+                #pattern_ident { .. } => stringify!(#pattern_ident),
+            };
 
-                (error_description_match_arm, error_source_match_arm)
-            })
-            .unzip();
+            let error_source_match_arm = ErrorSourceMatchArm {
+                field_container,
+                pattern_ident,
+            };
+            let error_source_match_arm = quote! { #error_source_match_arm };
+
+            variants_to_description.push(error_description_match_arm);
+            variants_to_source.push(error_source_match_arm);
+        }
 
         let error_impl = Error {
             crate_root: &self.0.crate_root,
