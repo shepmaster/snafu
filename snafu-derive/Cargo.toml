@@ -13,6 +13,7 @@ license = "MIT OR Apache-2.0"
 [features]
 rust_1_46 = []
 unstable-backtraces-impl-std = []
+unstable-provider-api = []
 
 [lib]
 proc-macro = true

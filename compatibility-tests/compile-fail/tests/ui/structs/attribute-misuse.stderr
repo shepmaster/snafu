@@ -1,4 +1,4 @@
-error: expected one of: `backtrace`, `context`, `crate_root`, `display`, `implicit`, `module`, `source`, `visibility`, `whatever`
+error: expected one of: `backtrace`, `context`, `crate_root`, `display`, `implicit`, `module`, `provide`, `source`, `visibility`, `whatever`
  --> tests/ui/structs/attribute-misuse.rs:5:13
   |
 5 |     #[snafu(unknown_attribute)]

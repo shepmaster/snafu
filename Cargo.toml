@@ -46,6 +46,9 @@ backtraces-impl-backtrace-crate = ["backtraces"]
 # implement `std::error::Error::backtrace`
 unstable-backtraces-impl-std = ["backtraces", "snafu-derive/unstable-backtraces-impl-std"]
 
+# The std::error::Error provider API will be implemented.
+unstable-provider-api = ["snafu-derive/unstable-provider-api"]
+
 # The standard library's implementation of futures
 futures = ["futures-core-crate", "pin-project"]
 

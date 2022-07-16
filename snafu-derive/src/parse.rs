@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use crate::{ModuleName, SnafuAttribute};
+use crate::{ModuleName, ProvideKind, SnafuAttribute};
 use proc_macro2::TokenStream;
 use quote::{format_ident, ToTokens};
 use syn::{
@@ -19,6 +19,7 @@ mod kw {
     custom_keyword!(display);
     custom_keyword!(implicit);
     custom_keyword!(module);
+    custom_keyword!(provide);
     custom_keyword!(source);
     custom_keyword!(visibility);
     custom_keyword!(whatever);
@@ -68,6 +69,7 @@ enum Attribute {
     Display(Display),
     Implicit(Implicit),
     Module(Module),
+    Provide(Provide),
     Source(Source),
     Visibility(Visibility),
     Whatever(Whatever),
@@ -84,6 +86,7 @@ impl From<Attribute> for SnafuAttribute {
             Display(d) => SnafuAttribute::Display(d.to_token_stream(), d.into_display()),
             Implicit(d) => SnafuAttribute::Implicit(d.to_token_stream(), d.into_bool()),
             Module(v) => SnafuAttribute::Module(v.to_token_stream(), v.into_value()),
+            Provide(v) => SnafuAttribute::Provide(v.to_token_stream(), v.into_value()),
             Source(s) => SnafuAttribute::Source(s.to_token_stream(), s.into_components()),
             Visibility(v) => SnafuAttribute::Visibility(v.to_token_stream(), v.into_arbitrary()),
             Whatever(o) => SnafuAttribute::Whatever(o.to_token_stream()),
@@ -106,6 +109,8 @@ impl Parse for Attribute {
             input.parse().map(Attribute::Implicit)
         } else if lookahead.peek(kw::module) {
             input.parse().map(Attribute::Module)
+        } else if lookahead.peek(kw::provide) {
+            input.parse().map(Attribute::Provide)
         } else if lookahead.peek(kw::source) {
             input.parse().map(Attribute::Source)
         } else if lookahead.peek(kw::visibility) {
@@ -488,6 +493,81 @@ impl ToTokens for Module {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.module_token.to_tokens(tokens);
         self.arg.to_tokens(tokens);
+    }
+}
+
+struct Provide {
+    provide_token: kw::provide,
+    arg: MaybeArg<ProvideArg>,
+}
+
+impl Provide {
+    fn into_value(self) -> ProvideKind {
+        match self.arg.into_option() {
+            None => ProvideKind::Flag(true),
+            Some(ProvideArg::Flag { value }) => ProvideKind::Flag(value.value),
+            Some(ProvideArg::Expression { ty, expr, .. }) => {
+                ProvideKind::Expression(crate::Provide { ty, expr })
+            }
+        }
+    }
+}
+
+impl Parse for Provide {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(Self {
+            provide_token: input.parse()?,
+            arg: input.parse()?,
+        })
+    }
+}
+
+impl ToTokens for Provide {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.provide_token.to_tokens(tokens);
+        self.arg.to_tokens(tokens);
+    }
+}
+
+enum ProvideArg {
+    Flag {
+        value: LitBool,
+    },
+    Expression {
+        ty: Type,
+        arrow: token::FatArrow,
+        expr: Expr,
+    },
+}
+
+impl Parse for ProvideArg {
+    fn parse(input: ParseStream) -> Result<Self> {
+        if input.peek(LitBool) {
+            Ok(ProvideArg::Flag {
+                value: input.parse()?,
+            })
+        } else {
+            Ok(ProvideArg::Expression {
+                ty: input.parse()?,
+                arrow: input.parse()?,
+                expr: input.parse()?,
+            })
+        }
+    }
+}
+
+impl ToTokens for ProvideArg {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            ProvideArg::Flag { value } => {
+                value.to_tokens(tokens);
+            }
+            ProvideArg::Expression { ty, arrow, expr } => {
+                ty.to_tokens(tokens);
+                arrow.to_tokens(tokens);
+                expr.to_tokens(tokens);
+            }
+        }
     }
 }
 

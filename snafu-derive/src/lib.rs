@@ -54,6 +54,22 @@ struct FieldContainer {
     doc_comment: Option<DocComment>,
     visibility: Option<UserInput>,
     module: Option<ModuleName>,
+    provides: Vec<Provide>,
+}
+
+impl FieldContainer {
+    fn user_fields(&self) -> &[Field] {
+        self.selector_kind.user_fields()
+    }
+
+    fn provides(&self) -> &[Provide] {
+        &self.provides
+    }
+}
+
+struct Provide {
+    ty: syn::Type,
+    expr: syn::Expr,
 }
 
 enum SuffixKind {
@@ -141,6 +157,7 @@ struct TupleStructInfo {
 pub(crate) struct Field {
     name: syn::Ident,
     ty: syn::Type,
+    provide: bool,
     original: syn::Field,
 }
 
@@ -181,6 +198,11 @@ impl Transformation {
             Transformation::Transform { expr, .. } => quote! { #expr },
         }
     }
+}
+
+enum ProvideKind {
+    Flag(bool),
+    Expression(Provide),
 }
 
 /// SyntaxErrors is a convenience wrapper for a list of syntax errors discovered while parsing
@@ -541,6 +563,21 @@ const ATTR_MODULE: OnlyValidOn = OnlyValidOn {
     valid_on: "an enum or structs with named fields",
 };
 
+const ATTR_PROVIDE_FLAG: OnlyValidOn = OnlyValidOn {
+    attribute: "provide",
+    valid_on: "enum variant or struct fields with a name",
+};
+
+const ATTR_PROVIDE_FALSE: WrongField = WrongField {
+    attribute: "provide(false)",
+    valid_field: r#"source" or "backtrace"#,
+};
+
+const ATTR_PROVIDE_EXPRESSION: OnlyValidOn = OnlyValidOn {
+    attribute: "provide(type => expression)",
+    valid_on: "enum variants or structs with named fields",
+};
+
 const ATTR_CONTEXT: OnlyValidOn = OnlyValidOn {
     attribute: "context",
     valid_on: "enum variants or structs with named fields",
@@ -601,6 +638,12 @@ fn parse_snafu_enum(
                 Context::Flag(_) => enum_errors.add(tokens, ATTR_CONTEXT_FLAG),
             },
             Att::Module(tokens, v) => modules.add(v, tokens),
+            Att::Provide(tokens, ProvideKind::Flag(..)) => {
+                enum_errors.add(tokens, ATTR_PROVIDE_FLAG)
+            }
+            Att::Provide(tokens, ProvideKind::Expression { .. }) => {
+                enum_errors.add(tokens, ATTR_PROVIDE_EXPRESSION)
+            }
             Att::Backtrace(tokens, ..) => enum_errors.add(tokens, ATTR_BACKTRACE),
             Att::Implicit(tokens, ..) => enum_errors.add(tokens, ATTR_IMPLICIT),
             Att::Whatever(tokens) => enum_errors.add(tokens, ATTR_WHATEVER),
@@ -684,6 +727,8 @@ fn field_container(
     let mut modules = AtMostOne::new("module", outer_error_location);
     let mut display_formats = AtMostOne::new("display", outer_error_location);
     let mut visibilities = AtMostOne::new("visibility", outer_error_location);
+    let mut provides = Vec::new();
+
     let mut contexts = AtMostOne::new("context", outer_error_location);
     let mut whatevers = AtMostOne::new("whatever", outer_error_location);
     let mut doc_comment = DocComment::default();
@@ -702,6 +747,13 @@ fn field_container(
             Att::Backtrace(tokens, ..) => outer_errors.add(tokens, ATTR_BACKTRACE),
             Att::Implicit(tokens, ..) => outer_errors.add(tokens, ATTR_IMPLICIT),
             Att::CrateRoot(tokens, ..) => outer_errors.add(tokens, ATTR_CRATE_ROOT),
+            Att::Provide(tokens, ProvideKind::Flag(..)) => {
+                outer_errors.add(tokens, ATTR_PROVIDE_FLAG)
+            }
+            Att::Provide(_tts, ProvideKind::Expression(provide)) => {
+                // TODO: can we have improved error handling for obvious type duplicates?
+                provides.push(provide);
+            }
             Att::DocComment(_tts, doc_comment_line) => {
                 // We join all the doc comment attributes with a space,
                 // but end once the summary of the doc comment is
@@ -730,11 +782,6 @@ fn field_container(
             .ident
             .as_ref()
             .ok_or_else(|| vec![syn::Error::new(span, "Must have a named field")])?;
-        let field = Field {
-            name: name.clone(),
-            ty: syn_field.ty.clone(),
-            original,
-        };
 
         // Check whether we have multiple source/backtrace attributes on this field.
         // We can't just add to source_fields/backtrace_fields from inside the attribute
@@ -747,6 +794,7 @@ fn field_container(
         let mut source_attrs = AtMostOne::new("source", ErrorLocation::OnField);
         let mut backtrace_attrs = AtMostOne::new("backtrace", ErrorLocation::OnField);
         let mut implicit_attrs = AtMostOne::new("implicit", ErrorLocation::OnField);
+        let mut provide_attrs = AtMostOne::new("provide", ErrorLocation::OnField);
 
         // Keep track of the negative markers so we can check for inconsistencies and
         // exclude fields even if they have the "source" or "backtrace" name.
@@ -809,6 +857,16 @@ fn field_container(
                     }
                 }
                 Att::Module(tokens, ..) => field_errors.add(tokens, ATTR_MODULE),
+                Att::Provide(tokens, ProvideKind::Flag(v)) => {
+                    if v {
+                        provide_attrs.add((), tokens);
+                    } else {
+                        field_errors.add(tokens, ATTR_PROVIDE_FALSE)
+                    }
+                }
+                Att::Provide(tokens, ProvideKind::Expression { .. }) => {
+                    field_errors.add(tokens, ATTR_PROVIDE_EXPRESSION)
+                }
                 Att::Visibility(tokens, ..) => field_errors.add(tokens, ATTR_VISIBILITY),
                 Att::Display(tokens, ..) => field_errors.add(tokens, ATTR_DISPLAY),
                 Att::Context(tokens, ..) => field_errors.add(tokens, ATTR_CONTEXT),
@@ -826,6 +884,16 @@ fn field_container(
 
         let (implicit_attr, errs) = implicit_attrs.finish();
         errors.extend(errs);
+
+        let (provide_attr, errs) = provide_attrs.finish();
+        errors.extend(errs);
+
+        let field = Field {
+            name: name.clone(),
+            ty: syn_field.ty.clone(),
+            provide: provide_attr.is_some(),
+            original,
+        };
 
         let source_attr = source_attr.or_else(|| {
             if is_implicit_source(&field.name) && !source_opt_out {
@@ -992,6 +1060,7 @@ fn field_container(
         doc_comment: doc_comment.finish(),
         visibility,
         module,
+        provides,
     })
 }
 
@@ -1103,6 +1172,12 @@ fn parse_snafu_tuple_struct(
 
         match attr {
             Att::Module(tokens, ..) => struct_errors.add(tokens, ATTR_MODULE),
+            Att::Provide(tokens, ProvideKind::Flag(..)) => {
+                struct_errors.add(tokens, ATTR_PROVIDE_FLAG)
+            }
+            Att::Provide(tokens, ProvideKind::Expression { .. }) => {
+                struct_errors.add(tokens, ATTR_PROVIDE_EXPRESSION)
+            }
             Att::Display(tokens, ..) => struct_errors.add(tokens, ATTR_DISPLAY),
             Att::Visibility(tokens, ..) => struct_errors.add(tokens, ATTR_VISIBILITY),
             Att::Source(tokens, ss) => {
@@ -1227,6 +1302,7 @@ enum SnafuAttribute {
     DocComment(proc_macro2::TokenStream, String),
     Implicit(proc_macro2::TokenStream, bool),
     Module(proc_macro2::TokenStream, ModuleName),
+    Provide(proc_macro2::TokenStream, ProvideKind),
     Source(proc_macro2::TokenStream, Vec<Source>),
     Visibility(proc_macro2::TokenStream, UserInput),
     Whatever(proc_macro2::TokenStream),
@@ -1519,10 +1595,11 @@ struct ErrorImpl<'a>(&'a EnumInfo);
 
 impl<'a> quote::ToTokens for ErrorImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
-        use self::shared::{Error, ErrorSourceMatchArm};
+        use self::shared::{Error, ErrorProvideMatchArm, ErrorSourceMatchArm};
 
         let mut variants_to_description = Vec::with_capacity(self.0.variants.len());
         let mut variants_to_source = Vec::with_capacity(self.0.variants.len());
+        let mut variants_to_provide = Vec::with_capacity(self.0.variants.len());
 
         for field_container in &self.0.variants {
             let enum_name = &self.0.name;
@@ -1539,8 +1616,15 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
             };
             let error_source_match_arm = quote! { #error_source_match_arm };
 
+            let error_provide_match_arm = ErrorProvideMatchArm {
+                field_container,
+                pattern_ident,
+            };
+            let error_provide_match_arm = quote! { #error_provide_match_arm };
+
             variants_to_description.push(error_description_match_arm);
             variants_to_source.push(error_source_match_arm);
+            variants_to_provide.push(error_provide_match_arm);
         }
 
         let error_impl = Error {
@@ -1550,6 +1634,7 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
             source_arms: &variants_to_source,
             original_generics: &self.0.provided_generics_without_defaults(),
             where_clauses: &self.0.provided_where_clauses(),
+            provide_arms: &variants_to_provide,
         };
         let error_impl = quote! { #error_impl };
 
@@ -1614,6 +1699,7 @@ impl NamedStructInfo {
                     doc_comment,
                     visibility,
                     module,
+                    ..
                 },
             ..
         } = &self;
@@ -1621,7 +1707,7 @@ impl NamedStructInfo {
 
         let user_fields = selector_kind.user_fields();
 
-        use crate::shared::{Error, ErrorSourceMatchArm};
+        use crate::shared::{Error, ErrorProvideMatchArm, ErrorSourceMatchArm};
 
         let pattern_ident = &quote! { Self };
 
@@ -1635,11 +1721,18 @@ impl NamedStructInfo {
         };
         let error_source_match_arm = quote! { #error_source_match_arm };
 
+        let error_provide_match_arm = ErrorProvideMatchArm {
+            field_container,
+            pattern_ident,
+        };
+        let error_provide_match_arm = quote! { #error_provide_match_arm };
+
         let error_impl = Error {
             crate_root: &crate_root,
             description_arms: &[error_description_match_arm],
             original_generics: &original_generics,
             parameterized_error_name: &parameterized_struct_name,
+            provide_arms: &[error_provide_match_arm],
             source_arms: &[error_source_match_arm],
             where_clauses: &where_clauses,
         };

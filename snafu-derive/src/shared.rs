@@ -1,7 +1,7 @@
 pub(crate) use self::context_module::ContextModule;
 pub(crate) use self::context_selector::ContextSelector;
 pub(crate) use self::display::{Display, DisplayMatchArm};
-pub(crate) use self::error::{Error, ErrorSourceMatchArm};
+pub(crate) use self::error::{Error, ErrorProvideMatchArm, ErrorSourceMatchArm};
 pub(crate) use self::error_compat::{ErrorCompat, ErrorCompatBacktraceMatchArm};
 
 struct StaticIdent(&'static str);
@@ -524,15 +524,19 @@ pub mod display {
 }
 
 pub mod error {
-    use crate::{FieldContainer, SourceField};
+    use super::StaticIdent;
+    use crate::{FieldContainer, Provide, SourceField};
     use proc_macro2::TokenStream;
     use quote::{quote, ToTokens};
+
+    const PROVIDE_ARG: StaticIdent = StaticIdent("__snafu_provide_demand");
 
     pub(crate) struct Error<'a> {
         pub(crate) crate_root: &'a dyn ToTokens,
         pub(crate) description_arms: &'a [TokenStream],
         pub(crate) original_generics: &'a [TokenStream],
         pub(crate) parameterized_error_name: &'a dyn ToTokens,
+        pub(crate) provide_arms: &'a [TokenStream],
         pub(crate) source_arms: &'a [TokenStream],
         pub(crate) where_clauses: &'a [TokenStream],
     }
@@ -544,6 +548,7 @@ pub mod error {
                 description_arms,
                 original_generics,
                 parameterized_error_name,
+                provide_arms,
                 source_arms,
                 where_clauses,
             } = *self;
@@ -585,6 +590,18 @@ pub mod error {
                 None
             };
 
+            let provide_fn = if cfg!(feature = "unstable-provider-api") {
+                Some(quote! {
+                    fn provide<'a>(&'a self, #PROVIDE_ARG: &mut core::any::Demand<'a>) {
+                        match *self {
+                            #(#provide_arms,)*
+                        };
+                    }
+                })
+            } else {
+                None
+            };
+
             let error = quote! {
                 #[allow(single_use_lifetimes)]
                 impl<#(#original_generics),*> #crate_root::Error for #parameterized_error_name
@@ -596,6 +613,7 @@ pub mod error {
                     #cause_fn
                     #source_fn
                     #std_backtrace_fn
+                    #provide_fn
                 }
             };
 
@@ -643,6 +661,55 @@ pub mod error {
                     quote! {
                         #pattern_ident { .. } => { ::core::option::Option::None }
                     }
+                }
+            };
+
+            stream.extend(arm);
+        }
+    }
+
+    pub(crate) struct ErrorProvideMatchArm<'a> {
+        pub(crate) field_container: &'a FieldContainer,
+        pub(crate) pattern_ident: &'a dyn ToTokens,
+    }
+
+    impl<'a> ToTokens for ErrorProvideMatchArm<'a> {
+        fn to_tokens(&self, stream: &mut TokenStream) {
+            let Self {
+                field_container,
+                pattern_ident,
+            } = *self;
+
+            let user_fields = field_container.user_fields();
+            let provides = field_container.provides();
+
+            let provide_refs: Vec<_> = user_fields
+                .iter()
+                .flat_map(|f| {
+                    if f.provide {
+                        Some((&f.ty, f.name()))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            let provide_ref_names = provide_refs.iter().map(|(_, name)| quote! { ref #name });
+
+            let provide_ref_calls = provide_refs.iter().map(|(ty, name)| {
+                quote! { provide_ref::<#ty>(#name) }
+            });
+
+            let provide_value_calls = provides.iter().map(|Provide { ty, expr }| {
+                quote! { provide_value_with::<#ty>(|| #expr) }
+            });
+
+            let provide_arg = PROVIDE_ARG;
+
+            let arm = quote! {
+                #pattern_ident { #(#provide_ref_names,)* .. } => {
+                    #(#provide_arg.#provide_ref_calls;)*
+                    #(#provide_arg.#provide_value_calls;)*
                 }
             };
 
