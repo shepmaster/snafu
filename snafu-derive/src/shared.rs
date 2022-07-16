@@ -4,6 +4,14 @@ pub(crate) use self::display::{Display, DisplayMatchArm};
 pub(crate) use self::error::{Error, ErrorSourceMatchArm};
 pub(crate) use self::error_compat::{ErrorCompat, ErrorCompatBacktraceMatchArm};
 
+struct StaticIdent(&'static str);
+
+impl quote::ToTokens for StaticIdent {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        proc_macro2::Ident::new(self.0, proc_macro2::Span::call_site()).to_tokens(tokens)
+    }
+}
+
 pub mod context_module {
     use crate::ModuleName;
     use heck::ToSnakeCase;
@@ -394,18 +402,11 @@ pub mod context_selector {
 }
 
 pub mod display {
+    use super::StaticIdent;
     use crate::{Field, SourceField};
     use proc_macro2::TokenStream;
     use quote::{quote, ToTokens};
     use std::collections::BTreeSet;
-
-    struct StaticIdent(&'static str);
-
-    impl quote::ToTokens for StaticIdent {
-        fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-            proc_macro2::Ident::new(self.0, proc_macro2::Span::call_site()).to_tokens(tokens)
-        }
-    }
 
     const FORMATTER_ARG: StaticIdent = StaticIdent("__snafu_display_formatter");
 
