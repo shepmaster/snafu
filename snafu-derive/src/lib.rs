@@ -1555,8 +1555,6 @@ impl<'a> quote::ToTokens for DisplayImpl<'a> {
             .iter()
             .map(|variant| {
                 let FieldContainer {
-                    backtrace_field,
-                    implicit_fields,
                     display_format,
                     doc_comment,
                     name: variant_name,
@@ -1565,8 +1563,7 @@ impl<'a> quote::ToTokens for DisplayImpl<'a> {
                 } = variant;
 
                 let arm = DisplayMatchArm {
-                    backtrace_field: backtrace_field.as_ref(),
-                    implicit_fields: &implicit_fields,
+                    field_container: variant,
                     default_name: &variant_name,
                     display_format: display_format.as_ref(),
                     doc_comment: doc_comment.as_ref(),
@@ -1758,8 +1755,7 @@ impl NamedStructInfo {
         use crate::shared::{Display, DisplayMatchArm};
 
         let arm = DisplayMatchArm {
-            backtrace_field: backtrace_field.as_ref(),
-            implicit_fields: &implicit_fields,
+            field_container,
             default_name: &name,
             display_format: display_format.as_ref(),
             doc_comment: doc_comment.as_ref(),

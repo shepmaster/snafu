@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 pub(crate) use self::context_module::ContextModule;
 pub(crate) use self::context_selector::ContextSelector;
 pub(crate) use self::display::{Display, DisplayMatchArm};
@@ -9,6 +11,27 @@ struct StaticIdent(&'static str);
 impl quote::ToTokens for StaticIdent {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         proc_macro2::Ident::new(self.0, proc_macro2::Span::call_site()).to_tokens(tokens)
+    }
+}
+
+struct AllFieldNames<'a>(&'a crate::FieldContainer);
+
+impl<'a> AllFieldNames<'a> {
+    fn field_names(&self) -> BTreeSet<&'a proc_macro2::Ident> {
+        let user_fields = self.0.selector_kind.user_fields();
+        let backtrace_field = self.0.backtrace_field.as_ref();
+        let implicit_fields = &self.0.implicit_fields;
+        let message_field = self.0.selector_kind.message_field();
+        let source_field = self.0.selector_kind.source_field();
+
+        user_fields
+            .iter()
+            .chain(backtrace_field)
+            .chain(implicit_fields)
+            .chain(message_field)
+            .map(crate::Field::name)
+            .chain(source_field.map(crate::SourceField::name))
+            .collect()
     }
 }
 
@@ -403,7 +426,6 @@ pub mod context_selector {
 
 pub mod display {
     use super::StaticIdent;
-    use crate::{Field, SourceField};
     use proc_macro2::TokenStream;
     use quote::{quote, ToTokens};
     use std::collections::BTreeSet;
@@ -446,8 +468,7 @@ pub mod display {
     }
 
     pub(crate) struct DisplayMatchArm<'a> {
-        pub(crate) backtrace_field: Option<&'a crate::Field>,
-        pub(crate) implicit_fields: &'a [crate::Field],
+        pub(crate) field_container: &'a crate::FieldContainer,
         pub(crate) default_name: &'a dyn ToTokens,
         pub(crate) display_format: Option<&'a crate::Display>,
         pub(crate) doc_comment: Option<&'a crate::DocComment>,
@@ -458,8 +479,7 @@ pub mod display {
     impl ToTokens for DisplayMatchArm<'_> {
         fn to_tokens(&self, stream: &mut TokenStream) {
             let Self {
-                backtrace_field,
-                implicit_fields,
+                field_container,
                 default_name,
                 display_format,
                 doc_comment,
@@ -467,9 +487,7 @@ pub mod display {
                 selector_kind,
             } = *self;
 
-            let user_fields = selector_kind.user_fields();
             let source_field = selector_kind.source_field();
-            let message_field = selector_kind.message_field();
 
             let mut shorthand_names = &BTreeSet::new();
             let mut assigned_names = &BTreeSet::new();
@@ -493,16 +511,7 @@ pub mod display {
                 _ => quote! { stringify!(#default_name)},
             };
 
-            let field_names = user_fields
-                .iter()
-                .chain(backtrace_field)
-                .chain(implicit_fields)
-                .chain(message_field)
-                .map(Field::name)
-                .chain(source_field.map(SourceField::name))
-                .collect::<BTreeSet<_>>();
-
-            let field_names_pat = quote! { #(ref #field_names),* };
+            let field_names = super::AllFieldNames(field_container).field_names();
 
             let shorthand_names = shorthand_names.iter().collect::<BTreeSet<_>>();
             let assigned_names = assigned_names.iter().collect::<BTreeSet<_>>();
@@ -513,7 +522,7 @@ pub mod display {
             let shorthand_assignments = quote! { #( #shorthand_fields = #shorthand_fields ),* };
 
             let match_arm = quote! {
-                #pattern_ident { #field_names_pat } => {
+                #pattern_ident { #(ref #field_names),* } => {
                     write!(#FORMATTER_ARG, #format, #shorthand_assignments)
                 }
             };
