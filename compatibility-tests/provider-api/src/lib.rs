@@ -109,7 +109,22 @@ fn provide_static_references_as_values() {
     assert_eq!(inner, Some("static"));
 }
 
-#[derive(Debug)]
+#[test]
+fn implicit_fields_can_be_provided() {
+    #[derive(Debug, Snafu)]
+    struct WithImplicitDataError {
+        #[snafu(implicit, provide)]
+        implicit: SomeImplicitData<1>,
+    }
+
+    let e = WithImplicitDataSnafu.build();
+    let e = &e as &dyn snafu::Error;
+    let inner = e.request_ref::<SomeImplicitData<1>>();
+
+    assert_eq!(inner, Some(&SomeImplicitData(1)));
+}
+
+#[derive(Debug, PartialEq)]
 struct SomeImplicitData<const V: u8>(u8);
 
 impl<const V: u8> snafu::GenerateImplicitData for SomeImplicitData<V> {

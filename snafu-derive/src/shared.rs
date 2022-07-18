@@ -701,13 +701,16 @@ pub mod error {
                 }
             });
 
-            let provide_refs = user_fields.iter().flat_map(|f| {
-                if f.provide {
-                    Some((&f.ty, f.name()))
-                } else {
-                    None
-                }
-            });
+            let provide_refs = user_fields
+                .iter()
+                .chain(&field_container.implicit_fields)
+                .flat_map(|f| {
+                    if f.provide {
+                        Some((&f.ty, f.name()))
+                    } else {
+                        None
+                    }
+                });
 
             let shorthand_calls = provide_refs.map(|(ty, name)| {
                 quote! { provide_ref::<#ty>(#name) }
