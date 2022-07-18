@@ -1,7 +1,7 @@
 #![cfg(test)]
 #![feature(error_generic_member_access, provide_any)]
 
-use snafu::prelude::*;
+use snafu::{prelude::*, IntoError};
 
 #[test]
 fn provide_shorthand_on_fields_returns_a_reference() {
@@ -141,6 +141,23 @@ fn message_fields_can_be_provided() {
 
     let inner = inner.map(String::as_str);
     assert_eq!(inner, Some("Bad stuff"));
+}
+
+#[test]
+fn sources_are_automatically_provided() {
+    #[derive(Debug, Snafu, PartialEq)]
+    struct InnerError;
+
+    #[derive(Debug, Snafu)]
+    struct WithSourceError {
+        source: InnerError,
+    }
+
+    let e = WithSourceSnafu.into_error(InnerError);
+    let e = &e as &dyn snafu::Error;
+    let inner = e.request_ref::<InnerError>();
+
+    assert_eq!(inner, Some(&InnerError));
 }
 
 #[derive(Debug, PartialEq)]

@@ -1415,6 +1415,7 @@ macro_rules! location {
 #[cfg(any(feature = "std", test))]
 pub struct Whatever {
     #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
+    #[snafu(provide(false))]
     source: Option<Box<dyn std::error::Error>>,
     message: String,
     backtrace: Backtrace,

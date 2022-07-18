@@ -713,6 +713,15 @@ pub mod error {
                     }
                 });
 
+            let source_provide_ref = field_container.selector_kind.source_field().and_then(|f| {
+                if f.provide {
+                    Some((f.transformation.ty(), f.name()))
+                } else {
+                    None
+                }
+            });
+            let provide_refs = provide_refs.chain(source_provide_ref);
+
             let shorthand_calls = provide_refs.map(|(ty, name)| {
                 quote! { provide_ref::<#ty>(#name) }
             });

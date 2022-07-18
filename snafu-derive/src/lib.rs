@@ -172,6 +172,7 @@ struct SourceField {
     name: syn::Ident,
     transformation: Transformation,
     backtrace_delegate: bool,
+    provide: bool,
 }
 
 impl SourceField {
@@ -802,6 +803,7 @@ fn field_container(
         let mut source_opt_out = false;
         let mut backtrace_opt_out = false;
         let mut implicit_opt_out = false;
+        let mut provide_opt_out = false;
 
         let mut field_errors = errors.scoped(ErrorLocation::OnField);
 
@@ -861,6 +863,8 @@ fn field_container(
                 Att::Provide(tokens, ProvideKind::Flag(v)) => {
                     if v {
                         provide_attrs.add((), tokens);
+                    } else if is_implicit_source(name) {
+                        provide_opt_out = true;
                     } else {
                         field_errors.add(tokens, ATTR_PROVIDE_FALSE)
                     }
@@ -892,7 +896,7 @@ fn field_container(
         let field = Field {
             name: name.clone(),
             ty: syn_field.ty.clone(),
-            provide: provide_attr.is_some(),
+            provide: provide_attr.is_some() || (is_implicit_source(&name) && !provide_opt_out),
             original,
         };
 
@@ -916,7 +920,9 @@ fn field_container(
             implicit_attr.is_some() || (is_implicit_location(&field.name) && !implicit_opt_out);
 
         if let Some((maybe_transformation, location)) = source_attr {
-            let Field { name, ty, .. } = field;
+            let Field {
+                name, ty, provide, ..
+            } = field;
             let transformation = maybe_transformation
                 .map(|(ty, expr)| Transformation::Transform { ty, expr })
                 .unwrap_or_else(|| Transformation::None { ty });
@@ -928,6 +934,7 @@ fn field_container(
                     // Specifying `backtrace` on a source field is how you request
                     // delegation of the backtrace to the source error type.
                     backtrace_delegate: backtrace_attr.is_some(),
+                    provide,
                 },
                 location,
             );
