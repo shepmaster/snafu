@@ -704,6 +704,7 @@ pub mod error {
             let provide_refs = user_fields
                 .iter()
                 .chain(&field_container.implicit_fields)
+                .chain(field_container.selector_kind.message_field())
                 .flat_map(|f| {
                     if f.provide {
                         Some((&f.ty, f.name()))

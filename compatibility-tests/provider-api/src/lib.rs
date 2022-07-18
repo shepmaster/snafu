@@ -124,6 +124,25 @@ fn implicit_fields_can_be_provided() {
     assert_eq!(inner, Some(&SomeImplicitData(1)));
 }
 
+#[test]
+fn message_fields_can_be_provided() {
+    use snafu::FromString;
+
+    #[derive(Debug, Snafu)]
+    #[snafu(whatever)]
+    struct WhateverError {
+        #[snafu(provide)]
+        message: String,
+    }
+
+    let e = WhateverError::without_source("Bad stuff".into());
+    let e = &e as &dyn snafu::Error;
+    let inner = e.request_ref::<String>();
+
+    let inner = inner.map(String::as_str);
+    assert_eq!(inner, Some("Bad stuff"));
+}
+
 #[derive(Debug, PartialEq)]
 struct SomeImplicitData<const V: u8>(u8);
 
