@@ -110,6 +110,36 @@ fn provide_static_references_as_values() {
 }
 
 #[test]
+fn provide_optional_value() {
+    #[derive(Debug, Snafu)]
+    #[snafu(provide(opt, u8 => *thing))]
+    struct MaybeProvideError {
+        thing: Option<u8>,
+    }
+
+    let e = MaybeProvideSnafu { thing: Some(42) }.build();
+    let e = &e as &dyn snafu::Error;
+    let inner = e.request_value::<u8>();
+
+    assert_eq!(inner, Some(42));
+}
+
+#[test]
+fn provide_optional_reference() {
+    #[derive(Debug, Snafu)]
+    #[snafu(provide(ref, opt, u8 => thing.as_ref()))]
+    struct MaybeProvideError {
+        thing: Option<u8>,
+    }
+
+    let e = MaybeProvideSnafu { thing: Some(42) }.build();
+    let e = &e as &dyn snafu::Error;
+    let inner = e.request_ref::<u8>();
+
+    assert_eq!(inner, Some(&42));
+}
+
+#[test]
 fn implicit_fields_can_be_provided() {
     #[derive(Debug, Snafu)]
     struct WithImplicitDataError {

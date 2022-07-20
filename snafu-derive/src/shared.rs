@@ -693,11 +693,38 @@ pub mod error {
             let provides = field_container.provides();
             let field_names = super::AllFieldNames(field_container).field_names();
 
-            let explicit_calls = provides.iter().map(|Provide { is_ref, ty, expr }| {
-                if *is_ref {
-                    quote! { provide_ref_with::<#ty>(|| #expr) }
-                } else {
-                    quote! { provide_value_with::<#ty>(|| #expr) }
+            let explicit_calls = provides.iter().map(|p| {
+                let Provide {
+                    is_ref,
+                    is_opt,
+                    ty,
+                    expr,
+                } = p;
+                match (is_opt, is_ref) {
+                    (true, true) => {
+                        quote! {
+                            if #PROVIDE_ARG.would_be_satisfied_by_ref_of::<#ty>() {
+                                if let Some(v) = #expr {
+                                    #PROVIDE_ARG.provide_ref::<#ty>(v);
+                                }
+                            }
+                        }
+                    }
+                    (true, false) => {
+                        quote! {
+                            if #PROVIDE_ARG.would_be_satisfied_by_value_of::<#ty>() {
+                                if let Some(v) = #expr {
+                                    #PROVIDE_ARG.provide_value::<#ty>(v);
+                                }
+                            }
+                        }
+                    }
+                    (false, true) => {
+                        quote! { #PROVIDE_ARG.provide_ref_with::<#ty>(|| #expr) }
+                    }
+                    (false, false) => {
+                        quote! { #PROVIDE_ARG.provide_value_with::<#ty>(|| #expr) }
+                    }
                 }
             });
 
@@ -723,15 +750,13 @@ pub mod error {
             let provide_refs = provide_refs.chain(source_provide_ref);
 
             let shorthand_calls = provide_refs.map(|(ty, name)| {
-                quote! { provide_ref::<#ty>(#name) }
+                quote! { #PROVIDE_ARG.provide_ref::<#ty>(#name) }
             });
-
-            let provide_arg = PROVIDE_ARG;
 
             let arm = quote! {
                 #pattern_ident { #(ref #field_names,)* .. } => {
-                    #(#provide_arg.#shorthand_calls;)*
-                    #(#provide_arg.#explicit_calls;)*
+                    #(#shorthand_calls;)*
+                    #(#explicit_calls;)*
                 }
             };
 

@@ -27,6 +27,8 @@ mod kw {
     custom_keyword!(from);
 
     custom_keyword!(suffix);
+
+    custom_keyword!(opt);
 }
 
 pub(crate) fn attributes_from_syn(
@@ -507,10 +509,20 @@ impl Provide {
             None => ProvideKind::Flag(true),
             Some(ProvideArg::Flag { value }) => ProvideKind::Flag(value.value),
             Some(ProvideArg::Expression {
-                is_ref, ty, expr, ..
+                is_ref,
+                is_opt,
+                ty,
+                expr,
+                ..
             }) => {
                 let is_ref = is_ref.is_some();
-                ProvideKind::Expression(crate::Provide { is_ref, ty, expr })
+                let is_opt = is_opt.is_some();
+                ProvideKind::Expression(crate::Provide {
+                    is_ref,
+                    is_opt,
+                    ty,
+                    expr,
+                })
             }
         }
     }
@@ -538,6 +550,7 @@ enum ProvideArg {
     },
     Expression {
         is_ref: Option<(token::Ref, token::Comma)>,
+        is_opt: Option<(kw::opt, token::Comma)>,
         ty: Type,
         arrow: token::FatArrow,
         expr: Expr,
@@ -557,8 +570,15 @@ impl Parse for ProvideArg {
                 None
             };
 
+            let is_opt = if input.peek(kw::opt) {
+                Some((input.parse()?, input.parse()?))
+            } else {
+                None
+            };
+
             Ok(ProvideArg::Expression {
                 is_ref,
+                is_opt,
                 ty: input.parse()?,
                 arrow: input.parse()?,
                 expr: input.parse()?,
@@ -575,12 +595,18 @@ impl ToTokens for ProvideArg {
             }
             ProvideArg::Expression {
                 is_ref,
+                is_opt,
                 ty,
                 arrow,
                 expr,
             } => {
                 if let Some((tok_ref, comma)) = is_ref {
                     tok_ref.to_tokens(tokens);
+                    comma.to_tokens(tokens);
+                }
+
+                if let Some((opt, comma)) = is_opt {
+                    opt.to_tokens(tokens);
                     comma.to_tokens(tokens);
                 }
 
