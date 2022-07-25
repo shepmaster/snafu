@@ -252,9 +252,7 @@ pub use std::backtrace::Backtrace;
 #[cfg(feature = "futures")]
 pub mod futures;
 
-#[cfg(feature = "std")]
 mod error_chain;
-#[cfg(feature = "std")]
 pub use crate::error_chain::*;
 
 doc_comment::doc_comment! {
@@ -969,7 +967,6 @@ pub trait ErrorCompat {
     ///
     /// To omit the current error and only traverse its sources,
     /// use `skip(1)`.
-    #[cfg(feature = "std")]
     fn iter_chain(&self) -> ChainCompat
     where
         Self: AsErrorSource,
