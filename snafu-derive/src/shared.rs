@@ -740,14 +740,21 @@ pub mod error {
                     }
                 });
 
-            let source_provide_ref = field_container.selector_kind.source_field().and_then(|f| {
-                if f.provide {
-                    Some((f.transformation.ty(), f.name()))
-                } else {
-                    None
+            let provided_source = field_container
+                .selector_kind
+                .source_field()
+                .filter(|f| f.provide);
+
+            let source_provide_ref = provided_source.map(|f| (f.transformation.ty(), f.name()));
+
+            let provide_refs = provide_refs.chain(source_provide_ref);
+
+            let source_chain = provided_source.map(|f| {
+                let name = f.name();
+                quote! {
+                    #name.provide(#PROVIDE_ARG);
                 }
             });
-            let provide_refs = provide_refs.chain(source_provide_ref);
 
             let shorthand_calls = provide_refs.map(|(ty, name)| {
                 quote! { #PROVIDE_ARG.provide_ref::<#ty>(#name) }
@@ -755,6 +762,7 @@ pub mod error {
 
             let arm = quote! {
                 #pattern_ident { #(ref #field_names,)* .. } => {
+                    #source_chain;
                     #(#shorthand_calls;)*
                     #(#explicit_calls;)*
                 }
