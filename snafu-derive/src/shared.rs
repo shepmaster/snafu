@@ -691,34 +691,34 @@ pub mod error {
 
             let user_fields = field_container.user_fields();
             let provides = field_container.provides();
-
-            let provide_refs: Vec<_> = user_fields
-                .iter()
-                .flat_map(|f| {
-                    if f.provide {
-                        Some((&f.ty, f.name()))
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-
             let field_names = super::AllFieldNames(field_container).field_names();
 
-            let provide_ref_calls = provide_refs.iter().map(|(ty, name)| {
-                quote! { provide_ref::<#ty>(#name) }
+            let explicit_calls = provides.iter().map(|Provide { is_ref, ty, expr }| {
+                if *is_ref {
+                    quote! { provide_ref_with::<#ty>(|| #expr) }
+                } else {
+                    quote! { provide_value_with::<#ty>(|| #expr) }
+                }
             });
 
-            let provide_value_calls = provides.iter().map(|Provide { ty, expr }| {
-                quote! { provide_value_with::<#ty>(|| #expr) }
+            let provide_refs = user_fields.iter().flat_map(|f| {
+                if f.provide {
+                    Some((&f.ty, f.name()))
+                } else {
+                    None
+                }
+            });
+
+            let shorthand_calls = provide_refs.map(|(ty, name)| {
+                quote! { provide_ref::<#ty>(#name) }
             });
 
             let provide_arg = PROVIDE_ARG;
 
             let arm = quote! {
                 #pattern_ident { #(ref #field_names,)* .. } => {
-                    #(#provide_arg.#provide_ref_calls;)*
-                    #(#provide_arg.#provide_value_calls;)*
+                    #(#provide_arg.#shorthand_calls;)*
+                    #(#provide_arg.#explicit_calls;)*
                 }
             };
 

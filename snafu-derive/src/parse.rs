@@ -506,8 +506,11 @@ impl Provide {
         match self.arg.into_option() {
             None => ProvideKind::Flag(true),
             Some(ProvideArg::Flag { value }) => ProvideKind::Flag(value.value),
-            Some(ProvideArg::Expression { ty, expr, .. }) => {
-                ProvideKind::Expression(crate::Provide { ty, expr })
+            Some(ProvideArg::Expression {
+                is_ref, ty, expr, ..
+            }) => {
+                let is_ref = is_ref.is_some();
+                ProvideKind::Expression(crate::Provide { is_ref, ty, expr })
             }
         }
     }
@@ -534,6 +537,7 @@ enum ProvideArg {
         value: LitBool,
     },
     Expression {
+        is_ref: Option<(token::Ref, token::Comma)>,
         ty: Type,
         arrow: token::FatArrow,
         expr: Expr,
@@ -547,7 +551,14 @@ impl Parse for ProvideArg {
                 value: input.parse()?,
             })
         } else {
+            let is_ref = if input.peek(token::Ref) {
+                Some((input.parse()?, input.parse()?))
+            } else {
+                None
+            };
+
             Ok(ProvideArg::Expression {
+                is_ref,
                 ty: input.parse()?,
                 arrow: input.parse()?,
                 expr: input.parse()?,
@@ -562,7 +573,17 @@ impl ToTokens for ProvideArg {
             ProvideArg::Flag { value } => {
                 value.to_tokens(tokens);
             }
-            ProvideArg::Expression { ty, arrow, expr } => {
+            ProvideArg::Expression {
+                is_ref,
+                ty,
+                arrow,
+                expr,
+            } => {
+                if let Some((tok_ref, comma)) = is_ref {
+                    tok_ref.to_tokens(tokens);
+                    comma.to_tokens(tokens);
+                }
+
                 ty.to_tokens(tokens);
                 arrow.to_tokens(tokens);
                 expr.to_tokens(tokens);

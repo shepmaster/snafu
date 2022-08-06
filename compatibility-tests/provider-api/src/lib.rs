@@ -64,6 +64,51 @@ fn provide_value_expressions_can_use_fields() {
     assert_eq!(inner, Some(6));
 }
 
+#[test]
+fn provide_reference_expressions() {
+    #[derive(Debug, Snafu)]
+    #[snafu(provide(ref, str => self.choose_one()))]
+    struct WithExpressionError {
+        which: bool,
+        one: String,
+        two: String,
+    }
+
+    impl WithExpressionError {
+        fn choose_one(&self) -> &str {
+            if self.which {
+                &self.one
+            } else {
+                &self.two
+            }
+        }
+    }
+
+    let e = WithExpressionSnafu {
+        which: true,
+        one: "one",
+        two: "two",
+    }
+    .build();
+    let e = &e as &dyn snafu::Error;
+    let inner = e.request_ref::<str>();
+
+    assert_eq!(inner, Some("one"));
+}
+
+#[test]
+fn provide_static_references_as_values() {
+    #[derive(Debug, Snafu)]
+    #[snafu(provide(&'static str => "static"))]
+    struct StaticValueError;
+
+    let e = StaticValueError;
+    let e = &e as &dyn snafu::Error;
+    let inner = e.request_value::<&'static str>();
+
+    assert_eq!(inner, Some("static"));
+}
+
 #[derive(Debug)]
 struct SomeImplicitData<const V: u8>(u8);
 
