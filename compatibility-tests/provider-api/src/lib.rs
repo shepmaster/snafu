@@ -242,6 +242,30 @@ fn backtraces_are_automatically_provided() {
     assert!(bt.is_some(), "was {bt:?}");
 }
 
+#[test]
+fn order_of_flags_does_not_matter() {
+    #[derive(Debug, Snafu)]
+    #[snafu(provide(ref, opt, u8 => alpha.as_ref()))]
+    #[snafu(provide(opt, ref, i8 => omega.as_ref()))]
+    struct MaybeProvideError {
+        alpha: Option<u8>,
+        omega: Option<i8>,
+    }
+
+    let e = MaybeProvideSnafu {
+        alpha: Some(255),
+        omega: Some(-1),
+    }
+    .build();
+    let e = &e as &dyn snafu::Error;
+
+    let alpha = e.request_ref::<u8>();
+    let omega = e.request_ref::<i8>();
+
+    assert_eq!(alpha, Some(&255));
+    assert_eq!(omega, Some(&-1));
+}
+
 #[derive(Debug, PartialEq)]
 struct SomeImplicitData<const V: u8>(u8);
 

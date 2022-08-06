@@ -510,24 +510,17 @@ impl Provide {
             None => ProvideKind::Flag(true),
             Some(ProvideArg::Flag { value }) => ProvideKind::Flag(value.value),
             Some(ProvideArg::Expression {
-                is_ref,
-                is_opt,
-                is_priority,
+                flags,
                 ty,
                 arrow: _,
                 expr,
-            }) => {
-                let is_ref = is_ref.is_some();
-                let is_opt = is_opt.is_some();
-                let is_priority = is_priority.is_some();
-                ProvideKind::Expression(crate::Provide {
-                    is_ref,
-                    is_opt,
-                    is_priority,
-                    ty,
-                    expr,
-                })
-            }
+            }) => ProvideKind::Expression(crate::Provide {
+                is_ref: flags.is_ref(),
+                is_opt: flags.is_opt(),
+                is_priority: flags.is_priority(),
+                ty,
+                expr,
+            }),
         }
     }
 }
@@ -553,9 +546,7 @@ enum ProvideArg {
         value: LitBool,
     },
     Expression {
-        is_ref: Option<(token::Ref, token::Comma)>,
-        is_opt: Option<(kw::opt, token::Comma)>,
-        is_priority: Option<(kw::priority, token::Comma)>,
+        flags: ProvideFlags,
         ty: Type,
         arrow: token::FatArrow,
         expr: Expr,
@@ -569,28 +560,8 @@ impl Parse for ProvideArg {
                 value: input.parse()?,
             })
         } else {
-            let is_ref = if input.peek(token::Ref) {
-                Some((input.parse()?, input.parse()?))
-            } else {
-                None
-            };
-
-            let is_opt = if input.peek(kw::opt) {
-                Some((input.parse()?, input.parse()?))
-            } else {
-                None
-            };
-
-            let is_priority = if input.peek(kw::priority) {
-                Some((input.parse()?, input.parse()?))
-            } else {
-                None
-            };
-
             Ok(ProvideArg::Expression {
-                is_ref,
-                is_opt,
-                is_priority,
+                flags: input.parse()?,
                 ty: input.parse()?,
                 arrow: input.parse()?,
                 expr: input.parse()?,
@@ -606,32 +577,108 @@ impl ToTokens for ProvideArg {
                 value.to_tokens(tokens);
             }
             ProvideArg::Expression {
-                is_ref,
-                is_opt,
-                is_priority,
+                flags,
                 ty,
                 arrow,
                 expr,
             } => {
-                if let Some((tok_ref, comma)) = is_ref {
-                    tok_ref.to_tokens(tokens);
-                    comma.to_tokens(tokens);
-                }
-
-                if let Some((opt, comma)) = is_opt {
-                    opt.to_tokens(tokens);
-                    comma.to_tokens(tokens);
-                }
-
-                if let Some((priority, comma)) = is_priority {
-                    priority.to_tokens(tokens);
-                    comma.to_tokens(tokens);
-                }
-
+                flags.to_tokens(tokens);
                 ty.to_tokens(tokens);
                 arrow.to_tokens(tokens);
                 expr.to_tokens(tokens);
             }
+        }
+    }
+}
+
+struct ProvideFlags(Punctuated<ProvideFlag, token::Comma>);
+
+impl ProvideFlags {
+    fn is_ref(&self) -> bool {
+        self.0.iter().any(ProvideFlag::is_ref)
+    }
+    fn is_opt(&self) -> bool {
+        self.0.iter().any(ProvideFlag::is_opt)
+    }
+    fn is_priority(&self) -> bool {
+        self.0.iter().any(ProvideFlag::is_priority)
+    }
+}
+
+impl Parse for ProvideFlags {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let mut flags = Punctuated::new();
+
+        while ProvideFlag::peek(input) {
+            flags.push_value(input.parse()?);
+            flags.push_punct(input.parse()?);
+        }
+
+        Ok(Self(flags))
+    }
+}
+
+impl ToTokens for ProvideFlags {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens)
+    }
+}
+
+enum ProvideFlag {
+    Opt(kw::opt),
+    Priority(kw::priority),
+    Ref(token::Ref),
+}
+
+impl ProvideFlag {
+    fn peek(input: ParseStream) -> bool {
+        input.peek(kw::opt) || input.peek(kw::priority) || input.peek(token::Ref)
+    }
+
+    fn is_opt(&self) -> bool {
+        match self {
+            ProvideFlag::Opt(_) => true,
+            _ => false,
+        }
+    }
+
+    fn is_priority(&self) -> bool {
+        match self {
+            ProvideFlag::Priority(_) => true,
+            _ => false,
+        }
+    }
+
+    fn is_ref(&self) -> bool {
+        match self {
+            ProvideFlag::Ref(_) => true,
+            _ => false,
+        }
+    }
+}
+
+impl Parse for ProvideFlag {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let lookahead = input.lookahead1();
+
+        if lookahead.peek(kw::opt) {
+            input.parse().map(ProvideFlag::Opt)
+        } else if lookahead.peek(kw::priority) {
+            input.parse().map(ProvideFlag::Priority)
+        } else if lookahead.peek(token::Ref) {
+            input.parse().map(ProvideFlag::Ref)
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+impl ToTokens for ProvideFlag {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            ProvideFlag::Opt(v) => v.to_tokens(tokens),
+            ProvideFlag::Priority(v) => v.to_tokens(tokens),
+            ProvideFlag::Ref(v) => v.to_tokens(tokens),
         }
     }
 }
