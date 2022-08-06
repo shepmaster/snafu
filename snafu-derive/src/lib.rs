@@ -775,7 +775,7 @@ fn field_container(
                                 }
                                 if v {
                                     source_attrs.add(None, tokens.clone());
-                                } else if name == "source" {
+                                } else if is_implicit_source(name) {
                                     source_opt_out = true;
                                 } else {
                                     field_errors.add(tokens.clone(), ATTR_SOURCE_FALSE);
@@ -793,7 +793,7 @@ fn field_container(
                 Att::Backtrace(tokens, v) => {
                     if v {
                         backtrace_attrs.add((), tokens);
-                    } else if name == "backtrace" {
+                    } else if is_implicit_backtrace(name) {
                         backtrace_opt_out = true;
                     } else {
                         field_errors.add(tokens, ATTR_BACKTRACE_FALSE);
@@ -802,7 +802,7 @@ fn field_container(
                 Att::Implicit(tokens, v) => {
                     if v {
                         implicit_attrs.add((), tokens);
-                    } else if name == "location" {
+                    } else if is_implicit_location(name) {
                         implicit_opt_out = true;
                     } else {
                         field_errors.add(tokens, ATTR_IMPLICIT_FALSE);
@@ -828,7 +828,7 @@ fn field_container(
         errors.extend(errs);
 
         let source_attr = source_attr.or_else(|| {
-            if field.name == "source" && !source_opt_out {
+            if is_implicit_source(&field.name) && !source_opt_out {
                 Some((None, syn_field.clone().into_token_stream()))
             } else {
                 None
@@ -836,7 +836,7 @@ fn field_container(
         });
 
         let backtrace_attr = backtrace_attr.or_else(|| {
-            if field.name == "backtrace" && !backtrace_opt_out {
+            if is_implicit_backtrace(&field.name) && !backtrace_opt_out {
                 Some(((), syn_field.clone().into_token_stream()))
             } else {
                 None
@@ -844,7 +844,7 @@ fn field_container(
         });
 
         let implicit_attr =
-            implicit_attr.is_some() || (field.name == "location" && !implicit_opt_out);
+            implicit_attr.is_some() || (is_implicit_location(&field.name) && !implicit_opt_out);
 
         if let Some((maybe_transformation, location)) = source_attr {
             let Field { name, ty, .. } = field;
@@ -936,7 +936,7 @@ fn field_container(
             let mut messages = AtMostOne::new("message", outer_error_location);
 
             for f in user_fields {
-                if f.name == "message" {
+                if is_implicit_message(&f.name) {
                     let l = f.original.clone();
                     messages.add(f, l);
                 } else {
@@ -993,6 +993,27 @@ fn field_container(
         visibility,
         module,
     })
+}
+
+const IMPLICIT_SOURCE_FIELD_NAME: &str = "source";
+const IMPLICIT_BACKTRACE_FIELD_NAME: &str = "backtrace";
+const IMPLICIT_MESSAGE_FIELD_NAME: &str = "message";
+const IMPLICIT_LOCATION_FIELD_NAME: &str = "location";
+
+fn is_implicit_source(name: &proc_macro2::Ident) -> bool {
+    name == IMPLICIT_SOURCE_FIELD_NAME
+}
+
+fn is_implicit_backtrace(name: &proc_macro2::Ident) -> bool {
+    name == IMPLICIT_BACKTRACE_FIELD_NAME
+}
+
+fn is_implicit_message(name: &proc_macro2::Ident) -> bool {
+    name == IMPLICIT_MESSAGE_FIELD_NAME
+}
+
+fn is_implicit_location(name: &proc_macro2::Ident) -> bool {
+    name == IMPLICIT_LOCATION_FIELD_NAME
 }
 
 fn parse_snafu_struct(
