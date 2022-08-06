@@ -1,7 +1,7 @@
 #![cfg(test)]
 #![feature(error_generic_member_access, provide_any)]
 
-use snafu::{prelude::*, IntoError};
+use snafu::{prelude::*, Backtrace, IntoError};
 
 #[test]
 fn provide_shorthand_on_fields_returns_a_reference() {
@@ -226,6 +226,20 @@ fn sources_provided_values_can_be_superseded() {
     let inner = e.request_value::<&str>();
 
     assert_eq!(inner, Some("outer"));
+}
+
+#[test]
+fn backtraces_are_automatically_provided() {
+    #[derive(Debug, Snafu)]
+    struct WithBacktraceError {
+        backtrace: Backtrace,
+    }
+
+    let e = WithBacktraceSnafu.build();
+    let e = &e as &dyn snafu::Error;
+    let bt = e.request_ref::<Backtrace>();
+
+    assert!(bt.is_some(), "was {bt:?}");
 }
 
 #[derive(Debug, PartialEq)]

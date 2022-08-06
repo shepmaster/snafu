@@ -1604,6 +1604,8 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
     fn to_tokens(&self, stream: &mut proc_macro2::TokenStream) {
         use self::shared::{Error, ErrorProvideMatchArm, ErrorSourceMatchArm};
 
+        let crate_root = &self.0.crate_root;
+
         let mut variants_to_description = Vec::with_capacity(self.0.variants.len());
         let mut variants_to_source = Vec::with_capacity(self.0.variants.len());
         let mut variants_to_provide = Vec::with_capacity(self.0.variants.len());
@@ -1624,6 +1626,7 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
             let error_source_match_arm = quote! { #error_source_match_arm };
 
             let error_provide_match_arm = ErrorProvideMatchArm {
+                crate_root,
                 field_container,
                 pattern_ident,
             };
@@ -1635,7 +1638,7 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
         }
 
         let error_impl = Error {
-            crate_root: &self.0.crate_root,
+            crate_root,
             parameterized_error_name: &self.0.parameterized_name(),
             description_arms: &variants_to_description,
             source_arms: &variants_to_source,
@@ -1729,6 +1732,7 @@ impl NamedStructInfo {
         let error_source_match_arm = quote! { #error_source_match_arm };
 
         let error_provide_match_arm = ErrorProvideMatchArm {
+            crate_root: &crate_root,
             field_container,
             pattern_ident,
         };

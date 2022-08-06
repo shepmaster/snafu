@@ -678,6 +678,7 @@ pub mod error {
     }
 
     pub(crate) struct ErrorProvideMatchArm<'a> {
+        pub(crate) crate_root: &'a dyn ToTokens,
         pub(crate) field_container: &'a FieldContainer,
         pub(crate) pattern_ident: &'a dyn ToTokens,
     }
@@ -685,6 +686,7 @@ pub mod error {
     impl<'a> ToTokens for ErrorProvideMatchArm<'a> {
         fn to_tokens(&self, stream: &mut TokenStream) {
             let Self {
+                crate_root,
                 field_container,
                 pattern_ident,
             } = *self;
@@ -776,9 +778,21 @@ pub mod error {
                 quote! { #PROVIDE_ARG.provide_ref::<#ty>(#name) }
             });
 
+            let provide_backtrace = field_container.backtrace_field.as_ref().map(|f| {
+                let name = f.name();
+                quote! {
+                    if #PROVIDE_ARG.would_be_satisfied_by_ref_of::<#crate_root::Backtrace>() {
+                        if let ::core::option::Option::Some(bt) = #crate_root::AsBacktrace::as_backtrace(#name) {
+                            #PROVIDE_ARG.provide_ref::<#crate_root::Backtrace>(bt);
+                        }
+                    }
+                }
+            });
+
             let arm = quote! {
                 #pattern_ident { #(ref #field_names,)* .. } => {
                     #(#hi_explicit_calls;)*
+                    #provide_backtrace;
                     #source_chain;
                     #(#shorthand_calls;)*
                     #(#lo_explicit_calls;)*
