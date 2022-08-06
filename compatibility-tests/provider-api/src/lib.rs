@@ -209,6 +209,25 @@ fn sources_provided_values_are_chained() {
     assert_eq!(inner, Some("inner"));
 }
 
+#[test]
+fn sources_provided_values_can_be_superseded() {
+    #[derive(Debug, Snafu)]
+    #[snafu(provide(&'static str => "inner"))]
+    struct InnerError;
+
+    #[derive(Debug, Snafu)]
+    #[snafu(provide(priority, &'static str => "outer"))]
+    struct OuterError {
+        source: InnerError,
+    }
+
+    let e = OuterSnafu.into_error(InnerError);
+    let e = &e as &dyn snafu::Error;
+    let inner = e.request_value::<&str>();
+
+    assert_eq!(inner, Some("outer"));
+}
+
 #[derive(Debug, PartialEq)]
 struct SomeImplicitData<const V: u8>(u8);
 
