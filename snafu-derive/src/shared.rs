@@ -695,56 +695,7 @@ pub mod error {
             let provides = field_container.provides();
             let field_names = super::AllFieldNames(field_container).field_names();
 
-            let (high_priority, low_priority): (Vec<_>, Vec<_>) =
-                provides.iter().partition(|p| p.is_priority);
-
-            fn quote_provides<'a, I>(
-                provides: I,
-            ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a
-            where
-                I: IntoIterator<Item = &'a Provide>,
-                I::IntoIter: 'a,
-            {
-                provides.into_iter().map(|p| {
-                    let Provide {
-                        is_ref,
-                        is_opt,
-                        is_priority: _,
-                        ty,
-                        expr,
-                    } = p;
-
-                    match (is_opt, is_ref) {
-                        (true, true) => {
-                            quote! {
-                                if #PROVIDE_ARG.would_be_satisfied_by_ref_of::<#ty>() {
-                                    if let ::core::option::Option::Some(v) = #expr {
-                                        #PROVIDE_ARG.provide_ref::<#ty>(v);
-                                    }
-                                }
-                            }
-                        }
-                        (true, false) => {
-                            quote! {
-                                if #PROVIDE_ARG.would_be_satisfied_by_value_of::<#ty>() {
-                                    if let ::core::option::Option::Some(v) = #expr {
-                                        #PROVIDE_ARG.provide_value::<#ty>(v);
-                                    }
-                                }
-                            }
-                        }
-                        (false, true) => {
-                            quote! { #PROVIDE_ARG.provide_ref_with::<#ty>(|| #expr) }
-                        }
-                        (false, false) => {
-                            quote! { #PROVIDE_ARG.provide_value_with::<#ty>(|| #expr) }
-                        }
-                    }
-                })
-            }
-
-            let hi_explicit_calls = quote_provides(high_priority.iter().map(|x| *x));
-            let lo_explicit_calls = quote_provides(low_priority.iter().map(|x| *x));
+            let (hi_explicit_calls, lo_explicit_calls) = build_explicit_provide_calls(provides);
 
             let provide_refs = user_fields
                 .iter()
@@ -806,6 +757,64 @@ pub mod error {
 
             stream.extend(arm);
         }
+    }
+
+    fn quote_provides<'a, I>(provides: I) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a
+    where
+        I: IntoIterator<Item = &'a Provide>,
+        I::IntoIter: 'a,
+    {
+        provides.into_iter().map(|p| {
+            let Provide {
+                is_ref,
+                is_opt,
+                is_priority: _,
+                ty,
+                expr,
+            } = p;
+
+            match (is_opt, is_ref) {
+                (true, true) => {
+                    quote! {
+                        if #PROVIDE_ARG.would_be_satisfied_by_ref_of::<#ty>() {
+                            if let ::core::option::Option::Some(v) = #expr {
+                                #PROVIDE_ARG.provide_ref::<#ty>(v);
+                            }
+                        }
+                    }
+                }
+                (true, false) => {
+                    quote! {
+                        if #PROVIDE_ARG.would_be_satisfied_by_value_of::<#ty>() {
+                            if let ::core::option::Option::Some(v) = #expr {
+                                #PROVIDE_ARG.provide_value::<#ty>(v);
+                            }
+                        }
+                    }
+                }
+                (false, true) => {
+                    quote! { #PROVIDE_ARG.provide_ref_with::<#ty>(|| #expr) }
+                }
+                (false, false) => {
+                    quote! { #PROVIDE_ARG.provide_value_with::<#ty>(|| #expr) }
+                }
+            }
+        })
+    }
+
+    pub(crate) fn build_explicit_provide_calls(
+        provides: &[Provide],
+    ) -> (
+        impl Iterator<Item = TokenStream> + '_,
+        impl Iterator<Item = TokenStream> + '_,
+    ) {
+        let (high_priority, low_priority): (Vec<_>, Vec<_>) =
+            provides.iter().partition(|p| p.is_priority);
+
+        let hi_explicit_calls = quote_provides(high_priority);
+        let lo_explicit_calls = quote_provides(low_priority);
+
+        (hi_explicit_calls, lo_explicit_calls)
     }
 }
 
