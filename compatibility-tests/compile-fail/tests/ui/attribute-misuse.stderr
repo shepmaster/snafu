@@ -40,7 +40,7 @@ error: `provide` attribute is only valid on enum variant or struct fields with a
 11 |     #[snafu(provide)]
    |             ^^^^^^^
 
-error: `provide(type => expression)` attribute is only valid on enum variants or structs with named fields, not on an enum
+error: `provide(type => expression)` attribute is only valid on enum variants, structs with named fields, or tuple structs, not on an enum
   --> tests/ui/attribute-misuse.rs:12:13
    |
 12 |     #[snafu(provide(u8 => 0))]
@@ -118,7 +118,7 @@ error: `provide(false)` attribute is only valid on a field named "source" or "ba
 48 |             #[snafu(provide(false))]
    |                     ^^^^^^^^^^^^^^
 
-error: `provide(type => expression)` attribute is only valid on enum variants or structs with named fields, not on a field
+error: `provide(type => expression)` attribute is only valid on enum variants, structs with named fields, or tuple structs, not on a field
   --> tests/ui/attribute-misuse.rs:49:21
    |
 49 |             #[snafu(provide(u8 => 0))]
@@ -165,9 +165,3 @@ error: `provide` attribute is only valid on enum variant or struct fields with a
    |
 69 |     #[snafu(provide)]
    |             ^^^^^^^
-
-error: `provide(type => expression)` attribute is only valid on enum variants or structs with named fields, not on a tuple struct
-  --> tests/ui/attribute-misuse.rs:70:13
-   |
-70 |     #[snafu(provide(u8 => 0))]
-   |             ^^^^^^^^^^^^^^^^

@@ -154,6 +154,7 @@ struct TupleStructInfo {
     name: syn::Ident,
     generics: syn::Generics,
     transformation: Transformation,
+    provides: Vec<Provide>,
 }
 
 #[derive(Clone)]
@@ -579,7 +580,7 @@ const ATTR_PROVIDE_FALSE: WrongField = WrongField {
 
 const ATTR_PROVIDE_EXPRESSION: OnlyValidOn = OnlyValidOn {
     attribute: "provide(type => expression)",
-    valid_on: "enum variants or structs with named fields",
+    valid_on: "enum variants, structs with named fields, or tuple structs",
 };
 
 const ATTR_CONTEXT: OnlyValidOn = OnlyValidOn {
@@ -1177,6 +1178,7 @@ fn parse_snafu_tuple_struct(
 ) -> MultiSynResult<TupleStructInfo> {
     let mut transformations = AtMostOne::new("source(from)", ErrorLocation::OnTupleStruct);
     let mut crate_roots = AtMostOne::new("crate_root", ErrorLocation::OnTupleStruct);
+    let mut provides = Vec::new();
 
     let mut errors = SyntaxErrors::default();
     let mut struct_errors = errors.scoped(ErrorLocation::OnTupleStruct);
@@ -1189,8 +1191,8 @@ fn parse_snafu_tuple_struct(
             Att::Provide(tokens, ProvideKind::Flag(..)) => {
                 struct_errors.add(tokens, ATTR_PROVIDE_FLAG)
             }
-            Att::Provide(tokens, ProvideKind::Expression { .. }) => {
-                struct_errors.add(tokens, ATTR_PROVIDE_EXPRESSION)
+            Att::Provide(_tokens, ProvideKind::Expression(provide)) => {
+                provides.push(provide);
             }
             Att::Display(tokens, ..) => struct_errors.add(tokens, ATTR_DISPLAY),
             Att::Visibility(tokens, ..) => struct_errors.add(tokens, ATTR_VISIBILITY),
@@ -1245,6 +1247,7 @@ fn parse_snafu_tuple_struct(
         name,
         generics,
         transformation,
+        provides,
     })
 }
 
@@ -1863,6 +1866,7 @@ impl TupleStructInfo {
             generics,
             name,
             transformation,
+            provides,
         } = self;
 
         let inner_type = transformation.ty();
@@ -1911,10 +1915,17 @@ impl TupleStructInfo {
         let provide_fn = if cfg!(feature = "unstable-provider-api") {
             use shared::error::PROVIDE_ARG;
 
+            let (hi_explicit_calls, lo_explicit_calls) =
+                shared::error::build_explicit_provide_calls(&provides);
+
             Some(quote! {
                 fn provide<'a>(&'a self, #PROVIDE_ARG: &mut core::any::Demand<'a>) {
                     match self {
-                        Self(v) => v.provide(#PROVIDE_ARG),
+                        Self(v) => {
+                            #(#hi_explicit_calls;)*
+                            v.provide(#PROVIDE_ARG);
+                            #(#lo_explicit_calls;)*
+                        }
                     };
                 }
             })

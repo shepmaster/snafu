@@ -360,6 +360,23 @@ fn opaque_errors_chain_to_inner_errors() {
     assert_eq!(inner, Some(42));
 }
 
+#[test]
+fn opaque_errors_can_supersede_provided_values() {
+    #[derive(Debug, Snafu)]
+    #[snafu(provide(u8 => 1))]
+    struct InnerError;
+
+    #[derive(Debug, Snafu)]
+    #[snafu(provide(priority, u8 => 99))]
+    struct OuterError(InnerError);
+
+    let e = OuterError::from(InnerError);
+    let e = &e as &dyn snafu::Error;
+    let inner = e.request_value::<u8>();
+
+    assert_eq!(inner, Some(99));
+}
+
 #[derive(Debug, PartialEq)]
 struct SomeImplicitData<const V: u8>(u8);
 
