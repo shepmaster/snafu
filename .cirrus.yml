@@ -56,8 +56,6 @@ doc_test_task:
     - cargo +nightly doc --features=backtraces
   backtraces_impl_backtrace_crate_docs_script:
     - cargo +nightly doc --features=backtraces-impl-backtrace-crate
-  unstable_backtraces_impl_std_docs_script:
-    - cargo +nightly doc --features=unstable-backtraces-impl-std
   futures_docs_script:
     - cargo +nightly doc --features=futures
   before_cache_script: rm -rf $CARGO_HOME/registry/index
@@ -77,11 +75,6 @@ doc_tests_task:
     - cargo +nightly test --doc --features=backtraces
   backtraces_impl_backtrace_crate_doctests_script:
     - cargo +nightly test --doc --features=backtraces-impl-backtrace-crate
-  # Disabled because every doctest would need to enable the feature
-  # from the standard library too.
-  #
-  # unstable_backtraces_impl_std_doctests_script:
-  #   - cargo +nightly test --doc --features=unstable-backtraces-impl-std
   futures_doctests_script:
     - cargo +nightly test --doc --features=futures,internal-dev-dependencies
   before_cache_script: rm -rf $CARGO_HOME/registry/index
@@ -114,8 +107,6 @@ nightly_test_task:
   primary_test_script:
     - rustc +nightly --version
     - cargo +nightly test
-  std_backtrace_test_script:
-    - RUST_BACKTRACE=1 cargo +nightly test --manifest-path compatibility-tests/backtraces-impl-std/Cargo.toml
   minimum_version_test_script:
     - cargo +nightly -Z minimal-versions update
     # These versions determined by trial and error
@@ -126,6 +117,23 @@ nightly_test_task:
     - cd compatibility-tests/futures/
     - rustc --version
     - cargo test
+  before_cache_script: rm -rf $CARGO_HOME/registry/index
+
+vestigial_std_backtraces_test_task:
+  name: "Rust Nightly"
+  container:
+    image: rustlang/rust:nightly
+    cpu: 1
+    memory: 2Gi
+  cargo_cache:
+    folder: $CARGO_HOME/registry
+    fingerprint_script: cat Cargo.toml
+  setup_script:
+    - rustup toolchain install nightly-2022-06-21
+  std_backtrace_test_script:
+    - cd compatibility-tests/backtraces-impl-std && RUST_BACKTRACE=1 cargo test
+  unstable_backtraces_impl_std_docs_script:
+    - cargo +nightly-2022-06-21 doc --features=unstable-backtraces-impl-std
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
 v1_34_test_task:
