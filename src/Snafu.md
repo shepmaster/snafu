@@ -9,6 +9,7 @@ unique situations.
 - [`display`](#controlling-display)
 - [`implicit`](#controlling-implicitly-generated-data)
 - [`module`](#placing-context-selectors-in-modules)
+- [`provide`](#providing-data-beyond-the-error-trait)
 - [`source`](#controlling-error-sources)
 - [`visibility`](#controlling-visibility)
 - [`whatever`](#controlling-stringly-typed-errors)
@@ -38,6 +39,7 @@ it is valid. Detailed information on each attribute is below.
 | `context(suffix(false))`        | No suffix for the generated context selector                                                                                                                                                    |
 | `visibility(v)`                 | Sets the visibility of the generated context selector to `v` (e.g. `pub`)                                                                                                                       |
 | `visibility`                    | Resets visibility back to private                                                                                                                                                               |
+| `provide(flags, type => expr)`  | Provides the type using the `expr` with the optional flags                                                                                                                                      |
 | `whatever`                      | Stringly-typed error. Message field must be called `message`. Source optional, but if present must be of a specific [format](#controlling-stringly-typed-errors)                                |
 
 ### Context fields
@@ -50,6 +52,7 @@ it is valid. Detailed information on each attribute is below.
 | `backtrace`                     | Marks a field as backtrace (even if not called `backtrace`)                                               |
 | `backtrace(false)`              | Marks a field that is named `backtrace` as a regular field                                                |
 | `implicit`                      | Marks a field as implicit (Type needs to implement [`GenerateImplicitData`](crate::GenerateImplicitData)) |
+| `provide`                       | Marks a field as providing a reference to the type                                                        |
 
 ## Controlling `Display`
 
@@ -407,6 +410,290 @@ enum Error {
     },
 }
 ```
+
+## Providing data beyond the `Error` trait
+
+When the [`unstable-provider-api` feature flag][] is enabled, errors
+will implement the standard library's [`Provider` API][provider
+API]. This allows arbitrary data to be associated with an error
+instance, expanding the abilities of the receiver of the error:
+
+```rust,ignore
+use snafu::prelude::*;
+
+#[derive(Debug)]
+struct UserId(u8);
+
+#[derive(Debug, Snafu)]
+enum ApiError {
+    Login {
+        #[snafu(provide)]
+        user_id: UserId,
+    },
+
+    Logout {
+        #[snafu(provide)]
+        user_id: UserId,
+    },
+
+    NetworkUnreachable {
+        source: std::io::Error,
+    },
+}
+
+let e = LoginSnafu { user_id: UserId(0) }.build();
+let e = &e as &dyn std::error::Error;
+match e.request_ref::<UserId>() {
+    // Present when ApiError::Login or ApiError::Logout
+    Some(user_id) => {
+        println!("{user_id:?} experienced an error");
+    }
+    // Absent when ApiError::NetworkUnreachable
+    None => {
+        println!("An error occurred for an unknown user");
+    }
+}
+```
+
+This attribute may be used even when the [`unstable-provider-api`
+feature flag][] is not enabled. In that case, the attribute will be
+parsed but no code will be generated, allowing library authors to
+provide data to consumers willing to use nightly without losing
+support for stable Rust.
+
+[`unstable-provider-api` feature flag]: guide::feature_flags#unstable-provider-api
+
+### Automatically provided data
+
+By default, `source` and `backtrace` fields are exposed to the
+provider API. Additionally, any data provided by the wrapped error
+will be available on the wrapping error:
+
+```rust,ignore
+use snafu::{prelude::*, IntoError};
+
+#[derive(Debug)]
+struct UserId(u8);
+
+#[derive(Debug, Snafu)]
+struct InnerError {
+    #[snafu(provide)]
+    user_id: UserId,
+    backtrace: snafu::Backtrace,
+}
+
+#[derive(Debug, Snafu)]
+struct OuterError {
+    source: InnerError,
+}
+
+let outer = OuterSnafu.into_error(InnerSnafu { user_id: UserId(0) }.build());
+let outer = &outer as &dyn std::error::Error;
+
+// We can get the source error and downcast it at once
+outer
+    .request_ref::<InnerError>()
+    .expect("Must have a source");
+
+// We can get the deepest backtrace
+outer
+    .request_ref::<snafu::Backtrace>()
+    .expect("Must have a backtrace");
+
+// We can get arbitrary values from sources as well
+outer.request_ref::<UserId>().expect("Must have a user id");
+```
+
+By default, SNAFU will gather the provided data from the source first,
+before providing any data from the current error. This can be
+overridden through the [`priority` flag][provide-flag-priority].
+
+### Manually provided data
+
+When used on a field, the `#[snafu(provide)]` attribute will expose
+that field as a reference, allowing it to be used with
+[`request_ref`][]. For more control, the `#[snafu(provide)]` attribute
+can be placed on the error struct or enum variant. In this location,
+you supply a type and an expression that will generate that type:
+
+```rust,ignore
+use snafu::prelude::*;
+
+#[derive(Debug, PartialEq)]
+struct HttpCode(u16);
+
+const HTTP_NOT_FOUND: HttpCode = HttpCode(404);
+
+#[derive(Debug, Snafu)]
+#[snafu(provide(HttpCode => HTTP_NOT_FOUND))]
+struct WebserverError;
+
+let e = WebserverError;
+let e = &e as &dyn std::error::Error;
+assert_eq!(Some(HTTP_NOT_FOUND), e.request_value::<HttpCode>());
+```
+
+The expression may access any field of the error as well as `self`:
+
+```rust,ignore
+use snafu::prelude::*;
+
+#[derive(Debug, PartialEq)]
+struct Summation(u8);
+
+#[derive(Debug, Snafu)]
+#[snafu(provide(Summation => Summation(left_side + right_side)))]
+struct AdditionError {
+    left_side: u8,
+    right_side: u8,
+}
+
+let e = AdditionSnafu {
+    left_side: 1,
+    right_side: 2,
+}
+.build();
+let e = &e as &dyn std::error::Error;
+assert_eq!(Some(Summation(3)), e.request_value::<Summation>());
+```
+
+### Configuring how data is provided
+
+You may also provide a number of optional flags that control how the
+provided data will be exposed. These flags may be combined as required
+and may be provided in any order.
+
+#### `provide(ref, ...`
+
+[provide-flag-ref]: #provideref-
+
+Provides the data as a reference instead of as a value. The reference
+must live as long as the error itself.
+
+```rust,ignore
+use snafu::prelude::*;
+
+#[derive(Debug, Snafu)]
+#[snafu(provide(ref, str => name))]
+struct RefFlagExampleError {
+    name: String,
+}
+
+let e = RefFlagExampleSnafu { name: "alice" }.build();
+let e = &e as &dyn std::error::Error;
+
+assert_eq!(Some("alice"), e.request_ref::<str>());
+```
+
+#### `provide(opt, ...`
+
+[provide-flag-opt]: #provideopt-
+
+If the data being provided is an `Option<T>`, the `opt` flag will
+flatten the data, allowing you to request `T` instead of `Option<T>`.
+
+```rust,ignore
+use snafu::prelude::*;
+
+#[derive(Debug, Snafu)]
+#[snafu(provide(opt, char => char::from_u32(*char_code)))]
+struct OptFlagExampleError {
+    char_code: u32,
+}
+
+let e = OptFlagExampleSnafu { char_code: b'x' }.build();
+let e = &e as &dyn std::error::Error;
+
+assert_eq!(Some('x'), e.request_value::<char>());
+```
+
+#### `provide(priority, ...`
+
+[provide-flag-priority]: #providepriority-
+
+The [Provider API][] works by types and can only return one piece of
+data for a type. When there are multiple pieces of data for the same
+type, the one that is provided *first* will be used.
+
+By default, SNAFU provides data from any source error or
+[chained][provide-flag-chain] fields before any data from the current
+error. This means that the *deepest* matching data is returned.
+
+Specifying the `priority` flag will cause that data to take precedence
+over the chained data, resulting in the *shallower* data being
+returned.
+
+```rust,ignore
+use snafu::{prelude::*, IntoError};
+
+#[derive(Debug, PartialEq)]
+struct Fatal(bool);
+
+#[derive(Debug, Snafu)]
+#[snafu(provide(Fatal => Fatal(true)))]
+struct InnerError;
+
+#[derive(Debug, Snafu)]
+#[snafu(provide(priority, Fatal => Fatal(false)))]
+struct PriorityFlagExampleError {
+    source: InnerError,
+}
+
+let e = PriorityFlagExampleSnafu.into_error(InnerError);
+let e = &e as &dyn std::error::Error;
+
+assert_eq!(Some(Fatal(false)), e.request_value::<Fatal>());
+```
+
+#### `provide(chain, ...`
+
+[provide-flag-chain]: #providechain-
+
+If a member of your error implements the [Provider API][] and you'd
+like for its data to be included when providing data for your error,
+but it isn't automatically provided because it's not a source error,
+you may add the `chain` flag. This flag must always be combined with
+the [`ref` flag][provide-flag-ref].
+
+```rust,ignore
+use snafu::prelude::*;
+use std::any;
+
+#[derive(Debug)]
+struct BlobOfData;
+
+impl any::Provider for BlobOfData {
+    fn provide<'a>(&'a self, demand: &mut any::Demand<'a>) {
+        demand.provide_value::<u8>(1);
+    }
+}
+
+#[derive(Debug, Snafu)]
+#[snafu(provide(ref, chain, BlobOfData => data))]
+struct ChainFlagExampleError {
+    data: BlobOfData,
+}
+
+let e = ChainFlagExampleSnafu { data: BlobOfData }.build();
+let e = &e as &dyn std::error::Error;
+
+assert_eq!(Some(1), e.request_value::<u8>());
+```
+
+### API stability concerns
+
+For public errors, it's a good idea to explicitly state your intended
+stability guarantees around provided values. Some consumers may expect
+that if your error type returns data via the provider API in one
+situation, it will continue to do so in future SemVer-compatible
+releases. However, doing so can greatly hinder your ability to
+refactor your code.
+
+Stating your guarantees is especially useful for opaque errors, which
+will expose all the provided data from the inner error type.
+
+[provider API]: https://doc.rust-lang.org/nightly/std/any/index.html#provider-and-demand
+[`request_ref`]: https://doc.rust-lang.org/nightly/std/error/trait.Error.html#method.request_ref
 
 ## Controlling implicitly generated data
 

@@ -552,3 +552,201 @@ where
         demand.provide_value::<T>(self.0);
     }
 }
+
+mod doctests {
+    #[test]
+    fn example_1() {
+        use snafu::prelude::*;
+
+        #[derive(Debug)]
+        struct UserId(u8);
+
+        #[derive(Debug, Snafu)]
+        enum ApiError {
+            Login {
+                #[snafu(provide)]
+                user_id: UserId,
+            },
+
+            Logout {
+                #[snafu(provide)]
+                user_id: UserId,
+            },
+
+            NetworkUnreachable {
+                source: std::io::Error,
+            },
+        }
+
+        let e = LoginSnafu { user_id: UserId(0) }.build();
+        let e = &e as &dyn std::error::Error;
+        match e.request_ref::<UserId>() {
+            // Present when ApiError::Login or ApiError::Logout
+            Some(user_id) => {
+                println!("{user_id:?} experienced an error");
+            }
+            // Absent when ApiError::NetworkUnreachable
+            None => {
+                println!("An error occurred for an unknown user");
+            }
+        }
+    }
+
+    #[test]
+    fn example_2() {
+        use snafu::{prelude::*, IntoError};
+
+        #[derive(Debug)]
+        struct UserId(u8);
+
+        #[derive(Debug, Snafu)]
+        struct InnerError {
+            #[snafu(provide)]
+            user_id: UserId,
+            backtrace: snafu::Backtrace,
+        }
+
+        #[derive(Debug, Snafu)]
+        struct OuterError {
+            source: InnerError,
+        }
+
+        let outer = OuterSnafu.into_error(InnerSnafu { user_id: UserId(0) }.build());
+        let outer = &outer as &dyn std::error::Error;
+
+        // We can get the source error and downcast it at once
+        outer
+            .request_ref::<InnerError>()
+            .expect("Must have a source");
+
+        // We can get the deepest backtrace
+        outer
+            .request_ref::<snafu::Backtrace>()
+            .expect("Must have a backtrace");
+
+        // We can get arbitrary values from sources as well
+        outer.request_ref::<UserId>().expect("Must have a user id");
+    }
+
+    #[test]
+    fn example_3() {
+        use snafu::prelude::*;
+
+        #[derive(Debug, PartialEq)]
+        struct HttpCode(u16);
+
+        const HTTP_NOT_FOUND: HttpCode = HttpCode(404);
+
+        #[derive(Debug, Snafu)]
+        #[snafu(provide(HttpCode => HTTP_NOT_FOUND))]
+        struct WebserverError;
+
+        let e = WebserverError;
+        let e = &e as &dyn std::error::Error;
+        assert_eq!(Some(HTTP_NOT_FOUND), e.request_value::<HttpCode>());
+    }
+
+    #[test]
+    fn example_4() {
+        use snafu::prelude::*;
+
+        #[derive(Debug, PartialEq)]
+        struct Summation(u8);
+
+        #[derive(Debug, Snafu)]
+        #[snafu(provide(Summation => Summation(left_side + right_side)))]
+        struct AdditionError {
+            left_side: u8,
+            right_side: u8,
+        }
+
+        let e = AdditionSnafu {
+            left_side: 1,
+            right_side: 2,
+        }
+        .build();
+        let e = &e as &dyn std::error::Error;
+        assert_eq!(Some(Summation(3)), e.request_value::<Summation>());
+    }
+
+    #[test]
+    fn example_5() {
+        use snafu::prelude::*;
+
+        #[derive(Debug, Snafu)]
+        #[snafu(provide(ref, str => name))]
+        struct RefFlagExampleError {
+            name: String,
+        }
+
+        let e = RefFlagExampleSnafu { name: "alice" }.build();
+        let e = &e as &dyn std::error::Error;
+
+        assert_eq!(Some("alice"), e.request_ref::<str>());
+    }
+
+    #[test]
+    fn example_6() {
+        use snafu::prelude::*;
+
+        #[derive(Debug, Snafu)]
+        #[snafu(provide(opt, char => char::from_u32(*char_code)))]
+        struct OptFlagExampleError {
+            char_code: u32,
+        }
+
+        let e = OptFlagExampleSnafu { char_code: b'x' }.build();
+        let e = &e as &dyn std::error::Error;
+
+        assert_eq!(Some('x'), e.request_value::<char>());
+    }
+
+    #[test]
+    fn example_7() {
+        use snafu::{prelude::*, IntoError};
+
+        #[derive(Debug, PartialEq)]
+        struct Fatal(bool);
+
+        #[derive(Debug, Snafu)]
+        #[snafu(provide(Fatal => Fatal(true)))]
+        struct InnerError;
+
+        #[derive(Debug, Snafu)]
+        #[snafu(provide(priority, Fatal => Fatal(false)))]
+        struct PriorityFlagExampleError {
+            source: InnerError,
+        }
+
+        let e = PriorityFlagExampleSnafu.into_error(InnerError);
+        let e = &e as &dyn std::error::Error;
+
+        assert_eq!(Some(Fatal(false)), e.request_value::<Fatal>());
+    }
+
+    #[test]
+    fn example_8() {
+        use snafu::prelude::*;
+        use std::any;
+
+        #[derive(Debug)]
+        struct BlobOfData;
+
+        impl any::Provider for BlobOfData {
+            fn provide<'a>(&'a self, demand: &mut any::Demand<'a>) {
+                demand.provide_value::<u8>(1);
+            }
+        }
+
+        #[derive(Debug, Snafu)]
+        #[snafu(provide(ref, chain, BlobOfData => data))]
+        struct ChainFlagExampleError {
+            data: BlobOfData,
+        }
+
+        let e = ChainFlagExampleSnafu { data: BlobOfData }.build();
+        let e = &e as &dyn std::error::Error;
+
+        assert_eq!(Some(1), e.request_value::<u8>());
+    }
+}
