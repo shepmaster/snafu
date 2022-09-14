@@ -1,5 +1,6 @@
-/// Backported version of the [`Chain`](std::error::Chain) struct,
-/// to versions of Rust lacking it.
+/// An iterator over an Error and its sources.
+///
+/// If you want to omit the initial error and only process its sources, use `skip(1)`.
 ///
 /// Can be created via [`ErrorCompat::iter_chain`][crate::ErrorCompat::iter_chain].
 pub struct ChainCompat<'a> {
