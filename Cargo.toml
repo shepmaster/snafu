@@ -30,6 +30,9 @@ default = ["std", "rust_1_46"]
 # Implement the `std::error::Error` trait.
 std = []
 
+# Implement the `core::error::Error` trait.
+unstable-core-error = []
+
 # Add support for `#[track_caller]`
 rust_1_46 = ["snafu-derive/rust_1_46"]
 

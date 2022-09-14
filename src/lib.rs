@@ -1,6 +1,7 @@
 #![deny(missing_docs)]
 #![cfg_attr(not(any(feature = "std", test)), no_std)]
 #![cfg_attr(feature = "unstable-backtraces-impl-std", feature(backtrace))]
+#![cfg_attr(feature = "unstable-core-error", feature(error_in_core))]
 
 //! # SNAFU
 //!
@@ -321,13 +322,17 @@ generate_guide! {
 
 doc_comment::doctest!("../README.md", readme_tests);
 
-#[cfg(any(feature = "std", test))]
+#[cfg(feature = "unstable-core-error")]
+#[doc(hidden)]
+pub use core::error::Error;
+
+#[cfg(all(not(feature = "unstable-core-error"), any(feature = "std", test)))]
 #[doc(hidden)]
 pub use std::error::Error;
 
-#[cfg(not(any(feature = "std", test)))]
+#[cfg(not(any(feature = "unstable-core-error", feature = "std", test)))]
 mod no_std_error;
-#[cfg(not(any(feature = "std", test)))]
+#[cfg(not(any(feature = "unstable-core-error", feature = "std", test)))]
 #[doc(hidden)]
 pub use no_std_error::Error;
 
