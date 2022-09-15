@@ -9,10 +9,11 @@ Once you've got a high-level idea of what SNAFU can do by looking at
 the [quick example](crate) and some [more examples](guide::examples),
 take a peek at [our design philosophy](guide::philosophy).
 
-For more advanced usage, take a deeper dive into [how the `Snafu`
-macro works](guide::the_macro), how to create [opaque error
-types](guide::opaque), how to create [error structs](guide::structs),
-how to use [generic types and lifetimes](guide::generics).
+For more advanced usage, take a deeper dive into [what the `Snafu`
+macro generates](guide::what_code_is_generated), how to create [opaque
+error types](guide::opaque), how to create [error
+structs](guide::structs), and how to use [generic types and
+lifetimes](guide::generics).
 
 For optional features of the crate, see our [list of feature
 flags](guide::feature_flags).

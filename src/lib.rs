@@ -9,6 +9,9 @@
 //! to underlying errors, especially when the same underlying error
 //! type can occur in different contexts.
 //!
+//! For detailed information, please see the [`Snafu`][] macro and the
+//! [user's guide](guide).
+//!
 //! ## Features
 //!
 //! - [Turnkey errors based on strings](Whatever)
@@ -23,8 +26,6 @@
 //! - Suitable for libraries and applications
 //! - `no_std` compatibility
 //! - Generic types and lifetimes
-//!
-//! For detailed information, please see the [user's guide](guide).
 //!
 //! ## Quick start
 //!
@@ -195,6 +196,12 @@
 //! You may wish to make the type `Send` and/or `Sync`, allowing
 //! your error type to be used in multithreaded programs, by changing
 //! `dyn std::error::Error` to `dyn std::error::Error + Send + Sync`.
+//!
+//! ## Next steps
+//!
+//! Read the documentation for the [`Snafu`][] macro to see all of the
+//! capabilities, then read the [user's guide](guide) for deeper
+//! understanding.
 
 use core::fmt;
 
@@ -310,7 +317,7 @@ generate_guide! {
         pub mod opaque;
         pub mod philosophy;
         pub mod structs;
-        pub mod the_macro;
+        pub mod what_code_is_generated;
         pub mod troubleshooting {
             pub mod missing_field_source;
         }
