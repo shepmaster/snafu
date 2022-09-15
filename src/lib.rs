@@ -316,7 +316,7 @@ generate_guide! {
         pub mod opaque;
         pub mod philosophy;
         pub mod structs;
-        pub mod the_macro;
+        pub mod what_code_is_generated;
         pub mod troubleshooting {
             pub mod missing_field_source;
         }

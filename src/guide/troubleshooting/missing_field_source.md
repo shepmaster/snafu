@@ -89,7 +89,8 @@ struct IOConfigSnafu<P> {
 // Some impls for the IOConfigError struct
 ```
 
-See [the macro section](guide::the_macro) of the guide for more details.
+See [what the `Snafu` macro generates
+section](guide::what_code_is_generated) of the guide for more details.
 
 When you use `ProjectError::IOConfigError`, you're referencing the
 enum variant, not the struct that you need. Replacing
