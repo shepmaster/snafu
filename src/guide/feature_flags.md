@@ -5,6 +5,7 @@ there are Cargo [feature flags] that extend SNAFU for various use
 cases:
 
 - [`std`](#std)
+- [`unstable-core-error`](#unstable-core-error)
 - [`guide`](#guide)
 - [`backtraces`](#backtraces)
 - [`backtraces-impl-backtrace-crate`](#backtraces-impl-backtrace-crate)
@@ -22,7 +23,16 @@ When enabled, SNAFU will implement the `std::error::Error` trait. When
 disabled, SNAFU will instead implement a custom `Error` trait that is
 similar, but does not need any features from the standard library.
 
+See also [`unstable-core-error`](#unstable-core-error).
+
 Most usages of SNAFU will want this feature enabled.
+
+## `unstable-core-error`
+
+**default**: disabled
+
+When enabled, SNAFU will implement the `core::error::Error` trait,
+even when the `std` feature flag is also enabled.
 
 ## `guide`
 

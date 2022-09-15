@@ -90,9 +90,25 @@ no_std_test_task:
     fingerprint_script: cat Cargo.toml
   setup_script:
     - rustup target add thumbv6m-none-eabi
-  primary_test_script:
+  our_error_test_script:
     - rustc --version
     - cargo build --no-default-features --target thumbv6m-none-eabi
+  before_cache_script: rm -rf $CARGO_HOME/registry/index
+
+no_std_test_task:
+  name: "Rust Nightly (no_std)"
+  container:
+    image: rustlang/rust:nightly
+    cpu: 1
+    memory: 2Gi
+  cargo_cache:
+    folder: $CARGO_HOME/registry
+    fingerprint_script: cat Cargo.toml
+  setup_script:
+    - rustup target add thumbv6m-none-eabi --toolchain nightly
+  core_error_test_script:
+    - rustc --version
+    - cargo +nightly build --no-default-features --features=unstable-core-error --target thumbv6m-none-eabi
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
 nightly_test_task:
