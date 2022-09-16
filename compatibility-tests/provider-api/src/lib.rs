@@ -473,6 +473,25 @@ fn opaque_errors_can_chain_provided() {
     assert_eq!(inner, Some(99));
 }
 
+#[test]
+fn whatever_errors_provide_the_source_error() {
+    #[derive(Debug, Snafu)]
+    struct InnerError;
+
+    fn make() -> Result<(), snafu::Whatever> {
+        whatever!(Err(InnerError), "big boom");
+        Ok(())
+    }
+
+    let e = make().unwrap_err();
+    let e = &e as &dyn snafu::Error;
+    let inner = e.request_ref::<dyn snafu::Error>();
+
+    let inner = inner.map(ToString::to_string);
+    let inner = inner.as_deref();
+    assert_eq!(inner, Some("InnerError"));
+}
+
 #[derive(Debug, PartialEq)]
 struct SomeImplicitData<const V: u8>(u8);
 
