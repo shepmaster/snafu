@@ -1,5 +1,5 @@
 error: expected boolean literal or `from`
-  --> $DIR/attribute-unparseable.rs:12:24
+  --> tests/ui/attribute-unparseable.rs:12:24
    |
 12 |         #[snafu(source(5))]
    |                        ^

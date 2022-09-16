@@ -1,11 +1,11 @@
 error[E0603]: module `error` is private
-  --> $DIR/module-visibility.rs:16:21
+  --> tests/ui/module-visibility.rs:16:21
    |
 16 |     let _ = inside::error::VariantSnafu;
    |                     ^^^^^ private module
    |
 note: the module `error` is defined here
-  --> $DIR/module-visibility.rs:4:21
+  --> tests/ui/module-visibility.rs:4:21
    |
 4  |     #[derive(Debug, Snafu)]
    |                     ^^^^^

@@ -1,17 +1,17 @@
 error: Context selectors without context must not have context fields
-  --> $DIR/no_context.rs:13:39
+  --> tests/ui/no_context.rs:13:39
    |
 13 |     HasUserFields { source: BoxError, a: i32, b: i32 },
    |                                       ^^^^^^
 
 error: Context selectors without context must not have context fields
-  --> $DIR/no_context.rs:13:47
+  --> tests/ui/no_context.rs:13:47
    |
 13 |     HasUserFields { source: BoxError, a: i32, b: i32 },
    |                                               ^^^^^^
 
 error: Context selectors without context must have a source field
-  --> $DIR/no_context.rs:10:5
+  --> tests/ui/no_context.rs:10:5
    |
 10 |     MissingSource {},
    |     ^^^^^^^^^^^^^

@@ -1,5 +1,5 @@
 error: Multiple `source` attributes are not supported within an enum variant
-  --> $DIR/duplication-source-attributes.rs:10:17
+  --> tests/ui/duplication-source-attributes.rs:10:17
    |
 10 |         #[snafu(source)]
    |                 ^^^^^^

@@ -1,18 +1,18 @@
 error[E0603]: unit struct `Snafu` is private
-  --> $DIR/visibility.rs:11:20
+  --> tests/ui/structs/visibility.rs:11:20
    |
 11 |     let _ = inner::Snafu.build();
    |                    ^^^^^ private unit struct
    |
 note: the unit struct `Snafu` is defined here
-  --> $DIR/visibility.rs:6:21
+  --> tests/ui/structs/visibility.rs:6:21
    |
 6  |     #[derive(Debug, Snafu)]
    |                     ^^^^^
    = note: this error originates in the derive macro `Snafu` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0624]: associated function `build` is private
-  --> $DIR/visibility.rs:11:26
+  --> tests/ui/structs/visibility.rs:11:26
    |
 6  |     #[derive(Debug, Snafu)]
    |                     ----- private associated function defined here

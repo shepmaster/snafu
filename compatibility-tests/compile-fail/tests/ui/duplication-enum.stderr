@@ -1,5 +1,5 @@
 error: Multiple `visibility` attributes are not supported on an enum
- --> $DIR/duplication-enum.rs:5:9
+ --> tests/ui/duplication-enum.rs:5:9
   |
 5 | #[snafu(visibility(pub))]
   |         ^^^^^^^^^^^^^^^

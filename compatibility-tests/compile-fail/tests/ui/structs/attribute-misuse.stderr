@@ -1,35 +1,35 @@
 error: expected one of: `backtrace`, `context`, `crate_root`, `display`, `implicit`, `module`, `source`, `visibility`, `whatever`
- --> $DIR/attribute-misuse.rs:5:13
+ --> tests/ui/structs/attribute-misuse.rs:5:13
   |
 5 |     #[snafu(unknown_attribute)]
   |             ^^^^^^^^^^^^^^^^^
 
 error: `source` attribute is only valid on enum variant or struct fields with a name, not on a named struct
-  --> $DIR/attribute-misuse.rs:13:13
+  --> tests/ui/structs/attribute-misuse.rs:13:13
    |
 13 |     #[snafu(source(true))]
    |             ^^^^^^^^^^^^
 
 error: `backtrace` attribute is only valid on enum variant or struct fields with a name, not on a named struct
-  --> $DIR/attribute-misuse.rs:14:13
+  --> tests/ui/structs/attribute-misuse.rs:14:13
    |
 14 |     #[snafu(backtrace)]
    |             ^^^^^^^^^
 
 error: `display` attribute is only valid on enum variants or structs with named fields, not on a field
-  --> $DIR/attribute-misuse.rs:23:17
+  --> tests/ui/structs/attribute-misuse.rs:23:17
    |
 23 |         #[snafu(display("display should not work here"))]
    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: `visibility` attribute is only valid on an enum, enum variants, or a struct with named fields, not on a field
-  --> $DIR/attribute-misuse.rs:24:17
+  --> tests/ui/structs/attribute-misuse.rs:24:17
    |
 24 |         #[snafu(visibility(pub))]
    |                 ^^^^^^^^^^^^^^^
 
 error: `context` attribute is only valid on enum variants or structs with named fields, not on a field
-  --> $DIR/attribute-misuse.rs:25:17
+  --> tests/ui/structs/attribute-misuse.rs:25:17
    |
 25 |         #[snafu(context)]
    |                 ^^^^^^^

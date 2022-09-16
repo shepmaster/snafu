@@ -1,5 +1,5 @@
 error: Multiple `backtrace` attributes are not supported within an enum variant
-  --> $DIR/duplication-backtrace-fields.rs:10:17
+  --> tests/ui/duplication-backtrace-fields.rs:10:17
    |
 10 |         #[snafu(backtrace)]
    |                 ^^^^^^^^^
