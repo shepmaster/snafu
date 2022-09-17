@@ -492,6 +492,24 @@ fn whatever_errors_provide_the_source_error() {
     assert_eq!(inner, Some("InnerError"));
 }
 
+#[test]
+fn whatever_errors_chain_to_the_source_error() {
+    #[derive(Debug, Snafu)]
+    #[snafu(provide(u8 => 0))]
+    struct InnerError;
+
+    fn make() -> Result<(), snafu::Whatever> {
+        whatever!(Err(InnerError), "big boom");
+        Ok(())
+    }
+
+    let e = make().unwrap_err();
+    let e = &e as &dyn snafu::Error;
+    let inner = e.request_value::<u8>();
+
+    assert_eq!(inner, Some(0));
+}
+
 #[derive(Debug, PartialEq)]
 struct SomeImplicitData<const V: u8>(u8);
 
