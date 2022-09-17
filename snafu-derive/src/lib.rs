@@ -865,7 +865,7 @@ fn field_container(
                 Att::Provide(tokens, ProvideKind::Flag(v)) => {
                     if v {
                         provide_attrs.add((), tokens);
-                    } else if is_implicit_source(name) {
+                    } else if is_implicit_provide(name) {
                         provide_opt_out = true;
                     } else {
                         field_errors.add(tokens, ATTR_PROVIDE_FALSE)
@@ -898,7 +898,7 @@ fn field_container(
         let field = Field {
             name: name.clone(),
             ty: syn_field.ty.clone(),
-            provide: provide_attr.is_some() || (is_implicit_source(&name) && !provide_opt_out),
+            provide: provide_attr.is_some() || (is_implicit_provide(&name) && !provide_opt_out),
             original,
         };
 
@@ -1093,6 +1093,10 @@ fn is_implicit_message(name: &proc_macro2::Ident) -> bool {
 
 fn is_implicit_location(name: &proc_macro2::Ident) -> bool {
     name == IMPLICIT_LOCATION_FIELD_NAME
+}
+
+fn is_implicit_provide(name: &proc_macro2::Ident) -> bool {
+    is_implicit_source(name) || is_implicit_backtrace(name)
 }
 
 fn parse_snafu_struct(

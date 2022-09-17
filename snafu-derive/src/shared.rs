@@ -778,7 +778,12 @@ pub mod error {
                 quote! { #PROVIDE_ARG.provide_ref::<#ty>(#name) }
             });
 
-            let provide_backtrace = field_container.backtrace_field.as_ref().map(|f| {
+            let provided_backtrace = field_container
+                .backtrace_field
+                .as_ref()
+                .filter(|f| f.provide);
+
+            let provide_backtrace = provided_backtrace.map(|f| {
                 let name = f.name();
                 quote! {
                     if #PROVIDE_ARG.would_be_satisfied_by_ref_of::<#crate_root::Backtrace>() {

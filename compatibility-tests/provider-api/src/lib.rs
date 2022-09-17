@@ -191,6 +191,24 @@ fn sources_are_automatically_provided() {
 }
 
 #[test]
+fn sources_can_be_not_automatically_provided() {
+    #[derive(Debug, Snafu, PartialEq)]
+    struct InnerError;
+
+    #[derive(Debug, Snafu)]
+    struct WithSourceError {
+        #[snafu(provide(false))]
+        source: InnerError,
+    }
+
+    let e = WithSourceSnafu.into_error(InnerError);
+    let e = &e as &dyn snafu::Error;
+    let inner = e.request_ref::<InnerError>();
+
+    assert_eq!(inner, None);
+}
+
+#[test]
 fn sources_provided_values_are_chained() {
     #[derive(Debug, Snafu)]
     #[snafu(provide(&'static str => "inner"))]
@@ -240,6 +258,21 @@ fn backtraces_are_automatically_provided() {
     let bt = e.request_ref::<Backtrace>();
 
     assert!(bt.is_some(), "was {bt:?}");
+}
+
+#[test]
+fn backtraces_can_be_not_automatically_provided() {
+    #[derive(Debug, Snafu)]
+    struct WithBacktraceError {
+        #[snafu(provide(false))]
+        backtrace: Backtrace,
+    }
+
+    let e = WithBacktraceSnafu.build();
+    let e = &e as &dyn snafu::Error;
+    let bt = e.request_ref::<Backtrace>();
+
+    assert!(bt.is_none(), "was {bt:?}");
 }
 
 #[test]
