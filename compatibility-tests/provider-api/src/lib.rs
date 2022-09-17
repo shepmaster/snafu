@@ -2,6 +2,7 @@
 #![feature(error_generic_member_access, provide_any)]
 
 use snafu::{prelude::*, Backtrace, IntoError};
+use std::any;
 
 #[test]
 fn provide_shorthand_on_fields_returns_a_reference() {
@@ -321,6 +322,29 @@ fn backtraces_pick_deepest_by_default() {
 }
 
 #[test]
+fn can_chain_to_arbitrary_fields() {
+    #[derive(Debug, Snafu)]
+    #[snafu(provide(ref, chain, SomeProvidedData<u8> => lhs))]
+    #[snafu(provide(ref, chain, SomeProvidedData<bool> => rhs))]
+    struct ErrorWithChildren {
+        lhs: SomeProvidedData<u8>,
+        rhs: SomeProvidedData<bool>,
+    }
+
+    let e = ErrorWithChildren {
+        lhs: SomeProvidedData(99),
+        rhs: SomeProvidedData(false),
+    };
+    let e = &e as &dyn snafu::Error;
+
+    let lhs = e.request_value::<u8>();
+    assert_eq!(lhs, Some(99));
+
+    let rhs = e.request_value::<bool>();
+    assert_eq!(rhs, Some(false));
+}
+
+#[test]
 fn order_of_flags_does_not_matter() {
     #[derive(Debug, Snafu)]
     #[snafu(provide(ref, opt, u8 => alpha.as_ref()))]
@@ -405,5 +429,17 @@ impl snafu::GenerateImplicitData for SomeBacktrace {
 impl snafu::AsBacktrace for SomeBacktrace {
     fn as_backtrace(&self) -> Option<&Backtrace> {
         Some(&self.backtrace)
+    }
+}
+
+#[derive(Debug, PartialEq)]
+struct SomeProvidedData<T>(T);
+
+impl<T> any::Provider for SomeProvidedData<T>
+where
+    T: Copy + 'static,
+{
+    fn provide(&self, demand: &mut any::Demand<'_>) {
+        demand.provide_value::<T>(self.0);
     }
 }

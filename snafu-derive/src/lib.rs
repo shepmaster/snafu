@@ -68,9 +68,10 @@ impl FieldContainer {
 }
 
 struct Provide {
-    is_ref: bool,
+    is_chain: bool,
     is_opt: bool,
     is_priority: bool,
+    is_ref: bool,
     ty: syn::Type,
     expr: syn::Expr,
 }

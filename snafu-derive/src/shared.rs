@@ -725,6 +725,17 @@ pub mod error {
                 }
             });
 
+            let user_chained = provides.iter().filter(|p| p.is_chain).map(|p| {
+                let e = &p.expr;
+                quote! {
+                    match #e {
+                        chained_item => {
+                            ::core::any::Provider::provide(chained_item, #PROVIDE_ARG);
+                        }
+                    }
+                }
+            });
+
             let shorthand_calls = provide_refs.map(|(ty, name)| {
                 quote! { #PROVIDE_ARG.provide_ref::<#ty>(#name) }
             });
@@ -749,6 +760,7 @@ pub mod error {
                 #pattern_ident { #(ref #field_names,)* .. } => {
                     #(#hi_explicit_calls;)*
                     #source_chain;
+                    #(#user_chained;)*
                     #provide_backtrace;
                     #(#shorthand_calls;)*
                     #(#lo_explicit_calls;)*
@@ -766,9 +778,10 @@ pub mod error {
     {
         provides.into_iter().map(|p| {
             let Provide {
-                is_ref,
+                is_chain: _,
                 is_opt,
                 is_priority: _,
+                is_ref,
                 ty,
                 expr,
             } = p;
