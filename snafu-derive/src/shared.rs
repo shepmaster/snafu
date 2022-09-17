@@ -726,12 +726,16 @@ pub mod error {
             });
 
             let user_chained = provides.iter().filter(|p| p.is_chain).map(|p| {
+                let arm = if p.is_opt {
+                    quote! { ::core::option::Option::Some(chained_item) }
+                } else {
+                    quote! { chained_item }
+                };
                 let e = &p.expr;
+
                 quote! {
-                    match #e {
-                        chained_item => {
-                            ::core::any::Provider::provide(chained_item, #PROVIDE_ARG);
-                        }
+                    if let #arm = #e {
+                        ::core::any::Provider::provide(chained_item, #PROVIDE_ARG);
                     }
                 }
             });

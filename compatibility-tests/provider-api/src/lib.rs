@@ -345,6 +345,29 @@ fn can_chain_to_arbitrary_fields() {
 }
 
 #[test]
+fn can_chain_to_arbitrary_optional_fields() {
+    #[derive(Debug, Snafu)]
+    #[snafu(provide(ref, opt, chain, SomeProvidedData<u8> => lhs))]
+    #[snafu(provide(ref, opt, chain, SomeProvidedData<bool> => rhs))]
+    struct ErrorWithChildren {
+        lhs: Option<SomeProvidedData<u8>>,
+        rhs: Option<SomeProvidedData<bool>>,
+    }
+
+    let e = ErrorWithChildren {
+        lhs: Some(SomeProvidedData(99)),
+        rhs: Some(SomeProvidedData(false)),
+    };
+    let e = &e as &dyn snafu::Error;
+
+    let lhs = e.request_value::<u8>();
+    assert_eq!(lhs, Some(99));
+
+    let rhs = e.request_value::<bool>();
+    assert_eq!(rhs, Some(false));
+}
+
+#[test]
 fn order_of_flags_does_not_matter() {
     #[derive(Debug, Snafu)]
     #[snafu(provide(ref, opt, u8 => alpha.as_ref()))]
