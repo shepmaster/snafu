@@ -1908,6 +1908,20 @@ impl TupleStructInfo {
             quote! {}
         };
 
+        let provide_fn = if cfg!(feature = "unstable-provider-api") {
+            use shared::error::PROVIDE_ARG;
+
+            Some(quote! {
+                fn provide<'a>(&'a self, #PROVIDE_ARG: &mut core::any::Demand<'a>) {
+                    match self {
+                        Self(v) => v.provide(#PROVIDE_ARG),
+                    };
+                }
+            })
+        } else {
+            None
+        };
+
         let error_impl = quote! {
             #[allow(single_use_lifetimes)]
             impl#generics #crate_root::Error for #parameterized_struct_name
@@ -1918,6 +1932,7 @@ impl TupleStructInfo {
                 #cause_fn
                 #source_fn
                 #std_backtrace_fn
+                #provide_fn
             }
         };
 

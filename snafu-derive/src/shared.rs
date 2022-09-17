@@ -6,7 +6,7 @@ pub(crate) use self::display::{Display, DisplayMatchArm};
 pub(crate) use self::error::{Error, ErrorProvideMatchArm, ErrorSourceMatchArm};
 pub(crate) use self::error_compat::{ErrorCompat, ErrorCompatBacktraceMatchArm};
 
-struct StaticIdent(&'static str);
+pub(crate) struct StaticIdent(&'static str);
 
 impl quote::ToTokens for StaticIdent {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
@@ -538,7 +538,7 @@ pub mod error {
     use proc_macro2::TokenStream;
     use quote::{quote, ToTokens};
 
-    const PROVIDE_ARG: StaticIdent = StaticIdent("__snafu_provide_demand");
+    pub(crate) const PROVIDE_ARG: StaticIdent = StaticIdent("__snafu_provide_demand");
 
     pub(crate) struct Error<'a> {
         pub(crate) crate_root: &'a dyn ToTokens,
