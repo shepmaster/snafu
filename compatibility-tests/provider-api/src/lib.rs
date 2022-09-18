@@ -276,6 +276,20 @@ fn backtraces_can_be_not_automatically_provided() {
 }
 
 #[test]
+fn backtraces_support_conversion_via_as_backtrace() {
+    #[derive(Debug, Snafu)]
+    struct AsBacktraceError {
+        backtrace: SomeBacktrace,
+    }
+
+    let e = AsBacktraceSnafu.build();
+    let e = &e as &dyn snafu::Error;
+    let bt = e.request_ref::<Backtrace>();
+
+    assert!(bt.is_some(), "was {bt:?}");
+}
+
+#[test]
 fn order_of_flags_does_not_matter() {
     #[derive(Debug, Snafu)]
     #[snafu(provide(ref, opt, u8 => alpha.as_ref()))]
@@ -305,5 +319,20 @@ struct SomeImplicitData<const V: u8>(u8);
 impl<const V: u8> snafu::GenerateImplicitData for SomeImplicitData<V> {
     fn generate() -> Self {
         Self(V)
+    }
+}
+
+#[derive(Debug)]
+struct SomeBacktrace(Backtrace);
+
+impl snafu::GenerateImplicitData for SomeBacktrace {
+    fn generate() -> Self {
+        Self(Backtrace::generate())
+    }
+}
+
+impl snafu::AsBacktrace for SomeBacktrace {
+    fn as_backtrace(&self) -> Option<&Backtrace> {
+        Some(&self.0)
     }
 }
