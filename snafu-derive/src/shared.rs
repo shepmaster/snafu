@@ -797,8 +797,8 @@ pub mod error {
             let arm = quote! {
                 #pattern_ident { #(ref #field_names,)* .. } => {
                     #(#hi_explicit_calls;)*
-                    #provide_backtrace;
                     #source_chain;
+                    #provide_backtrace;
                     #(#shorthand_calls;)*
                     #(#lo_explicit_calls;)*
                 }

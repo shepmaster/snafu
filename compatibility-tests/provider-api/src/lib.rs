@@ -290,6 +290,37 @@ fn backtraces_support_conversion_via_as_backtrace() {
 }
 
 #[test]
+fn backtraces_pick_deepest_by_default() {
+    #[derive(Debug, Snafu)]
+    struct InnerError {
+        backtrace: SomeBacktrace,
+    }
+
+    #[derive(Debug, Snafu)]
+    struct OuterError {
+        source: InnerError,
+        backtrace: SomeBacktrace,
+    }
+
+    let e = OuterSnafu.into_error(InnerSnafu.build());
+    let outer_bt = &e.backtrace.backtrace;
+    let inner_bt = &e.source.backtrace.backtrace;
+
+    let e = &e as &dyn snafu::Error;
+    let provided_bt = e.request_ref::<Backtrace>().unwrap();
+
+    assert!(
+        std::ptr::eq(inner_bt, provided_bt),
+        "Inner backtrace was {inner_bt:p}, but provided was {provided_bt:p}",
+    );
+
+    assert!(
+        !std::ptr::eq(outer_bt, provided_bt),
+        "Outer backtrace was {outer_bt:p}, but provided was {provided_bt:p}",
+    );
+}
+
+#[test]
 fn order_of_flags_does_not_matter() {
     #[derive(Debug, Snafu)]
     #[snafu(provide(ref, opt, u8 => alpha.as_ref()))]
@@ -323,16 +354,23 @@ impl<const V: u8> snafu::GenerateImplicitData for SomeImplicitData<V> {
 }
 
 #[derive(Debug)]
-struct SomeBacktrace(Backtrace);
+struct SomeBacktrace {
+    // Exists only to make this type a non-ZST
+    _dummy: u8,
+    backtrace: Backtrace,
+}
 
 impl snafu::GenerateImplicitData for SomeBacktrace {
     fn generate() -> Self {
-        Self(Backtrace::generate())
+        Self {
+            _dummy: 1,
+            backtrace: Backtrace::generate(),
+        }
     }
 }
 
 impl snafu::AsBacktrace for SomeBacktrace {
     fn as_backtrace(&self) -> Option<&Backtrace> {
-        Some(&self.0)
+        Some(&self.backtrace)
     }
 }
