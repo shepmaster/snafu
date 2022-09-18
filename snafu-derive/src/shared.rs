@@ -536,7 +536,7 @@ pub mod error {
     use super::StaticIdent;
     use crate::{FieldContainer, Provide, SourceField};
     use proc_macro2::TokenStream;
-    use quote::{quote, ToTokens};
+    use quote::{format_ident, quote, ToTokens};
 
     pub(crate) const PROVIDE_ARG: StaticIdent = StaticIdent("__snafu_provide_demand");
 
@@ -677,6 +677,11 @@ pub mod error {
         }
     }
 
+    pub(crate) struct ProvidePlus<'a> {
+        provide: &'a Provide,
+        cached_name: proc_macro2::Ident,
+    }
+
     pub(crate) struct ErrorProvideMatchArm<'a> {
         pub(crate) crate_root: &'a dyn ToTokens,
         pub(crate) field_container: &'a FieldContainer,
@@ -692,10 +697,12 @@ pub mod error {
             } = *self;
 
             let user_fields = field_container.user_fields();
-            let provides = field_container.provides();
+            let provides = enhance_provider_list(field_container.provides());
             let field_names = super::AllFieldNames(field_container).field_names();
 
-            let (hi_explicit_calls, lo_explicit_calls) = build_explicit_provide_calls(provides);
+            let (hi_explicit_calls, lo_explicit_calls) = build_explicit_provide_calls(&provides);
+
+            let cached_expressions = quote_cached_expressions(&provides);
 
             let provide_refs = user_fields
                 .iter()
@@ -725,20 +732,7 @@ pub mod error {
                 }
             });
 
-            let user_chained = provides.iter().filter(|p| p.is_chain).map(|p| {
-                let arm = if p.is_opt {
-                    quote! { ::core::option::Option::Some(chained_item) }
-                } else {
-                    quote! { chained_item }
-                };
-                let e = &p.expr;
-
-                quote! {
-                    if let #arm = #e {
-                        ::core::any::Provider::provide(chained_item, #PROVIDE_ARG);
-                    }
-                }
-            });
+            let user_chained = quote_chained(&provides);
 
             let shorthand_calls = provide_refs.map(|(ty, name)| {
                 quote! { #PROVIDE_ARG.provide_ref::<#ty>(#name) }
@@ -762,6 +756,7 @@ pub mod error {
 
             let arm = quote! {
                 #pattern_ident { #(ref #field_names,)* .. } => {
+                    #(#cached_expressions;)*
                     #(#hi_explicit_calls;)*
                     #source_chain;
                     #(#user_chained;)*
@@ -775,26 +770,82 @@ pub mod error {
         }
     }
 
+    pub(crate) fn enhance_provider_list<'a>(provides: &'a [Provide]) -> Vec<ProvidePlus<'a>> {
+        provides
+            .iter()
+            .enumerate()
+            .map(|(i, provide)| {
+                let cached_name = format_ident!("__snafu_cached_expr_{}", i);
+                ProvidePlus {
+                    provide,
+                    cached_name,
+                }
+            })
+            .collect()
+    }
+
+    fn quote_cached_expressions<'a>(
+        provides: &'a [ProvidePlus<'a>],
+    ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
+        provides.iter().filter(|pp| pp.provide.is_chain).map(|pp| {
+            let cached_name = &pp.cached_name;
+            let expr = &pp.provide.expr;
+
+            quote! {
+                let #cached_name = #expr;
+            }
+        })
+    }
+
+    fn quote_chained<'a>(
+        provides: &'a [ProvidePlus<'a>],
+    ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
+        provides.iter().filter(|pp| pp.provide.is_chain).map(|pp| {
+            let arm = if pp.provide.is_opt {
+                quote! { ::core::option::Option::Some(chained_item) }
+            } else {
+                quote! { chained_item }
+            };
+            let cached_name = &pp.cached_name;
+
+            quote! {
+                if let #arm = #cached_name {
+                    ::core::any::Provider::provide(chained_item, #PROVIDE_ARG);
+                }
+            }
+        })
+    }
+
     fn quote_provides<'a, I>(provides: I) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a
     where
-        I: IntoIterator<Item = &'a Provide>,
+        I: IntoIterator<Item = &'a ProvidePlus<'a>>,
         I::IntoIter: 'a,
     {
-        provides.into_iter().map(|p| {
-            let Provide {
-                is_chain: _,
-                is_opt,
-                is_priority: _,
-                is_ref,
-                ty,
-                expr,
-            } = p;
+        provides.into_iter().map(|pp| {
+            let ProvidePlus {
+                provide:
+                    Provide {
+                        is_chain,
+                        is_opt,
+                        is_priority: _,
+                        is_ref,
+                        ty,
+                        expr,
+                    },
+                cached_name,
+            } = pp;
+
+            let effective_expr = if *is_chain {
+                quote! { #cached_name }
+            } else {
+                quote! { #expr }
+            };
 
             match (is_opt, is_ref) {
                 (true, true) => {
                     quote! {
                         if #PROVIDE_ARG.would_be_satisfied_by_ref_of::<#ty>() {
-                            if let ::core::option::Option::Some(v) = #expr {
+                            if let ::core::option::Option::Some(v) = #effective_expr {
                                 #PROVIDE_ARG.provide_ref::<#ty>(v);
                             }
                         }
@@ -803,30 +854,30 @@ pub mod error {
                 (true, false) => {
                     quote! {
                         if #PROVIDE_ARG.would_be_satisfied_by_value_of::<#ty>() {
-                            if let ::core::option::Option::Some(v) = #expr {
+                            if let ::core::option::Option::Some(v) = #effective_expr {
                                 #PROVIDE_ARG.provide_value::<#ty>(v);
                             }
                         }
                     }
                 }
                 (false, true) => {
-                    quote! { #PROVIDE_ARG.provide_ref_with::<#ty>(|| #expr) }
+                    quote! { #PROVIDE_ARG.provide_ref_with::<#ty>(|| #effective_expr) }
                 }
                 (false, false) => {
-                    quote! { #PROVIDE_ARG.provide_value_with::<#ty>(|| #expr) }
+                    quote! { #PROVIDE_ARG.provide_value_with::<#ty>(|| #effective_expr) }
                 }
             }
         })
     }
 
-    pub(crate) fn build_explicit_provide_calls(
-        provides: &[Provide],
+    pub(crate) fn build_explicit_provide_calls<'a>(
+        provides: &'a [ProvidePlus<'a>],
     ) -> (
-        impl Iterator<Item = TokenStream> + '_,
-        impl Iterator<Item = TokenStream> + '_,
+        impl Iterator<Item = TokenStream> + 'a,
+        impl Iterator<Item = TokenStream> + 'a,
     ) {
         let (high_priority, low_priority): (Vec<_>, Vec<_>) =
-            provides.iter().partition(|p| p.is_priority);
+            provides.iter().partition(|pp| pp.provide.is_priority);
 
         let hi_explicit_calls = quote_provides(high_priority);
         let lo_explicit_calls = quote_provides(low_priority);

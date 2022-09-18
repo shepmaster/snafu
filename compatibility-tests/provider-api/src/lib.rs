@@ -368,6 +368,32 @@ fn can_chain_to_arbitrary_optional_fields() {
 }
 
 #[test]
+fn chaining_to_arbitrary_fields_evaluated_once() {
+    use std::sync::atomic::{AtomicU8, Ordering};
+
+    static COUNT: AtomicU8 = AtomicU8::new(0);
+
+    fn inc() {
+        COUNT.fetch_add(1, Ordering::SeqCst);
+    }
+
+    #[derive(Debug, Snafu)]
+    #[snafu(provide(ref, chain, SomeProvidedData<u8> => { inc(); val }))]
+    struct ErrorWithChildren {
+        val: SomeProvidedData<u8>,
+    }
+
+    let e = ErrorWithChildren {
+        val: SomeProvidedData(99),
+    };
+    let e = &e as &dyn snafu::Error;
+
+    let lhs = e.request_ref::<SomeProvidedData<u8>>();
+    assert_eq!(lhs, Some(&SomeProvidedData(99)));
+    assert_eq!(COUNT.load(Ordering::SeqCst), 1);
+}
+
+#[test]
 fn order_of_flags_does_not_matter() {
     #[derive(Debug, Snafu)]
     #[snafu(provide(ref, opt, u8 => alpha.as_ref()))]
