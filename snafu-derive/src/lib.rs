@@ -1917,6 +1917,8 @@ impl TupleStructInfo {
             use shared::error::PROVIDE_ARG;
 
             let provides = shared::error::enhance_provider_list(&provides);
+            let cached_expressions = shared::error::quote_cached_expressions(&provides);
+            let user_chained = shared::error::quote_chained(&provides);
 
             let (hi_explicit_calls, lo_explicit_calls) =
                 shared::error::build_explicit_provide_calls(&provides);
@@ -1925,8 +1927,10 @@ impl TupleStructInfo {
                 fn provide<'a>(&'a self, #PROVIDE_ARG: &mut core::any::Demand<'a>) {
                     match self {
                         Self(v) => {
+                            #(#cached_expressions;)*
                             #(#hi_explicit_calls;)*
                             v.provide(#PROVIDE_ARG);
+                            #(#user_chained;)*
                             #(#lo_explicit_calls;)*
                         }
                     };

@@ -784,7 +784,7 @@ pub mod error {
             .collect()
     }
 
-    fn quote_cached_expressions<'a>(
+    pub(crate) fn quote_cached_expressions<'a>(
         provides: &'a [ProvidePlus<'a>],
     ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
         provides.iter().filter(|pp| pp.provide.is_chain).map(|pp| {
@@ -797,7 +797,7 @@ pub mod error {
         })
     }
 
-    fn quote_chained<'a>(
+    pub(crate) fn quote_chained<'a>(
         provides: &'a [ProvidePlus<'a>],
     ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
         provides.iter().filter(|pp| pp.provide.is_chain).map(|pp| {

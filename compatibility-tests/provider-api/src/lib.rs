@@ -450,6 +450,29 @@ fn opaque_errors_can_supersede_provided_values() {
     assert_eq!(inner, Some(99));
 }
 
+#[test]
+fn opaque_errors_can_chain_provided() {
+    #[derive(Debug, Snafu)]
+    struct InnerError {
+        data: SomeProvidedData<u8>,
+    }
+
+    #[derive(Debug, Snafu)]
+    #[snafu(provide(ref, chain, SomeProvidedData<u8> => &self.0.data))]
+    struct OuterError(InnerError);
+
+    let e = OuterError::from(
+        InnerSnafu {
+            data: SomeProvidedData(99),
+        }
+        .build(),
+    );
+    let e = &e as &dyn snafu::Error;
+    let inner = e.request_value::<u8>();
+
+    assert_eq!(inner, Some(99));
+}
+
 #[derive(Debug, PartialEq)]
 struct SomeImplicitData<const V: u8>(u8);
 
