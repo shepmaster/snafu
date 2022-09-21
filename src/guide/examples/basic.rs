@@ -3,7 +3,7 @@
 //! Start by looking at the error type [`Error`], then view the
 //! *context selectors* [`LeafSnafu`] and [`IntermediateSnafu`].
 
-use crate::{Snafu, ResultExt};
+use crate::prelude::*;
 
 /// An enumeration of possible errors.
 ///
@@ -48,6 +48,8 @@ use crate::{Snafu, ResultExt};
 ///     Ok(config.len())
 /// }
 /// ```
+///
+/// [`ResultExt::context`]: crate::ResultExt::context
 #[derive(Debug, Snafu)]
 // This line is only needed to generate documentation; it is not
 // needed in most cases:
