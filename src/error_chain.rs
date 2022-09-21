@@ -4,18 +4,18 @@
 ///
 /// Can be created via [`ErrorCompat::iter_chain`][crate::ErrorCompat::iter_chain].
 pub struct ChainCompat<'a> {
-    inner: Option<&'a dyn std::error::Error>,
+    inner: Option<&'a dyn crate::Error>,
 }
 
 impl<'a> ChainCompat<'a> {
     /// Creates a new error chain iterator.
-    pub fn new(error: &'a dyn std::error::Error) -> Self {
+    pub fn new(error: &'a dyn crate::Error) -> Self {
         ChainCompat { inner: Some(error) }
     }
 }
 
 impl<'a> Iterator for ChainCompat<'a> {
-    type Item = &'a dyn std::error::Error;
+    type Item = &'a dyn crate::Error;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.inner {
