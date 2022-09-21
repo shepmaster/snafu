@@ -95,3 +95,16 @@ mod opaque_style {
         let _ = create();
     }
 }
+
+mod report {
+    use snafu::prelude::*;
+
+    #[derive(Debug, Snafu)]
+    struct Error;
+
+    #[test]
+    #[snafu::report]
+    fn it_works() -> Result<(), Error> {
+        Ok(())
+    }
+}

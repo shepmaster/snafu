@@ -19,6 +19,14 @@ pub fn snafu_derive(input: TokenStream) -> TokenStream {
     impl_snafu_macro(ast)
 }
 
+mod report;
+#[proc_macro_attribute]
+pub fn report(attr: TokenStream, item: TokenStream) -> TokenStream {
+    report::body(attr, item)
+        .unwrap_or_else(|e| e.to_compile_error())
+        .into()
+}
+
 type MultiSynResult<T> = std::result::Result<T, Vec<syn::Error>>;
 
 /// Some arbitrary tokens we treat as a black box

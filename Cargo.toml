@@ -33,8 +33,14 @@ std = []
 # Implement the `core::error::Error` trait.
 unstable-core-error = []
 
+# Add support for `async` / `.await`
+rust_1_39 = ["snafu-derive/rust_1_39"]
+
 # Add support for `#[track_caller]`
-rust_1_46 = ["snafu-derive/rust_1_46"]
+rust_1_46 = ["rust_1_39", "snafu-derive/rust_1_46"]
+
+# Add support for `Termination` for `Report`
+rust_1_61 = ["rust_1_46", "snafu-derive/rust_1_61"]
 
 # Makes the backtrace type live
 backtraces = ["std", "backtrace"]
@@ -50,6 +56,9 @@ backtraces-impl-std = []
 
 # The std::error::Error provider API will be implemented.
 unstable-provider-api = ["snafu-derive/unstable-provider-api"]
+
+# Add support for `FromResidual` for `Report`
+unstable-try-trait = []
 
 # The standard library's implementation of futures
 futures = ["futures-core-crate", "pin-project"]
