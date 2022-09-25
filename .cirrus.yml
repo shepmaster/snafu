@@ -133,6 +133,10 @@ nightly_test_task:
     - cd compatibility-tests/futures/
     - rustc --version
     - cargo test
+  provider_api_test_script:
+    - cd compatibility-tests/provider-api/
+    - rustc --version
+    - cargo test
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
 vestigial_std_backtraces_test_task:
