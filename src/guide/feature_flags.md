@@ -16,9 +16,21 @@ cases:
 [controlling compatibility]: super::guide::compatibility
 [feature flags]: https://doc.rust-lang.org/stable/cargo/reference/specifying-dependencies.html#choosing-features
 
+<style>
+.snafu-ff-meta>dt {
+  font-weight: bold;
+}
+.snafu-ff-meta>*>p {
+  margin: 0;
+}
+</style>
+
 ## `std`
 
-**default**: enabled
+<dl class="snafu-ff-meta">
+<dt>Default</dt>
+<dd>enabled</dd>
+</dl>
 
 When enabled, SNAFU will implement the `std::error::Error` trait. When
 disabled, SNAFU will instead implement a custom `Error` trait that is
@@ -30,14 +42,20 @@ Most usages of SNAFU will want this feature enabled.
 
 ## `unstable-core-error`
 
-**default**: disabled
+<dl class="snafu-ff-meta">
+<dt>Default</dt>
+<dd>disabled</dd>
+</dl>
 
 When enabled, SNAFU will implement the `core::error::Error` trait,
 even when the `std` feature flag is also enabled.
 
 ## `guide`
 
-**default**: disabled
+<dl class="snafu-ff-meta">
+<dt>Default</dt>
+<dd>disabled</dd>
+</dl>
 
 When enabled, the `guide` module containing the user's guide will be
 built.
@@ -46,7 +64,17 @@ Most usages of SNAFU will want this feature disabled.
 
 ## `backtraces`
 
-**default**: disabled
+<dl class="snafu-ff-meta">
+<dt>Default</dt>
+<dd>disabled</dd>
+<dt>Implies</dt>
+<dd>
+
+[`std`](#std)
+
+</dd>
+</dl>
+</dl>
 
 When enabled, the [`Backtrace`] type in your enum variant will capture
 a backtrace when the error is generated. If you never use backtraces,
@@ -58,7 +86,16 @@ It is recommended that only applications make use of this feature.
 
 ## `backtraces-impl-backtrace-crate`
 
-**default**: disabled
+<dl class="snafu-ff-meta">
+<dt>Default</dt>
+<dd>disabled</dd>
+<dt>Implies</dt>
+<dd>
+
+[`backtraces`](#backtraces)
+
+</dd>
+</dl>
 
 When enabled, the SNAFU [`Backtrace`] type becomes an alias to the
 `backtrace::Backtrace` type. This allows interoperability with other
@@ -70,7 +107,16 @@ this feature will no longer be supported and will be removed.
 
 ## `unstable-backtraces-impl-std`
 
-**default**: disabled
+<dl class="snafu-ff-meta">
+<dt>Default</dt>
+<dd>disabled</dd>
+<dt>Implies</dt>
+<dd>
+
+[`backtraces`](#backtraces)
+
+</dd>
+</dl>
 
 When enabled, the SNAFU [`Backtrace`] type becomes an alias to the
 [`std::backtrace::Backtrace`] type and `std::error::Error::backtrace`
@@ -80,7 +126,10 @@ It is recommended that only applications make use of this feature.
 
 ## `unstable-provider-api`
 
-**default**: disabled
+<dl class="snafu-ff-meta">
+<dt>Default</dt>
+<dd>disabled</dd>
+</dl>
 
 When enabled, SNAFU-generated errors will implement the
 [`std::error::Error::provide`] method, allowing data to be retrieved
@@ -94,7 +143,10 @@ It is recommended that only applications make use of this feature.
 
 ## `futures`
 
-**default**: disabled
+<dl class="snafu-ff-meta">
+<dt>Default</dt>
+<dd>disabled</dd>
+</dl>
 
 When enabled, you can use the [`futures::TryFutureExt`] and
 [`futures::TryStreamExt`] traits to add context methods to futures
