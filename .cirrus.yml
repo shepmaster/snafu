@@ -79,7 +79,7 @@ doc_tests_task:
     - cargo +nightly test --doc --features=futures,internal-dev-dependencies
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
-no_std_test_task:
+stable_no_std_test_task:
   name: "Rust Stable (no_std)"
   container:
     image: rust:latest
@@ -95,7 +95,7 @@ no_std_test_task:
     - cargo build --no-default-features --target thumbv6m-none-eabi
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
-no_std_test_task:
+nightly_no_std_test_task:
   name: "Rust Nightly (no_std)"
   container:
     image: rustlang/rust:nightly
@@ -140,7 +140,7 @@ nightly_test_task:
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
 vestigial_std_backtraces_test_task:
-  name: "Rust Nightly"
+  name: "Rust Nightly (backtraces)"
   container:
     image: rustlang/rust:nightly
     cpu: 1
