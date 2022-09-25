@@ -10,6 +10,7 @@ cases:
 - [`backtraces`](#backtraces)
 - [`backtraces-impl-backtrace-crate`](#backtraces-impl-backtrace-crate)
 - [`unstable-backtraces-impl-std`](#unstable-backtraces-impl-std)
+- [`unstable-provider-api`](#unstable-provider-api)
 - [`futures`](#futures)
 
 [controlling compatibility]: super::guide::compatibility
@@ -76,6 +77,20 @@ When enabled, the SNAFU [`Backtrace`] type becomes an alias to the
 is implemented.
 
 It is recommended that only applications make use of this feature.
+
+## `unstable-provider-api`
+
+**default**: disabled
+
+When enabled, SNAFU-generated errors will implement the
+[`std::error::Error::provide`] method, allowing data to be retrieved
+using `request_ref` and `request_value` on a [`std::error::Error`]
+trait object reference. Provided data can be controlled using
+[`#[snafu(provide)]`][snafu-provide].
+
+It is recommended that only applications make use of this feature.
+
+[snafu-provide]: crate::Snafu#providing-data-beyond-the-error-trait
 
 ## `futures`
 

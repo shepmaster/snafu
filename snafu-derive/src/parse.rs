@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use crate::{ModuleName, SnafuAttribute};
+use crate::{ModuleName, ProvideKind, SnafuAttribute};
 use proc_macro2::TokenStream;
 use quote::{format_ident, ToTokens};
 use syn::{
@@ -19,6 +19,7 @@ mod kw {
     custom_keyword!(display);
     custom_keyword!(implicit);
     custom_keyword!(module);
+    custom_keyword!(provide);
     custom_keyword!(source);
     custom_keyword!(visibility);
     custom_keyword!(whatever);
@@ -26,6 +27,10 @@ mod kw {
     custom_keyword!(from);
 
     custom_keyword!(suffix);
+
+    custom_keyword!(chain);
+    custom_keyword!(opt);
+    custom_keyword!(priority);
 }
 
 pub(crate) fn attributes_from_syn(
@@ -54,6 +59,17 @@ pub(crate) fn attributes_from_syn(
         }
     }
 
+    for attr in &ours {
+        if let SnafuAttribute::Provide(tt, ProvideKind::Expression(p)) = attr {
+            if p.is_chain && !p.is_ref {
+                errs.push(syn::Error::new_spanned(
+                    tt,
+                    "May only chain to references; please add `ref` flag",
+                ));
+            }
+        }
+    }
+
     if errs.is_empty() {
         Ok(ours)
     } else {
@@ -68,6 +84,7 @@ enum Attribute {
     Display(Display),
     Implicit(Implicit),
     Module(Module),
+    Provide(Provide),
     Source(Source),
     Visibility(Visibility),
     Whatever(Whatever),
@@ -84,6 +101,7 @@ impl From<Attribute> for SnafuAttribute {
             Display(d) => SnafuAttribute::Display(d.to_token_stream(), d.into_display()),
             Implicit(d) => SnafuAttribute::Implicit(d.to_token_stream(), d.into_bool()),
             Module(v) => SnafuAttribute::Module(v.to_token_stream(), v.into_value()),
+            Provide(v) => SnafuAttribute::Provide(v.to_token_stream(), v.into_value()),
             Source(s) => SnafuAttribute::Source(s.to_token_stream(), s.into_components()),
             Visibility(v) => SnafuAttribute::Visibility(v.to_token_stream(), v.into_arbitrary()),
             Whatever(o) => SnafuAttribute::Whatever(o.to_token_stream()),
@@ -106,6 +124,8 @@ impl Parse for Attribute {
             input.parse().map(Attribute::Implicit)
         } else if lookahead.peek(kw::module) {
             input.parse().map(Attribute::Module)
+        } else if lookahead.peek(kw::provide) {
+            input.parse().map(Attribute::Provide)
         } else if lookahead.peek(kw::source) {
             input.parse().map(Attribute::Source)
         } else if lookahead.peek(kw::visibility) {
@@ -488,6 +508,211 @@ impl ToTokens for Module {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.module_token.to_tokens(tokens);
         self.arg.to_tokens(tokens);
+    }
+}
+
+struct Provide {
+    provide_token: kw::provide,
+    arg: MaybeArg<ProvideArg>,
+}
+
+impl Provide {
+    fn into_value(self) -> ProvideKind {
+        match self.arg.into_option() {
+            None => ProvideKind::Flag(true),
+            Some(ProvideArg::Flag { value }) => ProvideKind::Flag(value.value),
+            Some(ProvideArg::Expression {
+                flags,
+                ty,
+                arrow: _,
+                expr,
+            }) => ProvideKind::Expression(crate::Provide {
+                is_chain: flags.is_chain(),
+                is_opt: flags.is_opt(),
+                is_priority: flags.is_priority(),
+                is_ref: flags.is_ref(),
+                ty,
+                expr,
+            }),
+        }
+    }
+}
+
+impl Parse for Provide {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(Self {
+            provide_token: input.parse()?,
+            arg: input.parse()?,
+        })
+    }
+}
+
+impl ToTokens for Provide {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.provide_token.to_tokens(tokens);
+        self.arg.to_tokens(tokens);
+    }
+}
+
+enum ProvideArg {
+    Flag {
+        value: LitBool,
+    },
+    Expression {
+        flags: ProvideFlags,
+        ty: Type,
+        arrow: token::FatArrow,
+        expr: Expr,
+    },
+}
+
+impl Parse for ProvideArg {
+    fn parse(input: ParseStream) -> Result<Self> {
+        if input.peek(LitBool) {
+            Ok(ProvideArg::Flag {
+                value: input.parse()?,
+            })
+        } else {
+            Ok(ProvideArg::Expression {
+                flags: input.parse()?,
+                ty: input.parse()?,
+                arrow: input.parse()?,
+                expr: input.parse()?,
+            })
+        }
+    }
+}
+
+impl ToTokens for ProvideArg {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            ProvideArg::Flag { value } => {
+                value.to_tokens(tokens);
+            }
+            ProvideArg::Expression {
+                flags,
+                ty,
+                arrow,
+                expr,
+            } => {
+                flags.to_tokens(tokens);
+                ty.to_tokens(tokens);
+                arrow.to_tokens(tokens);
+                expr.to_tokens(tokens);
+            }
+        }
+    }
+}
+
+struct ProvideFlags(Punctuated<ProvideFlag, token::Comma>);
+
+impl ProvideFlags {
+    fn is_chain(&self) -> bool {
+        self.0.iter().any(ProvideFlag::is_chain)
+    }
+
+    fn is_opt(&self) -> bool {
+        self.0.iter().any(ProvideFlag::is_opt)
+    }
+
+    fn is_priority(&self) -> bool {
+        self.0.iter().any(ProvideFlag::is_priority)
+    }
+
+    fn is_ref(&self) -> bool {
+        self.0.iter().any(ProvideFlag::is_ref)
+    }
+}
+
+impl Parse for ProvideFlags {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let mut flags = Punctuated::new();
+
+        while ProvideFlag::peek(input) {
+            flags.push_value(input.parse()?);
+            flags.push_punct(input.parse()?);
+        }
+
+        Ok(Self(flags))
+    }
+}
+
+impl ToTokens for ProvideFlags {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens)
+    }
+}
+
+enum ProvideFlag {
+    Chain(kw::chain),
+    Opt(kw::opt),
+    Priority(kw::priority),
+    Ref(token::Ref),
+}
+
+impl ProvideFlag {
+    fn peek(input: ParseStream) -> bool {
+        input.peek(kw::chain)
+            || input.peek(kw::opt)
+            || input.peek(kw::priority)
+            || input.peek(token::Ref)
+    }
+
+    fn is_chain(&self) -> bool {
+        match self {
+            ProvideFlag::Chain(_) => true,
+            _ => false,
+        }
+    }
+
+    fn is_opt(&self) -> bool {
+        match self {
+            ProvideFlag::Opt(_) => true,
+            _ => false,
+        }
+    }
+
+    fn is_priority(&self) -> bool {
+        match self {
+            ProvideFlag::Priority(_) => true,
+            _ => false,
+        }
+    }
+
+    fn is_ref(&self) -> bool {
+        match self {
+            ProvideFlag::Ref(_) => true,
+            _ => false,
+        }
+    }
+}
+
+impl Parse for ProvideFlag {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let lookahead = input.lookahead1();
+
+        if lookahead.peek(kw::chain) {
+            input.parse().map(ProvideFlag::Chain)
+        } else if lookahead.peek(kw::opt) {
+            input.parse().map(ProvideFlag::Opt)
+        } else if lookahead.peek(kw::priority) {
+            input.parse().map(ProvideFlag::Priority)
+        } else if lookahead.peek(token::Ref) {
+            input.parse().map(ProvideFlag::Ref)
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+impl ToTokens for ProvideFlag {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            ProvideFlag::Chain(v) => v.to_tokens(tokens),
+            ProvideFlag::Opt(v) => v.to_tokens(tokens),
+            ProvideFlag::Priority(v) => v.to_tokens(tokens),
+            ProvideFlag::Ref(v) => v.to_tokens(tokens),
+        }
     }
 }
 

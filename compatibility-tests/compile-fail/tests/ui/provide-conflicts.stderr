@@ -1,0 +1,5 @@
+error: May only chain to references; please add `ref` flag
+ --> tests/ui/provide-conflicts.rs:4:9
+  |
+4 | #[snafu(provide(chain, u8 => 0))]
+  |         ^^^^^^^^^^^^^^^^^^^^^^^

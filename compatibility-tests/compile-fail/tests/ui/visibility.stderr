@@ -1,44 +1,44 @@
 error[E0603]: unit struct `PrivateSnafu` is private
-  --> $DIR/visibility.rs:19:30
+  --> tests/ui/visibility.rs:19:30
    |
 19 |         let _ = self::inner::PrivateSnafu.build();
    |                              ^^^^^^^^^^^^ private unit struct
    |
 note: the unit struct `PrivateSnafu` is defined here
-  --> $DIR/visibility.rs:7:25
+  --> tests/ui/visibility.rs:7:25
    |
 7  |         #[derive(Debug, Snafu)]
    |                         ^^^^^
    = note: this error originates in the derive macro `Snafu` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0603]: unit struct `PubInPathSnafu` is private
-  --> $DIR/visibility.rs:24:33
+  --> tests/ui/visibility.rs:24:33
    |
 24 |     let _ = self::outer::inner::PubInPathSnafu.build();
    |                                 ^^^^^^^^^^^^^^ private unit struct
    |
 note: the unit struct `PubInPathSnafu` is defined here
-  --> $DIR/visibility.rs:7:25
+  --> tests/ui/visibility.rs:7:25
    |
 7  |         #[derive(Debug, Snafu)]
    |                         ^^^^^
    = note: this error originates in the derive macro `Snafu` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0603]: unit struct `PrivateSnafu` is private
-  --> $DIR/visibility.rs:28:33
+  --> tests/ui/visibility.rs:28:33
    |
 28 |     let _ = self::outer::inner::PrivateSnafu.build();
    |                                 ^^^^^^^^^^^^ private unit struct
    |
 note: the unit struct `PrivateSnafu` is defined here
-  --> $DIR/visibility.rs:7:25
+  --> tests/ui/visibility.rs:7:25
    |
 7  |         #[derive(Debug, Snafu)]
    |                         ^^^^^
    = note: this error originates in the derive macro `Snafu` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0624]: associated function `build` is private
-  --> $DIR/visibility.rs:19:43
+  --> tests/ui/visibility.rs:19:43
    |
 7  |         #[derive(Debug, Snafu)]
    |                         ----- private associated function defined here
@@ -47,7 +47,7 @@ error[E0624]: associated function `build` is private
    |                                           ^^^^^ private associated function
 
 error[E0624]: associated function `build` is private
-  --> $DIR/visibility.rs:24:48
+  --> tests/ui/visibility.rs:24:48
    |
 7  |         #[derive(Debug, Snafu)]
    |                         ----- private associated function defined here
@@ -56,7 +56,7 @@ error[E0624]: associated function `build` is private
    |                                                ^^^^^ private associated function
 
 error[E0624]: associated function `build` is private
-  --> $DIR/visibility.rs:28:46
+  --> tests/ui/visibility.rs:28:46
    |
 7  |         #[derive(Debug, Snafu)]
    |                         ----- private associated function defined here

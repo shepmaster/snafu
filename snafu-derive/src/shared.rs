@@ -1,8 +1,39 @@
+use std::collections::BTreeSet;
+
 pub(crate) use self::context_module::ContextModule;
 pub(crate) use self::context_selector::ContextSelector;
 pub(crate) use self::display::{Display, DisplayMatchArm};
-pub(crate) use self::error::{Error, ErrorSourceMatchArm};
+pub(crate) use self::error::{Error, ErrorProvideMatchArm, ErrorSourceMatchArm};
 pub(crate) use self::error_compat::{ErrorCompat, ErrorCompatBacktraceMatchArm};
+
+pub(crate) struct StaticIdent(&'static str);
+
+impl quote::ToTokens for StaticIdent {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        proc_macro2::Ident::new(self.0, proc_macro2::Span::call_site()).to_tokens(tokens)
+    }
+}
+
+struct AllFieldNames<'a>(&'a crate::FieldContainer);
+
+impl<'a> AllFieldNames<'a> {
+    fn field_names(&self) -> BTreeSet<&'a proc_macro2::Ident> {
+        let user_fields = self.0.selector_kind.user_fields();
+        let backtrace_field = self.0.backtrace_field.as_ref();
+        let implicit_fields = &self.0.implicit_fields;
+        let message_field = self.0.selector_kind.message_field();
+        let source_field = self.0.selector_kind.source_field();
+
+        user_fields
+            .iter()
+            .chain(backtrace_field)
+            .chain(implicit_fields)
+            .chain(message_field)
+            .map(crate::Field::name)
+            .chain(source_field.map(crate::SourceField::name))
+            .collect()
+    }
+}
 
 pub mod context_module {
     use crate::ModuleName;
@@ -394,18 +425,10 @@ pub mod context_selector {
 }
 
 pub mod display {
-    use crate::{Field, SourceField};
+    use super::StaticIdent;
     use proc_macro2::TokenStream;
     use quote::{quote, ToTokens};
     use std::collections::BTreeSet;
-
-    struct StaticIdent(&'static str);
-
-    impl quote::ToTokens for StaticIdent {
-        fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-            proc_macro2::Ident::new(self.0, proc_macro2::Span::call_site()).to_tokens(tokens)
-        }
-    }
 
     const FORMATTER_ARG: StaticIdent = StaticIdent("__snafu_display_formatter");
 
@@ -445,8 +468,7 @@ pub mod display {
     }
 
     pub(crate) struct DisplayMatchArm<'a> {
-        pub(crate) backtrace_field: Option<&'a crate::Field>,
-        pub(crate) implicit_fields: &'a [crate::Field],
+        pub(crate) field_container: &'a crate::FieldContainer,
         pub(crate) default_name: &'a dyn ToTokens,
         pub(crate) display_format: Option<&'a crate::Display>,
         pub(crate) doc_comment: Option<&'a crate::DocComment>,
@@ -457,8 +479,7 @@ pub mod display {
     impl ToTokens for DisplayMatchArm<'_> {
         fn to_tokens(&self, stream: &mut TokenStream) {
             let Self {
-                backtrace_field,
-                implicit_fields,
+                field_container,
                 default_name,
                 display_format,
                 doc_comment,
@@ -466,9 +487,7 @@ pub mod display {
                 selector_kind,
             } = *self;
 
-            let user_fields = selector_kind.user_fields();
             let source_field = selector_kind.source_field();
-            let message_field = selector_kind.message_field();
 
             let mut shorthand_names = &BTreeSet::new();
             let mut assigned_names = &BTreeSet::new();
@@ -492,16 +511,7 @@ pub mod display {
                 _ => quote! { stringify!(#default_name)},
             };
 
-            let field_names = user_fields
-                .iter()
-                .chain(backtrace_field)
-                .chain(implicit_fields)
-                .chain(message_field)
-                .map(Field::name)
-                .chain(source_field.map(SourceField::name))
-                .collect::<BTreeSet<_>>();
-
-            let field_names_pat = quote! { #(ref #field_names),* };
+            let field_names = super::AllFieldNames(field_container).field_names();
 
             let shorthand_names = shorthand_names.iter().collect::<BTreeSet<_>>();
             let assigned_names = assigned_names.iter().collect::<BTreeSet<_>>();
@@ -512,7 +522,7 @@ pub mod display {
             let shorthand_assignments = quote! { #( #shorthand_fields = #shorthand_fields ),* };
 
             let match_arm = quote! {
-                #pattern_ident { #field_names_pat } => {
+                #pattern_ident { #(ref #field_names),* } => {
                     write!(#FORMATTER_ARG, #format, #shorthand_assignments)
                 }
             };
@@ -523,16 +533,20 @@ pub mod display {
 }
 
 pub mod error {
-    use crate::{FieldContainer, SourceField};
+    use super::StaticIdent;
+    use crate::{FieldContainer, Provide, SourceField};
     use proc_macro2::TokenStream;
-    use quote::{quote, ToTokens};
+    use quote::{format_ident, quote, ToTokens};
+
+    pub(crate) const PROVIDE_ARG: StaticIdent = StaticIdent("__snafu_provide_demand");
 
     pub(crate) struct Error<'a> {
         pub(crate) crate_root: &'a dyn ToTokens,
-        pub(crate) parameterized_error_name: &'a dyn ToTokens,
         pub(crate) description_arms: &'a [TokenStream],
-        pub(crate) source_arms: &'a [TokenStream],
         pub(crate) original_generics: &'a [TokenStream],
+        pub(crate) parameterized_error_name: &'a dyn ToTokens,
+        pub(crate) provide_arms: &'a [TokenStream],
+        pub(crate) source_arms: &'a [TokenStream],
         pub(crate) where_clauses: &'a [TokenStream],
     }
 
@@ -540,10 +554,11 @@ pub mod error {
         fn to_tokens(&self, stream: &mut TokenStream) {
             let Self {
                 crate_root,
-                parameterized_error_name,
                 description_arms,
-                source_arms,
                 original_generics,
+                parameterized_error_name,
+                provide_arms,
+                source_arms,
                 where_clauses,
             } = *self;
 
@@ -584,6 +599,18 @@ pub mod error {
                 None
             };
 
+            let provide_fn = if cfg!(feature = "unstable-provider-api") {
+                Some(quote! {
+                    fn provide<'a>(&'a self, #PROVIDE_ARG: &mut core::any::Demand<'a>) {
+                        match *self {
+                            #(#provide_arms,)*
+                        };
+                    }
+                })
+            } else {
+                None
+            };
+
             let error = quote! {
                 #[allow(single_use_lifetimes)]
                 impl<#(#original_generics),*> #crate_root::Error for #parameterized_error_name
@@ -595,6 +622,7 @@ pub mod error {
                     #cause_fn
                     #source_fn
                     #std_backtrace_fn
+                    #provide_fn
                 }
             };
 
@@ -647,6 +675,214 @@ pub mod error {
 
             stream.extend(arm);
         }
+    }
+
+    pub(crate) struct ProvidePlus<'a> {
+        provide: &'a Provide,
+        cached_name: proc_macro2::Ident,
+    }
+
+    pub(crate) struct ErrorProvideMatchArm<'a> {
+        pub(crate) crate_root: &'a dyn ToTokens,
+        pub(crate) field_container: &'a FieldContainer,
+        pub(crate) pattern_ident: &'a dyn ToTokens,
+    }
+
+    impl<'a> ToTokens for ErrorProvideMatchArm<'a> {
+        fn to_tokens(&self, stream: &mut TokenStream) {
+            let Self {
+                crate_root,
+                field_container,
+                pattern_ident,
+            } = *self;
+
+            let user_fields = field_container.user_fields();
+            let provides = enhance_provider_list(field_container.provides());
+            let field_names = super::AllFieldNames(field_container).field_names();
+
+            let (hi_explicit_calls, lo_explicit_calls) = build_explicit_provide_calls(&provides);
+
+            let cached_expressions = quote_cached_expressions(&provides);
+
+            let provide_refs = user_fields
+                .iter()
+                .chain(&field_container.implicit_fields)
+                .chain(field_container.selector_kind.message_field())
+                .flat_map(|f| {
+                    if f.provide {
+                        Some((&f.ty, f.name()))
+                    } else {
+                        None
+                    }
+                });
+
+            let provided_source = field_container
+                .selector_kind
+                .source_field()
+                .filter(|f| f.provide);
+
+            let source_provide_ref = provided_source.map(|f| (f.transformation.ty(), f.name()));
+
+            let provide_refs = provide_refs.chain(source_provide_ref);
+
+            let source_chain = provided_source.map(|f| {
+                let name = f.name();
+                quote! {
+                    #name.provide(#PROVIDE_ARG);
+                }
+            });
+
+            let user_chained = quote_chained(&provides);
+
+            let shorthand_calls = provide_refs.map(|(ty, name)| {
+                quote! { #PROVIDE_ARG.provide_ref::<#ty>(#name) }
+            });
+
+            let provided_backtrace = field_container
+                .backtrace_field
+                .as_ref()
+                .filter(|f| f.provide);
+
+            let provide_backtrace = provided_backtrace.map(|f| {
+                let name = f.name();
+                quote! {
+                    if #PROVIDE_ARG.would_be_satisfied_by_ref_of::<#crate_root::Backtrace>() {
+                        if let ::core::option::Option::Some(bt) = #crate_root::AsBacktrace::as_backtrace(#name) {
+                            #PROVIDE_ARG.provide_ref::<#crate_root::Backtrace>(bt);
+                        }
+                    }
+                }
+            });
+
+            let arm = quote! {
+                #pattern_ident { #(ref #field_names,)* .. } => {
+                    #(#cached_expressions;)*
+                    #(#hi_explicit_calls;)*
+                    #source_chain;
+                    #(#user_chained;)*
+                    #provide_backtrace;
+                    #(#shorthand_calls;)*
+                    #(#lo_explicit_calls;)*
+                }
+            };
+
+            stream.extend(arm);
+        }
+    }
+
+    pub(crate) fn enhance_provider_list<'a>(provides: &'a [Provide]) -> Vec<ProvidePlus<'a>> {
+        provides
+            .iter()
+            .enumerate()
+            .map(|(i, provide)| {
+                let cached_name = format_ident!("__snafu_cached_expr_{}", i);
+                ProvidePlus {
+                    provide,
+                    cached_name,
+                }
+            })
+            .collect()
+    }
+
+    pub(crate) fn quote_cached_expressions<'a>(
+        provides: &'a [ProvidePlus<'a>],
+    ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
+        provides.iter().filter(|pp| pp.provide.is_chain).map(|pp| {
+            let cached_name = &pp.cached_name;
+            let expr = &pp.provide.expr;
+
+            quote! {
+                let #cached_name = #expr;
+            }
+        })
+    }
+
+    pub(crate) fn quote_chained<'a>(
+        provides: &'a [ProvidePlus<'a>],
+    ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
+        provides.iter().filter(|pp| pp.provide.is_chain).map(|pp| {
+            let arm = if pp.provide.is_opt {
+                quote! { ::core::option::Option::Some(chained_item) }
+            } else {
+                quote! { chained_item }
+            };
+            let cached_name = &pp.cached_name;
+
+            quote! {
+                if let #arm = #cached_name {
+                    ::core::any::Provider::provide(chained_item, #PROVIDE_ARG);
+                }
+            }
+        })
+    }
+
+    fn quote_provides<'a, I>(provides: I) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a
+    where
+        I: IntoIterator<Item = &'a ProvidePlus<'a>>,
+        I::IntoIter: 'a,
+    {
+        provides.into_iter().map(|pp| {
+            let ProvidePlus {
+                provide:
+                    Provide {
+                        is_chain,
+                        is_opt,
+                        is_priority: _,
+                        is_ref,
+                        ty,
+                        expr,
+                    },
+                cached_name,
+            } = pp;
+
+            let effective_expr = if *is_chain {
+                quote! { #cached_name }
+            } else {
+                quote! { #expr }
+            };
+
+            match (is_opt, is_ref) {
+                (true, true) => {
+                    quote! {
+                        if #PROVIDE_ARG.would_be_satisfied_by_ref_of::<#ty>() {
+                            if let ::core::option::Option::Some(v) = #effective_expr {
+                                #PROVIDE_ARG.provide_ref::<#ty>(v);
+                            }
+                        }
+                    }
+                }
+                (true, false) => {
+                    quote! {
+                        if #PROVIDE_ARG.would_be_satisfied_by_value_of::<#ty>() {
+                            if let ::core::option::Option::Some(v) = #effective_expr {
+                                #PROVIDE_ARG.provide_value::<#ty>(v);
+                            }
+                        }
+                    }
+                }
+                (false, true) => {
+                    quote! { #PROVIDE_ARG.provide_ref_with::<#ty>(|| #effective_expr) }
+                }
+                (false, false) => {
+                    quote! { #PROVIDE_ARG.provide_value_with::<#ty>(|| #effective_expr) }
+                }
+            }
+        })
+    }
+
+    pub(crate) fn build_explicit_provide_calls<'a>(
+        provides: &'a [ProvidePlus<'a>],
+    ) -> (
+        impl Iterator<Item = TokenStream> + 'a,
+        impl Iterator<Item = TokenStream> + 'a,
+    ) {
+        let (high_priority, low_priority): (Vec<_>, Vec<_>) =
+            provides.iter().partition(|pp| pp.provide.is_priority);
+
+        let hi_explicit_calls = quote_provides(high_priority);
+        let lo_explicit_calls = quote_provides(low_priority);
+
+        (hi_explicit_calls, lo_explicit_calls)
     }
 }
 

@@ -1,0 +1,5 @@
+error: Multiple `provide` attributes are not supported on a field
+ --> tests/ui/duplication-provide.rs:6:13
+  |
+6 |     #[snafu(provide)]
+  |             ^^^^^^^
