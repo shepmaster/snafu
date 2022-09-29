@@ -1,4 +1,5 @@
 #![cfg(test)]
+#![feature(backtrace)]
 
 use snafu::{prelude::*, Backtrace, ErrorCompat};
 

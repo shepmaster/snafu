@@ -232,33 +232,33 @@ pub mod prelude {
 #[cfg(all(
     not(feature = "backtraces"),
     not(feature = "backtraces-impl-backtrace-crate"),
-    not(feature = "unstable-backtraces-impl-std"),
+    not(feature = "backtraces-impl-std"),
 ))]
 mod backtrace_inert;
 #[cfg(all(
     not(feature = "backtraces"),
     not(feature = "backtraces-impl-backtrace-crate"),
-    not(feature = "unstable-backtraces-impl-std"),
+    not(feature = "backtraces-impl-std"),
 ))]
 pub use crate::backtrace_inert::*;
 
 #[cfg(all(
     feature = "backtraces",
     not(feature = "backtraces-impl-backtrace-crate"),
-    not(feature = "unstable-backtraces-impl-std"),
+    not(feature = "backtraces-impl-std"),
 ))]
 mod backtrace_shim;
 #[cfg(all(
     feature = "backtraces",
     not(feature = "backtraces-impl-backtrace-crate"),
-    not(feature = "unstable-backtraces-impl-std"),
+    not(feature = "backtraces-impl-std"),
 ))]
 pub use crate::backtrace_shim::*;
 
 #[cfg(feature = "backtraces-impl-backtrace-crate")]
 pub use backtrace::Backtrace;
 
-#[cfg(feature = "unstable-backtraces-impl-std")]
+#[cfg(feature = "backtraces-impl-std")]
 pub use std::backtrace::Backtrace;
 
 #[cfg(feature = "futures")]
@@ -1195,14 +1195,14 @@ impl AsBacktrace for Backtrace {
     }
 }
 
-#[cfg(feature = "unstable-backtraces-impl-std")]
+#[cfg(feature = "backtraces-impl-std")]
 impl GenerateImplicitData for Backtrace {
     fn generate() -> Self {
         Backtrace::force_capture()
     }
 }
 
-#[cfg(feature = "unstable-backtraces-impl-std")]
+#[cfg(feature = "backtraces-impl-std")]
 impl AsBacktrace for Backtrace {
     fn as_backtrace(&self) -> Option<&Backtrace> {
         Some(self)
