@@ -46,7 +46,7 @@ backtraces-impl-backtrace-crate = ["backtraces"]
 unstable-backtraces-impl-std = ["backtraces-impl-std", "snafu-derive/unstable-backtraces-impl-std"]
 
 # The backtrace type becomes `std::backtrace::Backtrace`
-backtraces-impl-std = ["backtraces"]
+backtraces-impl-std = []
 
 # The std::error::Error provider API will be implemented.
 unstable-provider-api = ["snafu-derive/unstable-provider-api"]

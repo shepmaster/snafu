@@ -111,12 +111,6 @@ this feature will no longer be supported and will be removed.
 <dl class="snafu-ff-meta">
 <dt>Default</dt>
 <dd>disabled</dd>
-<dt>Implies</dt>
-<dd>
-
-[`backtraces`](#backtraces)
-
-</dd>
 </dl>
 
 When enabled, the SNAFU [`Backtrace`] type becomes an alias to the
