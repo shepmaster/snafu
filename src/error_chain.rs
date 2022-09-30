@@ -3,6 +3,7 @@
 /// If you want to omit the initial error and only process its sources, use `skip(1)`.
 ///
 /// Can be created via [`ErrorCompat::iter_chain`][crate::ErrorCompat::iter_chain].
+#[derive(Debug, Clone)]
 pub struct ChainCompat<'a> {
     inner: Option<&'a dyn crate::Error>,
 }
