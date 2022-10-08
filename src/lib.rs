@@ -6,6 +6,7 @@
     feature = "unstable-provider-api",
     feature(error_generic_member_access, provide_any)
 )]
+#![cfg_attr(feature = "unstable-try-trait", feature(try_trait_v2))]
 
 //! # SNAFU
 //!
@@ -267,9 +268,17 @@ pub mod futures;
 mod error_chain;
 pub use crate::error_chain::*;
 
+mod report;
+pub use report::{Report, __InternalExtractErrorType};
+
 doc_comment::doc_comment! {
     include_str!("Snafu.md"),
     pub use snafu_derive::Snafu;
+}
+
+doc_comment::doc_comment! {
+    include_str!("report.md"),
+    pub use snafu_derive::report;
 }
 
 macro_rules! generate_guide {

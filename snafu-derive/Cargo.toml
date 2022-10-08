@@ -11,7 +11,9 @@ repository = "https://github.com/shepmaster/snafu"
 license = "MIT OR Apache-2.0"
 
 [features]
+rust_1_39 = []
 rust_1_46 = []
+rust_1_61 = []
 unstable-backtraces-impl-std = []
 unstable-provider-api = []
 

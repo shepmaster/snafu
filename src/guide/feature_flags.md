@@ -13,6 +13,7 @@ cases:
 - [`unstable-backtraces-impl-std`](#unstable-backtraces-impl-std)
 - [`unstable-provider-api`](#unstable-provider-api)
 - [`futures`](#futures)
+- [`unstable-try-trait`](#unstable-try-trait)
 
 [controlling compatibility]: super::guide::compatibility
 [feature flags]: https://doc.rust-lang.org/stable/cargo/reference/specifying-dependencies.html#choosing-features
@@ -165,3 +166,14 @@ and streams returning `Result`s.
 
 [`futures::TryFutureExt`]: crate::futures::TryFutureExt
 [`futures::TryStreamExt`]: crate::futures::TryStreamExt
+
+## `unstable-try-trait`
+
+**default**: disabled
+
+When enabled, the `?` operator can be used on [`Result`][] values in
+functions where a [`Report`][] type is returned.
+
+It is recommended that only applications make use of this feature.
+
+[`Report`]: crate::Report
