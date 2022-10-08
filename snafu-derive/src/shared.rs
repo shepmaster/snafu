@@ -199,13 +199,35 @@ pub mod context_selector {
         }
 
         fn construct_implicit_fields(&self) -> TokenStream {
+            let crate_root = self.crate_root;
+            let expression = quote! {
+                #crate_root::GenerateImplicitData::generate()
+            };
+
+            self.construct_implicit_fields_with_expression(expression)
+        }
+
+        fn construct_implicit_fields_with_source(&self) -> TokenStream {
+            let crate_root = self.crate_root;
+            let expression = quote! { {
+                use #crate_root::AsErrorSource;
+                let error = error.as_error_source();
+                #crate_root::GenerateImplicitData::generate_with_source(error)
+            } };
+
+            self.construct_implicit_fields_with_expression(expression)
+        }
+
+        fn construct_implicit_fields_with_expression(
+            &self,
+            expression: TokenStream,
+        ) -> TokenStream {
             self.implicit_fields
                 .iter()
                 .chain(self.backtrace_field)
                 .map(|field| {
-                    let crate_root = self.crate_root;
                     let name = &field.name;
-                    quote! { #name: #crate_root::GenerateImplicitData::generate(), }
+                    quote! { #name: #expression, }
                 })
                 .collect()
         }
@@ -286,7 +308,11 @@ pub mod context_selector {
             let user_field_generics = self.user_field_generics();
             let extended_where_clauses = self.extended_where_clauses();
             let transfer_user_fields = self.transfer_user_fields();
-            let construct_implicit_fields = self.construct_implicit_fields();
+            let construct_implicit_fields = if source_field.is_some() {
+                self.construct_implicit_fields_with_source()
+            } else {
+                self.construct_implicit_fields()
+            };
 
             let (source_ty, transfer_source_field) = match source_field {
                 Some(source_field) => {
@@ -309,8 +335,8 @@ pub mod context_selector {
                     #track_caller
                     fn into_error(self, error: Self::Source) -> #parameterized_error_name {
                         #error_constructor_name {
-                            #transfer_source_field
                             #construct_implicit_fields
+                            #transfer_source_field
                             #(#transfer_user_fields),*
                         }
                     }
@@ -327,6 +353,8 @@ pub mod context_selector {
             let parameterized_error_name = self.parameterized_error_name;
             let error_constructor_name = self.error_constructor_name;
             let construct_implicit_fields = self.construct_implicit_fields();
+            let construct_implicit_fields_with_source =
+                self.construct_implicit_fields_with_source();
 
             // testme: transform
 
@@ -356,18 +384,18 @@ pub mod context_selector {
                     #track_caller
                     fn without_source(message: String) -> Self {
                         #error_constructor_name {
+                            #construct_implicit_fields
                             #empty_source_field
                             #message_field_name: message,
-                            #construct_implicit_fields
                         }
                     }
 
                     #track_caller
                     fn with_source(error: Self::Source, message: String) -> Self {
                         #error_constructor_name {
+                            #construct_implicit_fields_with_source
                             #transfer_source_field
                             #message_field_name: message,
-                            #construct_implicit_fields
                         }
                     }
                 }
@@ -377,7 +405,8 @@ pub mod context_selector {
         fn generate_from_source(self, source_field: &crate::SourceField) -> TokenStream {
             let parameterized_error_name = self.parameterized_error_name;
             let error_constructor_name = self.error_constructor_name;
-            let construct_implicit_fields = self.construct_implicit_fields();
+            let construct_implicit_fields_with_source =
+                self.construct_implicit_fields_with_source();
             let original_generics_without_defaults = self.original_generics_without_defaults;
             let user_field_generics = self.user_field_generics();
             let where_clauses = self.where_clauses;
@@ -394,8 +423,8 @@ pub mod context_selector {
                     #track_caller
                     fn from(error: #source_field_type) -> Self {
                         #error_constructor_name {
+                            #construct_implicit_fields_with_source
                             #transfer_source_field
-                            #construct_implicit_fields
                         }
                     }
                 }

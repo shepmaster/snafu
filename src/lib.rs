@@ -1138,6 +1138,16 @@ pub trait FromString {
 pub trait GenerateImplicitData {
     /// Build the data.
     fn generate() -> Self;
+
+    /// Build the data using the given source
+    #[cfg_attr(feature = "rust_1_46", track_caller)]
+    fn generate_with_source(source: &dyn crate::Error) -> Self
+    where
+        Self: Sized,
+    {
+        let _source = source;
+        Self::generate()
+    }
 }
 
 /// View a backtrace-like value as an optional backtrace.
