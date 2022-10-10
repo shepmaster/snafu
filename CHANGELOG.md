@@ -9,6 +9,42 @@ modifying code to account for new releases.
 
 [upgrading guide]: https://docs.rs/snafu/*/snafu/guide/upgrading/index.html
 
+## [0.7.2] - 2022-10-09
+
+### Added
+
+- `Report` can be returned from `main` or test functions to provide a
+  user-friendly display of errors.
+
+- A cheat sheet for the most common `#[snafu(...)]` attribute usages
+  has been added to the `Snafu` macro's documentation.
+
+- Optional support for using the standard library's
+  `std::backtrace::Backtrace` type via the `backtraces-impl-std`
+  feature flag.
+
+- Optional support for implementing the Provider API using the
+  `std::error::Error::provide` method via the `unstable-provider-api`
+  feature flag.
+
+- Optional support for implementing the `core::error::Error` trait
+  instead of `std::error::Error` via the `unstable-core-error` feature
+  flag.
+
+- `GenerateImplicitData` has a new method `generate_with_source`.
+
+### Changed
+
+- `ErrorCompat::iter_chain` and `ChainCompat` are now available in
+  no_std environments.
+
+- `ChainCompat` now implements `Clone`.
+
+- The `Debug` implementation for `Location` no longer shows some
+  irrelevant internal details.
+
+[0.7.2]: https://github.com/shepmaster/snafu/releases/tag/0.7.2
+
 ## [0.7.1] - 2022-05-02
 
 ### Added
@@ -24,6 +60,8 @@ modifying code to account for new releases.
 
 - Documentation improved to demonstrate that custom Whatever errors
   can optionally be made `Send` and `Sync`.
+
+[0.7.1]: https://github.com/shepmaster/snafu/releases/tag/0.7.1
 
 ## [0.7.0] - 2022-01-03
 
