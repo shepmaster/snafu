@@ -64,3 +64,96 @@ mod multiple_fields {
         assert_eq!(one, two);
     }
 }
+
+mod with_and_without_source {
+    use snafu::{prelude::*, FromString, IntoError};
+
+    #[derive(Debug, PartialEq)]
+    enum ItWas {
+        Generate,
+        GenerateWithSource,
+    }
+
+    #[derive(Debug)]
+    struct ImplicitData(ItWas);
+
+    impl snafu::GenerateImplicitData for ImplicitData {
+        fn generate() -> Self {
+            Self(ItWas::Generate)
+        }
+
+        fn generate_with_source(_: &dyn snafu::Error) -> Self {
+            Self(ItWas::GenerateWithSource)
+        }
+    }
+
+    #[derive(Debug, Snafu)]
+    struct InnerError;
+
+    #[derive(Debug, Snafu)]
+    struct HasSource {
+        source: InnerError,
+        #[snafu(implicit)]
+        data: ImplicitData,
+    }
+
+    #[derive(Debug, Snafu)]
+    struct NoSource {
+        #[snafu(implicit)]
+        data: ImplicitData,
+    }
+
+    #[derive(Debug, Snafu)]
+    #[snafu(context(false))]
+    struct HasSourceNoContext {
+        source: InnerError,
+        #[snafu(implicit)]
+        data: ImplicitData,
+    }
+
+    #[derive(Debug, Snafu)]
+    #[snafu(whatever, display("{message}"))]
+    struct MyOwnWhatever {
+        message: String,
+        #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
+        source: Option<Box<dyn std::error::Error>>,
+        #[snafu(implicit)]
+        data: ImplicitData,
+    }
+
+    #[test]
+    fn calls_generate_for_no_source() {
+        let e = NoSourceSnafu.build();
+        assert_eq!(e.data.0, ItWas::Generate);
+    }
+
+    #[test]
+    fn calls_generate_with_source_for_source() {
+        let e = HasSourceSnafu.into_error(InnerError);
+        assert_eq!(e.data.0, ItWas::GenerateWithSource);
+    }
+
+    #[test]
+    fn calls_generate_for_none() {
+        let e = NoSourceSnafu.into_error(snafu::NoneError);
+        assert_eq!(e.data.0, ItWas::Generate);
+    }
+
+    #[test]
+    fn calls_generate_with_source_for_no_context() {
+        let e = HasSourceNoContext::from(InnerError);
+        assert_eq!(e.data.0, ItWas::GenerateWithSource);
+    }
+
+    #[test]
+    fn calls_generate_for_whatever_with_no_source() {
+        let e = MyOwnWhatever::without_source("bang".into());
+        assert_eq!(e.data.0, ItWas::Generate);
+    }
+
+    #[test]
+    fn calls_generate_with_source_for_whatever_with_source() {
+        let e = MyOwnWhatever::with_source(Box::new(InnerError), "bang".into());
+        assert_eq!(e.data.0, ItWas::GenerateWithSource);
+    }
+}

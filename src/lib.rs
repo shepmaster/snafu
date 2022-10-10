@@ -1138,6 +1138,16 @@ pub trait FromString {
 pub trait GenerateImplicitData {
     /// Build the data.
     fn generate() -> Self;
+
+    /// Build the data using the given source
+    #[cfg_attr(feature = "rust_1_46", track_caller)]
+    fn generate_with_source(source: &dyn crate::Error) -> Self
+    where
+        Self: Sized,
+    {
+        let _source = source;
+        Self::generate()
+    }
 }
 
 /// View a backtrace-like value as an optional backtrace.
@@ -1155,30 +1165,44 @@ pub trait AsBacktrace {
 /// This value will be tested only once per program execution;
 /// changing the environment variable after it has been checked will
 /// have no effect.
+///
+/// ## Interaction with the Provider API
+///
+/// If you enable the [`unstable-provider-api` feature
+/// flag][provider-ff], a backtrace will not be captured if the
+/// original error is able to provide a `Backtrace`, even if the
+/// appropriate environment variables are set. This prevents capturing
+/// a redundant backtrace.
+///
+/// [provider-ff]: crate::guide::feature_flags#unstable-provider-api
 #[cfg(any(feature = "std", test))]
 impl GenerateImplicitData for Option<Backtrace> {
     fn generate() -> Self {
-        use std::env;
-        use std::sync::{
-            atomic::{AtomicBool, Ordering},
-            Once,
-        };
-
-        static START: Once = Once::new();
-        static ENABLED: AtomicBool = AtomicBool::new(false);
-
-        START.call_once(|| {
-            // TODO: What values count as "true"?
-            let enabled = env::var_os("RUST_LIB_BACKTRACE")
-                .or_else(|| env::var_os("RUST_BACKTRACE"))
-                .map_or(false, |v| v == "1");
-            ENABLED.store(enabled, Ordering::SeqCst);
-        });
-
-        if ENABLED.load(Ordering::SeqCst) {
+        if backtrace_collection_enabled() {
             Some(Backtrace::generate())
         } else {
             None
+        }
+    }
+
+    fn generate_with_source(source: &dyn crate::Error) -> Self {
+        #[cfg(feature = "unstable-provider-api")]
+        {
+            use core::any;
+
+            if !backtrace_collection_enabled() {
+                None
+            } else if any::request_ref::<Backtrace>(source).is_some() {
+                None
+            } else {
+                Some(Backtrace::generate_with_source(source))
+            }
+        }
+
+        #[cfg(not(feature = "unstable-provider-api"))]
+        {
+            let _source = source;
+            Self::generate()
         }
     }
 }
@@ -1188,6 +1212,30 @@ impl AsBacktrace for Option<Backtrace> {
     fn as_backtrace(&self) -> Option<&Backtrace> {
         self.as_ref()
     }
+}
+
+#[cfg(any(feature = "std", test))]
+fn backtrace_collection_enabled() -> bool {
+    use std::{
+        env,
+        sync::{
+            atomic::{AtomicBool, Ordering},
+            Once,
+        },
+    };
+
+    static START: Once = Once::new();
+    static ENABLED: AtomicBool = AtomicBool::new(false);
+
+    START.call_once(|| {
+        // TODO: What values count as "true"?
+        let enabled = env::var_os("RUST_LIB_BACKTRACE")
+            .or_else(|| env::var_os("RUST_BACKTRACE"))
+            .map_or(false, |v| v == "1");
+        ENABLED.store(enabled, Ordering::SeqCst);
+    });
+
+    ENABLED.load(Ordering::SeqCst)
 }
 
 #[cfg(feature = "backtraces-impl-backtrace-crate")]

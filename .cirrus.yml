@@ -145,6 +145,10 @@ nightly_test_task:
     - cd compatibility-tests/report-try-trait/
     - rustc --version
     - cargo test
+  report_provider_api_test_script:
+    - cd compatibility-tests/backtrace-provider-api/
+    - rustc --version
+    - cargo test
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
 unstable_std_backtraces_test_task:
