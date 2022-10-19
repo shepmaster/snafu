@@ -11,6 +11,17 @@ macro_rules! assert_contains {
     };
 }
 
+macro_rules! assert_not_contains {
+    (needle: $needle:expr, haystack: $haystack:expr) => {
+        assert!(
+            !$haystack.contains($needle),
+            "Expected {:?} to not include {:?}",
+            $haystack,
+            $needle,
+        )
+    };
+}
+
 #[test]
 fn includes_the_error_display_text() {
     #[derive(Debug, Snafu)]
@@ -42,6 +53,71 @@ fn includes_the_source_display_text() {
 
     let expected = "This is my inner Display";
     assert_contains!(needle: expected, haystack: msg);
+}
+
+#[test]
+fn reduces_duplication_of_the_source_display_text() {
+    // Including the source in the Display message is discouraged but
+    // quite common.
+
+    #[derive(Debug, Snafu)]
+    #[snafu(display("Level 0"))]
+    struct Level0Error;
+
+    #[derive(Debug, Snafu)]
+    #[snafu(display("Level 1: {source}"))]
+    struct Level1Error {
+        source: Level0Error,
+    }
+
+    #[derive(Debug, Snafu)]
+    #[snafu(display("Level 2: {source}"))]
+    struct Level2Error {
+        source: Level1Error,
+    }
+
+    let e = Level2Snafu.into_error(Level1Snafu.into_error(Level0Error));
+    let raw_msg = e.to_string();
+
+    let expected = "Level 2: Level 1";
+    assert_contains!(needle: expected, haystack: raw_msg);
+
+    let r = Report::from_error(e);
+    let msg = r.to_string();
+
+    assert_not_contains!(needle: expected, haystack: msg);
+}
+
+#[test]
+fn removes_complete_duplication_in_the_source_display_text() {
+    // Including **only** the source in the Display message is also
+    // discouraged but occurs.
+
+    #[derive(Debug, Snafu)]
+    #[snafu(display("Level 0"))]
+    struct Level0Error;
+
+    #[derive(Debug, Snafu)]
+    #[snafu(display("{source}"))]
+    struct Level1Error {
+        source: Level0Error,
+    }
+
+    #[derive(Debug, Snafu)]
+    #[snafu(display("{source}"))]
+    struct Level2Error {
+        source: Level1Error,
+    }
+
+    let e = Level2Snafu.into_error(Level1Snafu.into_error(Level0Error));
+    let raw_msg = e.to_string();
+
+    assert_contains!(needle: "Level 0", haystack: raw_msg);
+
+    let r = Report::from_error(e);
+    let msg = r.to_string();
+
+    assert_not_contains!(needle: "Caused by", haystack: msg);
 }
 
 #[test]
