@@ -9,6 +9,17 @@ modifying code to account for new releases.
 
 [upgrading guide]: https://docs.rs/snafu/*/snafu/guide/upgrading/index.html
 
+## [0.7.3] - 2022-10-20
+
+### Fixed
+
+- The macro no longer generates invalid code when implicitly-generated
+  types (such as backtraces) were used in conjunction with
+  `#[snafu(source(from))]` and the type before transformation does not
+  implement `std::error::Error`.
+
+[0.7.3]: https://github.com/shepmaster/snafu/releases/tag/0.7.3
+
 ## [0.7.2] - 2022-10-09
 
 ### Added
