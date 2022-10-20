@@ -194,15 +194,20 @@ impl SourceField {
 }
 
 enum Transformation {
-    None { ty: syn::Type },
-    Transform { ty: syn::Type, expr: syn::Expr },
+    None {
+        ty: syn::Type,
+    },
+    Transform {
+        source_ty: syn::Type,
+        expr: syn::Expr,
+    },
 }
 
 impl Transformation {
-    fn ty(&self) -> &syn::Type {
+    fn source_ty(&self) -> &syn::Type {
         match self {
             Transformation::None { ty } => ty,
-            Transformation::Transform { ty, .. } => ty,
+            Transformation::Transform { source_ty, .. } => source_ty,
         }
     }
 
@@ -936,7 +941,7 @@ fn field_container(
                 name, ty, provide, ..
             } = field;
             let transformation = maybe_transformation
-                .map(|(ty, expr)| Transformation::Transform { ty, expr })
+                .map(|(source_ty, expr)| Transformation::Transform { source_ty, expr })
                 .unwrap_or_else(|| Transformation::None { ty });
 
             source_fields.add(
@@ -1239,7 +1244,7 @@ fn parse_snafu_tuple_struct(
 
     let (maybe_transformation, errs) = transformations.finish();
     let transformation = maybe_transformation
-        .map(|(ty, expr)| Transformation::Transform { ty, expr })
+        .map(|(source_ty, expr)| Transformation::Transform { source_ty, expr })
         .unwrap_or_else(|| Transformation::None {
             ty: inner.into_value().ty,
         });
@@ -1878,7 +1883,7 @@ impl TupleStructInfo {
             provides,
         } = self;
 
-        let inner_type = transformation.ty();
+        let inner_type = transformation.source_ty();
         let transformation = transformation.transformation();
 
         let where_clauses: Vec<_> = generics

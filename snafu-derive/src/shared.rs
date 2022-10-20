@@ -360,7 +360,7 @@ pub mod context_selector {
 
             let (source_ty, transfer_source_field, empty_source_field) = match source_field {
                 Some(f) => {
-                    let source_field_type = f.transformation.ty();
+                    let source_field_type = f.transformation.source_ty();
                     let source_field_name = &f.name;
                     let source_transformation = f.transformation.transformation();
 
@@ -435,7 +435,7 @@ pub mod context_selector {
     // Assumes that the error is in a variable called "error"
     fn build_source_info(source_field: &crate::SourceField) -> (&syn::Type, TokenStream) {
         let source_field_name = source_field.name();
-        let source_field_type = source_field.transformation.ty();
+        let source_field_type = source_field.transformation.source_ty();
         let source_transformation = source_field.transformation.transformation();
 
         (
@@ -750,7 +750,8 @@ pub mod error {
                 .source_field()
                 .filter(|f| f.provide);
 
-            let source_provide_ref = provided_source.map(|f| (f.transformation.ty(), f.name()));
+            let source_provide_ref =
+                provided_source.map(|f| (f.transformation.source_ty(), f.name()));
 
             let provide_refs = provide_refs.chain(source_provide_ref);
 
