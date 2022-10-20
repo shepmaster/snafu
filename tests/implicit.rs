@@ -157,3 +157,34 @@ mod with_and_without_source {
         assert_eq!(e.data.0, ItWas::GenerateWithSource);
     }
 }
+
+mod converted_sources {
+    use snafu::{prelude::*, IntoError};
+
+    #[derive(Debug)]
+    struct ImplicitData;
+
+    impl snafu::GenerateImplicitData for ImplicitData {
+        fn generate() -> Self {
+            Self
+        }
+    }
+
+    #[derive(Debug, Snafu)]
+    struct HasSource {
+        backtrace: snafu::Backtrace,
+
+        #[snafu(implicit)]
+        data: ImplicitData,
+
+        #[snafu(source(from(String, Into::into)))]
+        source: Box<dyn std::error::Error>,
+    }
+
+    #[test]
+    fn receives_the_error_after_conversion() {
+        let e = HasSourceSnafu.into_error(String::from("bad"));
+        // Mostly testing that this compiles; assertion is bonus
+        assert_eq!(e.source.to_string(), "bad");
+    }
+}

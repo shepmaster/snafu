@@ -199,6 +199,7 @@ enum Transformation {
     },
     Transform {
         source_ty: syn::Type,
+        target_ty: syn::Type,
         expr: syn::Expr,
     },
 }
@@ -208,6 +209,13 @@ impl Transformation {
         match self {
             Transformation::None { ty } => ty,
             Transformation::Transform { source_ty, .. } => source_ty,
+        }
+    }
+
+    fn target_ty(&self) -> &syn::Type {
+        match self {
+            Transformation::None { ty } => ty,
+            Transformation::Transform { target_ty, .. } => target_ty,
         }
     }
 
@@ -941,7 +949,11 @@ fn field_container(
                 name, ty, provide, ..
             } = field;
             let transformation = maybe_transformation
-                .map(|(source_ty, expr)| Transformation::Transform { source_ty, expr })
+                .map(|(source_ty, expr)| Transformation::Transform {
+                    source_ty,
+                    target_ty: ty.clone(),
+                    expr,
+                })
                 .unwrap_or_else(|| Transformation::None { ty });
 
             source_fields.add(
@@ -1242,12 +1254,15 @@ fn parse_snafu_tuple_struct(
         return Err(vec![one_field_error(span)]);
     }
 
+    let ty = inner.into_value().ty;
     let (maybe_transformation, errs) = transformations.finish();
     let transformation = maybe_transformation
-        .map(|(source_ty, expr)| Transformation::Transform { source_ty, expr })
-        .unwrap_or_else(|| Transformation::None {
-            ty: inner.into_value().ty,
-        });
+        .map(|(source_ty, expr)| Transformation::Transform {
+            source_ty,
+            target_ty: ty.clone(),
+            expr,
+        })
+        .unwrap_or_else(|| Transformation::None { ty });
     errors.extend(errs);
 
     let (maybe_crate_root, errs) = crate_roots.finish();

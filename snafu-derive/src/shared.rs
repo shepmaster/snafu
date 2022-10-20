@@ -314,12 +314,20 @@ pub mod context_selector {
                 self.construct_implicit_fields()
             };
 
-            let (source_ty, transfer_source_field) = match source_field {
+            let (source_ty, transform_source, transfer_source_field) = match source_field {
                 Some(source_field) => {
-                    let (ty, transfer) = build_source_info(source_field);
-                    (quote! { #ty }, transfer)
+                    let SourceInfo {
+                        source_field_type,
+                        transform_source,
+                        transfer_source_field,
+                    } = build_source_info(source_field);
+                    (
+                        quote! { #source_field_type },
+                        Some(transform_source),
+                        Some(transfer_source_field),
+                    )
                 }
-                None => (quote! { #crate_root::NoneError }, quote! {}),
+                None => (quote! { #crate_root::NoneError }, None, None),
             };
 
             let track_caller = track_caller();
@@ -334,6 +342,7 @@ pub mod context_selector {
 
                     #track_caller
                     fn into_error(self, error: Self::Source) -> #parameterized_error_name {
+                        #transform_source;
                         #error_constructor_name {
                             #construct_implicit_fields
                             #transfer_source_field
@@ -411,7 +420,11 @@ pub mod context_selector {
             let user_field_generics = self.user_field_generics();
             let where_clauses = self.where_clauses;
 
-            let (source_field_type, transfer_source_field) = build_source_info(source_field);
+            let SourceInfo {
+                source_field_type,
+                transform_source,
+                transfer_source_field,
+            } = build_source_info(source_field);
 
             let track_caller = track_caller();
 
@@ -422,6 +435,7 @@ pub mod context_selector {
                 {
                     #track_caller
                     fn from(error: #source_field_type) -> Self {
+                        #transform_source;
                         #error_constructor_name {
                             #construct_implicit_fields_with_source
                             #transfer_source_field
@@ -432,16 +446,28 @@ pub mod context_selector {
         }
     }
 
+    struct SourceInfo<'a> {
+        source_field_type: &'a syn::Type,
+        transform_source: TokenStream,
+        transfer_source_field: TokenStream,
+    }
+
     // Assumes that the error is in a variable called "error"
-    fn build_source_info(source_field: &crate::SourceField) -> (&syn::Type, TokenStream) {
+    fn build_source_info(source_field: &crate::SourceField) -> SourceInfo<'_> {
         let source_field_name = source_field.name();
         let source_field_type = source_field.transformation.source_ty();
+        let target_field_type = source_field.transformation.target_ty();
         let source_transformation = source_field.transformation.transformation();
 
-        (
+        let transform_source =
+            quote! { let error: #target_field_type = (#source_transformation)(error) };
+        let transfer_source_field = quote! { #source_field_name: error, };
+
+        SourceInfo {
             source_field_type,
-            quote! { #source_field_name: (#source_transformation)(error), },
-        )
+            transform_source,
+            transfer_source_field,
+        }
     }
 
     fn track_caller() -> proc_macro2::TokenStream {
