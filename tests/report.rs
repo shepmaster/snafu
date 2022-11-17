@@ -1,5 +1,16 @@
 use snafu::{prelude::*, IntoError, Report};
 
+macro_rules! assert_contains {
+    (needle: $needle:expr, haystack: $haystack:expr) => {
+        assert!(
+            $haystack.contains($needle),
+            "Expected {:?} to include {:?}",
+            $haystack,
+            $needle,
+        )
+    };
+}
+
 #[test]
 fn includes_the_error_display_text() {
     #[derive(Debug, Snafu)]
@@ -10,12 +21,7 @@ fn includes_the_error_display_text() {
     let msg = r.to_string();
 
     let expected = "This is my Display text!";
-    assert!(
-        msg.contains(expected),
-        "Expected {:?} to include {:?}",
-        msg,
-        expected,
-    );
+    assert_contains!(needle: expected, haystack: msg);
 }
 
 #[test]
@@ -35,12 +41,7 @@ fn includes_the_source_display_text() {
     let msg = r.to_string();
 
     let expected = "This is my inner Display";
-    assert!(
-        msg.contains(expected),
-        "Expected {:?} to include {:?}",
-        msg,
-        expected,
-    );
+    assert_contains!(needle: expected, haystack: msg);
 }
 
 #[test]
