@@ -22,3 +22,9 @@ fn implements_error() {
 
     map_result().unwrap_err();
 }
+
+#[test]
+fn build_via_from_and_into() {
+    let _e = Error::from(MineSnafu);
+    let _e: Error = MineSnafu.into();
+}

@@ -165,6 +165,10 @@ nightly_test_task:
     - cd compatibility-tests/backtrace-provider-api/
     - rustc --version
     - cargo test
+  yeet_selectors_test_script:
+    - cd compatibility-tests/yeet-selectors/
+    - rustc --version
+    - cargo test
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
 unstable_std_backtraces_test_task:

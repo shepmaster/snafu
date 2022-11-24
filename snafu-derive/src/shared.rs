@@ -294,6 +294,16 @@ pub mod context_selector {
                         ::core::result::Result::Err(self.build())
                     }
                 }
+
+                impl<#(#original_generics_without_defaults,)* #(#user_field_generics,)*> ::core::convert::From<#parameterized_selector_name> for #parameterized_error_name
+                where
+                    #(#extended_where_clauses),*
+                {
+                    #[track_caller]
+                    fn from(other: #parameterized_selector_name) -> Self {
+                        other.build()
+                    }
+                }
             }
         }
 
