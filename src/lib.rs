@@ -433,7 +433,7 @@ macro_rules! ensure {
 /// Provide a `Result` as the first argument, followed by a format
 /// string and any optional arguments. If the `Result` is an error,
 /// the formatted string will be appended to the error and the macro
-/// will exist the calling function with an error. If the `Result` is
+/// will exit the calling function with an error. If the `Result` is
 /// not an error, the macro will evaluate to the `Ok` value of the
 /// `Result`.
 ///
