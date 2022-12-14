@@ -256,6 +256,9 @@ mod backtrace_shim;
 ))]
 pub use crate::backtrace_shim::*;
 
+#[cfg(any(feature = "std", test))]
+mod once_bool;
+
 #[cfg(feature = "backtraces-impl-backtrace-crate")]
 pub use backtrace::Backtrace;
 
@@ -1216,26 +1219,17 @@ impl AsBacktrace for Option<Backtrace> {
 
 #[cfg(any(feature = "std", test))]
 fn backtrace_collection_enabled() -> bool {
-    use std::{
-        env,
-        sync::{
-            atomic::{AtomicBool, Ordering},
-            Once,
-        },
-    };
+    use crate::once_bool::OnceBool;
+    use std::env;
 
-    static START: Once = Once::new();
-    static ENABLED: AtomicBool = AtomicBool::new(false);
+    static ENABLED: OnceBool = OnceBool::new();
 
-    START.call_once(|| {
+    ENABLED.get(|| {
         // TODO: What values count as "true"?
-        let enabled = env::var_os("RUST_LIB_BACKTRACE")
+        env::var_os("RUST_LIB_BACKTRACE")
             .or_else(|| env::var_os("RUST_BACKTRACE"))
-            .map_or(false, |v| v == "1");
-        ENABLED.store(enabled, Ordering::SeqCst);
-    });
-
-    ENABLED.load(Ordering::SeqCst)
+            .map_or(false, |v| v == "1")
+    })
 }
 
 #[cfg(feature = "backtraces-impl-backtrace-crate")]
