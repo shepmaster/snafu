@@ -9,6 +9,16 @@ modifying code to account for new releases.
 
 [upgrading guide]: https://docs.rs/snafu/*/snafu/guide/upgrading/index.html
 
+## [0.7.4] - 2022-12-19
+
+### Changed
+
+- `Report` and the `[report]` macro now remove redundant parts from
+  the messages that many errors duplicate from their underlying
+  sources.
+
+[0.7.4]: https://github.com/shepmaster/snafu/releases/tag/0.7.4
+
 ## [0.7.3] - 2022-10-20
 
 ### Fixed
