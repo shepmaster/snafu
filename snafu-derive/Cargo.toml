@@ -1,6 +1,6 @@
 [package]
 name = "snafu-derive"
-version = "0.7.3"
+version = "0.7.4"
 authors = ["Jake Goulding <jake.goulding@gmail.com>"]
 edition = "2018"
 
