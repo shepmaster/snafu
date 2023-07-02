@@ -1,7 +1,7 @@
 ## Rust version compatibility
 
-SNAFU is tested and compatible back to Rust 1.34, released on
-2019-05-14. Compatibility is controlled by Cargo feature flags.
+SNAFU is tested and compatible back to Rust 1.56, released on
+2021-10-21. Compatibility is controlled by Cargo feature flags.
 
 <style>
 .snafu-ff-meta>dt {
