@@ -471,11 +471,7 @@ pub mod context_selector {
     }
 
     fn track_caller() -> proc_macro2::TokenStream {
-        if cfg!(feature = "rust_1_46") {
-            quote::quote! { #[track_caller] }
-        } else {
-            quote::quote! {}
-        }
+        quote::quote! { #[track_caller] }
     }
 }
 

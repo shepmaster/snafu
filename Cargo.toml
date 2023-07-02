@@ -25,7 +25,7 @@ exclude = [
 features = [ "std", "backtraces", "futures", "guide" ]
 
 [features]
-default = ["std", "rust_1_46"]
+default = ["std"]
 
 # Implement the `std::error::Error` trait.
 std = []
@@ -33,14 +33,8 @@ std = []
 # Implement the `core::error::Error` trait.
 unstable-core-error = []
 
-# Add support for `async` / `.await`
-rust_1_39 = ["snafu-derive/rust_1_39"]
-
-# Add support for `#[track_caller]`
-rust_1_46 = ["rust_1_39", "snafu-derive/rust_1_46"]
-
 # Add support for `Termination` for `Report`
-rust_1_61 = ["rust_1_46", "snafu-derive/rust_1_61"]
+rust_1_61 = ["snafu-derive/rust_1_61"]
 
 # Makes the backtrace type live
 backtraces = ["std", "backtrace"]

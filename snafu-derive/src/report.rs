@@ -1,17 +1,7 @@
 use quote::quote;
 use syn::{spanned::Spanned, Item, ItemFn, ReturnType, Signature};
 
-// In versions of Rust before 1.39, we can't use the `.await` keyword
-// in *our* source code, even if we never generate it in the *output*
-// source code. Hiding it behind a conditionally-compiled module
-// works.
-#[cfg(not(feature = "rust_1_39"))]
-mod no_async;
-#[cfg(not(feature = "rust_1_39"))]
-use no_async::async_body;
-#[cfg(feature = "rust_1_39")]
 mod yes_async;
-#[cfg(feature = "rust_1_39")]
 use yes_async::async_body;
 
 pub fn body(
