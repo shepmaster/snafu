@@ -47,7 +47,7 @@ the source code location.
 
 <dl class="snafu-ff-meta">
 <dt>Default</dt>
-<dd>enabled</dd>
+<dd>disabled</dd>
 <dt>Implies</dt>
 <dd>
 
