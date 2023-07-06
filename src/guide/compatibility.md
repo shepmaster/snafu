@@ -12,11 +12,30 @@ SNAFU is tested and compatible back to Rust 1.34, released on
 }
 </style>
 
+## `rust_1_39`
+
+<dl class="snafu-ff-meta">
+<dt>Default</dt>
+<dd>enabled</dd>
+</dl>
+
+When enabled, SNAFU will assume that it's safe to target features
+available in Rust 1.39. Notably, the `async` and `.await` keywords are
+needed to allow [`report`][macro@crate::report] to be used on `async`
+functions.
+
 ## `rust_1_46`
 
 <dl class="snafu-ff-meta">
 <dt>Default</dt>
 <dd>enabled</dd>
+<dt>Implies</dt>
+<dd>
+
+[`rust_1_39`](#rust_1_39)
+
+</dd>
+</dl>
 </dl>
 
 When enabled, SNAFU will assume that it's safe to target features
@@ -28,7 +47,7 @@ the source code location.
 
 <dl class="snafu-ff-meta">
 <dt>Default</dt>
-<dd>enabled</dd>
+<dd>disabled</dd>
 <dt>Implies</dt>
 <dd>
 
