@@ -11,11 +11,11 @@ note: the unit struct `Snafu` is defined here
    |                     ^^^^^
    = note: this error originates in the derive macro `Snafu` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0624]: associated function `build` is private
+error[E0624]: method `build` is private
   --> tests/ui/structs/visibility.rs:11:26
    |
 6  |     #[derive(Debug, Snafu)]
-   |                     ----- private associated function defined here
+   |                     ----- private method defined here
 ...
 11 |     let _ = inner::Snafu.build();
-   |                          ^^^^^ private associated function
+   |                          ^^^^^ private method
