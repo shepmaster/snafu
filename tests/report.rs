@@ -1,4 +1,4 @@
-use snafu::{prelude::*, IntoError, Report};
+use snafu::{prelude::*, CleanedErrorText, IntoError, Report};
 
 macro_rules! assert_contains {
     (needle: $needle:expr, haystack: $haystack:expr) => {
@@ -161,4 +161,60 @@ struct TestFunctionError;
 #[snafu::report]
 fn procedural_macro_works_with_test_functions() -> Result<(), TestFunctionError> {
     Ok(())
+}
+
+#[track_caller]
+fn assert_cleaning_step(iter: &mut CleanedErrorText, text: &str, removed_text: &str) {
+    let (error, actual_text, actual_cleaned) =
+        iter.next().expect("Iterator unexpectedly exhausted");
+    let actual_original_text = error.to_string();
+
+    let original_text = [text, removed_text].concat();
+    let cleaned = !removed_text.is_empty();
+
+    assert_eq!(original_text, actual_original_text);
+    assert_eq!(text, actual_text);
+    assert_eq!(cleaned, actual_cleaned);
+}
+
+#[test]
+fn cleaning_a_leaf_error_changes_nothing() {
+    #[derive(Debug, Snafu)]
+    #[snafu(display("But I am only C"))]
+    struct C;
+
+    let c = C;
+    let mut iter = CleanedErrorText::new(&c);
+
+    assert_cleaning_step(&mut iter, "But I am only C", "");
+    assert!(iter.next().is_none());
+}
+
+#[test]
+fn cleaning_nested_errors_removes_duplication() {
+    #[derive(Debug, Snafu)]
+    #[snafu(display("This is A: {source}"))]
+    struct A {
+        source: B,
+    }
+
+    #[derive(Debug, Snafu)]
+    #[snafu(display("And this is B: {source}"))]
+    struct B {
+        source: C,
+    }
+
+    #[derive(Debug, Snafu)]
+    #[snafu(display("But I am only C"))]
+    struct C;
+
+    let a = A {
+        source: B { source: C },
+    };
+    let mut iter = CleanedErrorText::new(&a);
+
+    assert_cleaning_step(&mut iter, "This is A", ": And this is B: But I am only C");
+    assert_cleaning_step(&mut iter, "And this is B", ": But I am only C");
+    assert_cleaning_step(&mut iter, "But I am only C", "");
+    assert!(iter.next().is_none());
 }

@@ -272,6 +272,8 @@ mod error_chain;
 pub use crate::error_chain::*;
 
 mod report;
+#[cfg(feature = "std")]
+pub use report::CleanedErrorText;
 pub use report::{Report, __InternalExtractErrorType};
 
 doc_comment::doc_comment! {

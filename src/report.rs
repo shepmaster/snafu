@@ -272,33 +272,23 @@ impl<'a> ReportFormatter<'a> {
     fn cleaned_error_trace(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         const NOTE: char = '*';
 
-        let mut original_messages = ChainCompat::new(self.0).map(ToString::to_string);
-        let mut prev = original_messages.next();
-
-        let mut cleaned_messages = vec![];
         let mut any_cleaned = false;
         let mut any_removed = false;
-        for msg in original_messages {
-            if let Some(mut prev) = prev {
-                let cleaned = prev.trim_end_matches(&msg).trim_end().trim_end_matches(':');
-                if cleaned.is_empty() {
+        let cleaned_messages: Vec<_> = CleanedErrorText::new(self.0)
+            .flat_map(|(_, mut msg, cleaned)| {
+                if msg.is_empty() {
                     any_removed = true;
-                    // Do not add this to the output list
-                } else if cleaned != prev {
-                    any_cleaned = true;
-                    let cleaned_len = cleaned.len();
-                    prev.truncate(cleaned_len);
-                    prev.push(' ');
-                    prev.push(NOTE);
-                    cleaned_messages.push(prev);
+                    None
                 } else {
-                    cleaned_messages.push(prev);
+                    if cleaned {
+                        any_cleaned = true;
+                        msg.push(' ');
+                        msg.push(NOTE);
+                    }
+                    Some(msg)
                 }
-            }
-
-            prev = Some(msg);
-        }
-        cleaned_messages.extend(prev);
+            })
+            .collect();
 
         let mut visible_messages = cleaned_messages.iter();
 
@@ -355,6 +345,94 @@ fn trace_cleaning_enabled() -> bool {
 
     static DISABLED: OnceBool = OnceBool::new();
     !DISABLED.get(|| env::var_os(SNAFU_RAW_ERROR_MESSAGES).map_or(false, |v| v == "1"))
+}
+
+/// An iterator over an Error and its sources that removes duplicated
+/// text from the error display strings.
+///
+/// It's common for errors with a `source` to have a `Display`
+/// implementation that includes their source text as well:
+///
+/// ```text
+/// Outer error text: Middle error text: Inner error text
+/// ```
+///
+/// This works for smaller errors without much detail, but can be
+/// annoying when trying to format the error in a more structured way,
+/// such as line-by-line:
+///
+/// ```text
+/// 1. Outer error text: Middle error text: Inner error text
+/// 2. Middle error text: Inner error text
+/// 3. Inner error text
+/// ```
+///
+/// This iterator compares each pair of errors in the source chain,
+/// removing the source error's text from the containing error's text:
+///
+/// ```text
+/// 1. Outer error text
+/// 2. Middle error text
+/// 3. Inner error text
+/// ```
+#[cfg(feature = "std")]
+pub struct CleanedErrorText<'a>(Option<CleanedErrorTextStep<'a>>);
+
+#[cfg(feature = "std")]
+impl<'a> CleanedErrorText<'a> {
+    /// Constructs the iterator.
+    pub fn new(error: &'a dyn crate::Error) -> Self {
+        Self(Some(CleanedErrorTextStep::new(error)))
+    }
+}
+
+#[cfg(feature = "std")]
+impl<'a> Iterator for CleanedErrorText<'a> {
+    /// The original error, the display string and if it has been cleaned
+    type Item = (&'a dyn crate::Error, String, bool);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        use std::mem;
+
+        let mut step = self.0.take()?;
+        let mut error_text = mem::replace(&mut step.error_text, Default::default());
+
+        match step.error.source() {
+            Some(next_error) => {
+                let next_error_text = next_error.to_string();
+
+                let cleaned_text = error_text
+                    .trim_end_matches(&next_error_text)
+                    .trim_end()
+                    .trim_end_matches(':');
+                let cleaned = cleaned_text.len() != error_text.len();
+                let cleaned_len = cleaned_text.len();
+                error_text.truncate(cleaned_len);
+
+                self.0 = Some(CleanedErrorTextStep {
+                    error: next_error,
+                    error_text: next_error_text,
+                });
+
+                Some((step.error, error_text, cleaned))
+            }
+            None => Some((step.error, error_text, false)),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+struct CleanedErrorTextStep<'a> {
+    error: &'a dyn crate::Error,
+    error_text: String,
+}
+
+#[cfg(feature = "std")]
+impl<'a> CleanedErrorTextStep<'a> {
+    fn new(error: &'a dyn crate::Error) -> Self {
+        let error_text = error.to_string();
+        Self { error, error_text }
+    }
 }
 
 #[doc(hidden)]
