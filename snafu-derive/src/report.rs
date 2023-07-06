@@ -1,9 +1,6 @@
 use quote::quote;
 use syn::{spanned::Spanned, Item, ItemFn, ReturnType, Signature};
 
-mod yes_async;
-use yes_async::async_body;
-
 pub fn body(
     _attr: proc_macro::TokenStream,
     item: proc_macro::TokenStream,
@@ -55,7 +52,21 @@ pub fn body(
     };
 
     let block = if asyncness.is_some() {
-        async_body(block)?
+        if cfg!(feature = "rust_1_61") {
+            quote! {
+                {
+                    let __snafu_body = async #block;
+                    <::snafu::Report<_> as ::core::convert::From<_>>::from(__snafu_body.await)
+                }
+            }
+        } else {
+            quote! {
+                {
+                    let __snafu_body = async #block;
+                    ::core::result::Result::map_err(__snafu_body.await, ::snafu::Report::from_error)
+                }
+            }
+        }
     } else {
         if cfg!(feature = "rust_1_61") {
             quote! {
