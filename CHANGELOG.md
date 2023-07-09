@@ -9,6 +9,23 @@ modifying code to account for new releases.
 
 [upgrading guide]: https://docs.rs/snafu/*/snafu/guide/upgrading/index.html
 
+## [0.7.5] - 2023-07-09
+
+### Added
+
+- The `CleanedErrorText` iterator can be used to remove redundant
+  parts from the messages that many errors duplicate from their
+  underlying sources. This is the same behavior as `Report`, but can
+  be used in contexts other than console output, such as when
+  reporting an error in structured output like HTML or JSON.
+
+### Fixed
+
+- The documentation for the compatability feature flags now mentions
+  `rust_1_39` and shows the correct default state of `rust_1_61`.
+
+[0.7.5]: https://github.com/shepmaster/snafu/releases/tag/0.7.5
+
 ## [0.7.4] - 2022-12-19
 
 ### Changed
