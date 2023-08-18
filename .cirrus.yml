@@ -120,6 +120,8 @@ nightly_test_task:
   cargo_cache:
     folder: $CARGO_HOME/registry
     fingerprint_script: cat Cargo.toml
+  setup_script:
+    - rustup toolchain add stable --profile minimal
   primary_test_script:
     - rustc +nightly --version
     - cargo +nightly test
@@ -128,10 +130,10 @@ nightly_test_task:
     - cd snafu-derive-non-workspace
     - echo '[workspace]' >> Cargo.toml
     - cargo +nightly -Z minimal-versions update
-    - cargo +nightly build
+    - cargo +stable build
   minimum_version_test_script:
     - cargo +nightly -Z minimal-versions update
-    - cargo +nightly test
+    - cargo +stable test
   futures_test_script:
     - cd compatibility-tests/futures/
     - rustc --version
