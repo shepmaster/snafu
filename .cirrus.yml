@@ -123,6 +123,12 @@ nightly_test_task:
   primary_test_script:
     - rustc +nightly --version
     - cargo +nightly test
+  minimum_version_derive_test_script:
+    - cp -R snafu-derive snafu-derive-non-workspace
+    - cd snafu-derive-non-workspace
+    - echo '[workspace]' >> Cargo.toml
+    - cargo +nightly -Z minimal-versions update
+    - cargo +nightly build
   minimum_version_test_script:
     - cargo +nightly -Z minimal-versions update
     - cargo +nightly test
