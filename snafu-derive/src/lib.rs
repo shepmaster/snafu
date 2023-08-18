@@ -335,6 +335,20 @@ impl SyntaxErrorsScoped<'_> {
     }
 }
 
+/// Helper structure to handle cases where an attribute is
+/// syntactically valid but semantically invalid.
+#[derive(Debug)]
+struct DoesNothing {
+    /// The name of the attribute that was misused.
+    attribute: &'static str,
+}
+
+impl ErrorForLocation for DoesNothing {
+    fn for_location(&self, _location: ErrorLocation) -> String {
+        format!("`{}` attribute has no effect", self.attribute)
+    }
+}
+
 /// Helper structure to handle cases where an attribute was used on an
 /// element where it's not valid.
 #[derive(Debug)]
@@ -575,9 +589,8 @@ const ATTR_IMPLICIT: OnlyValidOn = OnlyValidOn {
     valid_on: "enum variant or struct fields with a name",
 };
 
-const ATTR_IMPLICIT_FALSE: WrongField = WrongField {
+const ATTR_IMPLICIT_FALSE: DoesNothing = DoesNothing {
     attribute: "implicit(false)",
-    valid_field: "location",
 };
 
 const ATTR_VISIBILITY: OnlyValidOn = OnlyValidOn {
@@ -827,7 +840,6 @@ fn field_container(
         // exclude fields even if they have the "source" or "backtrace" name.
         let mut source_opt_out = false;
         let mut backtrace_opt_out = false;
-        let mut implicit_opt_out = false;
         let mut provide_opt_out = false;
 
         let mut field_errors = errors.scoped(ErrorLocation::OnField);
@@ -878,8 +890,6 @@ fn field_container(
                 Att::Implicit(tokens, v) => {
                     if v {
                         implicit_attrs.add((), tokens);
-                    } else if is_implicit_location(name) {
-                        implicit_opt_out = true;
                     } else {
                         field_errors.add(tokens, ATTR_IMPLICIT_FALSE);
                     }
@@ -941,8 +951,7 @@ fn field_container(
             }
         });
 
-        let implicit_attr =
-            implicit_attr.is_some() || (is_implicit_location(&field.name) && !implicit_opt_out);
+        let implicit_attr = implicit_attr.is_some();
 
         if let Some((maybe_transformation, location)) = source_attr {
             let Field {
@@ -1104,7 +1113,6 @@ fn field_container(
 const IMPLICIT_SOURCE_FIELD_NAME: &str = "source";
 const IMPLICIT_BACKTRACE_FIELD_NAME: &str = "backtrace";
 const IMPLICIT_MESSAGE_FIELD_NAME: &str = "message";
-const IMPLICIT_LOCATION_FIELD_NAME: &str = "location";
 
 fn is_implicit_source(name: &proc_macro2::Ident) -> bool {
     name == IMPLICIT_SOURCE_FIELD_NAME
@@ -1116,10 +1124,6 @@ fn is_implicit_backtrace(name: &proc_macro2::Ident) -> bool {
 
 fn is_implicit_message(name: &proc_macro2::Ident) -> bool {
     name == IMPLICIT_MESSAGE_FIELD_NAME
-}
-
-fn is_implicit_location(name: &proc_macro2::Ident) -> bool {
-    name == IMPLICIT_LOCATION_FIELD_NAME
 }
 
 fn is_implicit_provide(name: &proc_macro2::Ident) -> bool {
