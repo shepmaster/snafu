@@ -20,7 +20,7 @@ unstable-provider-api = []
 proc-macro = true
 
 [dependencies]
-syn = { version = "1.0", features = ["full"] }
+syn = { version = "1.0.3", features = ["full"] }
 quote = "1.0"
 proc-macro2 = "1.0"
 heck = "0.4"
