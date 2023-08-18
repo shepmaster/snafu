@@ -695,7 +695,7 @@ pub trait ResultExt<T, E>: Sized {
 }
 
 impl<T, E> ResultExt<T, E> for Result<T, E> {
-    #[cfg_attr(feature = "rust_1_46", track_caller)]
+    #[track_caller]
     fn context<C, E2>(self, context: C) -> Result<T, E2>
     where
         C: IntoError<E2, Source = E>,
@@ -708,7 +708,7 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
         }
     }
 
-    #[cfg_attr(feature = "rust_1_46", track_caller)]
+    #[track_caller]
     fn with_context<F, C, E2>(self, context: F) -> Result<T, E2>
     where
         F: FnOnce(&mut E) -> C,
@@ -726,7 +726,7 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
     }
 
     #[cfg(any(feature = "std", test))]
-    #[cfg_attr(feature = "rust_1_46", track_caller)]
+    #[track_caller]
     fn whatever_context<S, E2>(self, context: S) -> Result<T, E2>
     where
         S: Into<String>,
@@ -741,7 +741,7 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
     }
 
     #[cfg(any(feature = "std", test))]
-    #[cfg_attr(feature = "rust_1_46", track_caller)]
+    #[track_caller]
     fn with_whatever_context<F, S, E2>(self, context: F) -> Result<T, E2>
     where
         F: FnOnce(&mut E) -> S,
@@ -920,7 +920,7 @@ pub trait OptionExt<T>: Sized {
 }
 
 impl<T> OptionExt<T> for Option<T> {
-    #[cfg_attr(feature = "rust_1_46", track_caller)]
+    #[track_caller]
     fn context<C, E>(self, context: C) -> Result<T, E>
     where
         C: IntoError<E, Source = NoneError>,
@@ -933,7 +933,7 @@ impl<T> OptionExt<T> for Option<T> {
         }
     }
 
-    #[cfg_attr(feature = "rust_1_46", track_caller)]
+    #[track_caller]
     fn with_context<F, C, E>(self, context: F) -> Result<T, E>
     where
         F: FnOnce() -> C,
@@ -948,7 +948,7 @@ impl<T> OptionExt<T> for Option<T> {
     }
 
     #[cfg(any(feature = "std", test))]
-    #[cfg_attr(feature = "rust_1_46", track_caller)]
+    #[track_caller]
     fn whatever_context<S, E>(self, context: S) -> Result<T, E>
     where
         S: Into<String>,
@@ -961,7 +961,7 @@ impl<T> OptionExt<T> for Option<T> {
     }
 
     #[cfg(any(feature = "std", test))]
-    #[cfg_attr(feature = "rust_1_46", track_caller)]
+    #[track_caller]
     fn with_whatever_context<F, S, E>(self, context: F) -> Result<T, E>
     where
         F: FnOnce() -> S,
@@ -1153,7 +1153,7 @@ pub trait GenerateImplicitData {
     fn generate() -> Self;
 
     /// Build the data using the given source
-    #[cfg_attr(feature = "rust_1_46", track_caller)]
+    #[track_caller]
     fn generate_with_source(source: &dyn crate::Error) -> Self
     where
         Self: Sized,
@@ -1278,14 +1278,6 @@ impl AsBacktrace for Backtrace {
 ///
 /// ## Limitations
 ///
-/// ### Rust 1.46
-///
-/// You need to enable the [`rust_1_46` feature flag][flag] for
-/// implicit location capture. If you cannot enable that, you can
-/// still use the [`location!`] macro at the expense of more typing.
-///
-/// [flag]: guide::compatibility#rust_1_46
-///
 /// ### Disabled context selectors
 ///
 /// If you have [disabled the context selector][disabled], SNAFU will
@@ -1347,6 +1339,7 @@ impl AsBacktrace for Backtrace {
 /// # }
 /// ```
 #[derive(Copy, Clone)]
+#[non_exhaustive]
 pub struct Location {
     /// The file where the error was reported
     pub file: &'static str,
@@ -1354,24 +1347,15 @@ pub struct Location {
     pub line: u32,
     /// The column where the error was reported
     pub column: u32,
-
-    // Use `#[non_exhaustive]` when we upgrade to Rust 1.40
-    _other: (),
 }
 
 impl Location {
     /// Constructs a `Location` using the given information
     pub fn new(file: &'static str, line: u32, column: u32) -> Self {
-        Self {
-            file,
-            line,
-            column,
-            _other: (),
-        }
+        Self { file, line, column }
     }
 }
 
-#[cfg(feature = "rust_1_46")]
 impl Default for Location {
     #[track_caller]
     fn default() -> Self {
@@ -1380,12 +1364,10 @@ impl Default for Location {
             file: loc.file(),
             line: loc.line(),
             column: loc.column(),
-            _other: (),
         }
     }
 }
 
-#[cfg(feature = "rust_1_46")]
 impl GenerateImplicitData for Location {
     #[inline]
     #[track_caller]

@@ -230,7 +230,7 @@ where
 {
     type Output = Result<Fut::Ok, E>;
 
-    #[cfg_attr(feature = "rust_1_46", track_caller)]
+    #[track_caller]
     fn poll(self: Pin<&mut Self>, ctx: &mut TaskContext) -> Poll<Self::Output> {
         let this = self.project();
         let inner = this.inner;
@@ -273,7 +273,7 @@ where
 {
     type Output = Result<Fut::Ok, E>;
 
-    #[cfg_attr(feature = "rust_1_46", track_caller)]
+    #[track_caller]
     fn poll(self: Pin<&mut Self>, ctx: &mut TaskContext) -> Poll<Self::Output> {
         let this = self.project();
         let inner = this.inner;
@@ -320,7 +320,7 @@ where
 {
     type Output = Result<Fut::Ok, E>;
 
-    #[cfg_attr(feature = "rust_1_46", track_caller)]
+    #[track_caller]
     fn poll(self: Pin<&mut Self>, ctx: &mut TaskContext) -> Poll<Self::Output> {
         let this = self.project();
         let inner = this.inner;
@@ -368,7 +368,7 @@ where
 {
     type Output = Result<Fut::Ok, E>;
 
-    #[cfg_attr(feature = "rust_1_46", track_caller)]
+    #[track_caller]
     fn poll(self: Pin<&mut Self>, ctx: &mut TaskContext) -> Poll<Self::Output> {
         let this = self.project();
         let inner = this.inner;

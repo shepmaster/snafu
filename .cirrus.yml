@@ -182,10 +182,10 @@ std_backtraces_test_task:
     - cargo +beta doc --features=backtraces-impl-std
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
-v1_34_test_task:
-  name: "Rust 1.34"
+v1_56_test_task:
+  name: "Rust 1.56"
   container:
-    image: rust:1.34
+    image: rust:1.56
     cpu: 1
     memory: 2Gi
   cargo_cache:
@@ -193,7 +193,7 @@ v1_34_test_task:
     fingerprint_script: cat Cargo.toml
   primary_test_script:
     - rustup self update
-    - cd compatibility-tests/v1_34/
+    - cd compatibility-tests/v1_56/
     - rustc --version
     - cargo test
   before_cache_script: rm -rf $CARGO_HOME/registry/index
