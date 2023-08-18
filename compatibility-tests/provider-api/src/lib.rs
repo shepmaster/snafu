@@ -1,8 +1,13 @@
 #![cfg(test)]
-#![feature(error_generic_member_access, provide_any)]
+#![feature(error_generic_member_access, error_in_core)]
 
 use snafu::{prelude::*, Backtrace, IntoError};
-use std::any;
+
+// https://github.com/rust-lang/rust/pull/114973
+mod error {
+    pub use core::error::request_value;
+    pub use snafu::error::{request_ref, Request};
+}
 
 #[test]
 fn provide_shorthand_on_fields_returns_a_reference() {
@@ -13,8 +18,7 @@ fn provide_shorthand_on_fields_returns_a_reference() {
     }
 
     let e = WithFieldShorthandSnafu { name: "bob" }.build();
-    let e = &e as &dyn snafu::Error;
-    let inner = e.request_ref::<String>();
+    let inner = error::request_ref::<String>(&e);
 
     let inner = inner.map(String::as_str);
     assert_eq!(inner, Some("bob"));
@@ -41,8 +45,7 @@ fn provide_value_from_expression() {
     }
 
     let e = WithExpressionSnafu.build();
-    let e = &e as &dyn snafu::Error;
-    let inner = e.request_value::<u8>();
+    let inner = error::request_value::<u8>(&e);
 
     assert_eq!(inner, Some(4));
 }
@@ -59,8 +62,7 @@ fn provide_value_expressions_can_use_fields() {
     }
 
     let e = WithExpressionSnafu { secret: 2, code: 3 }.build();
-    let e = &e as &dyn snafu::Error;
-    let inner = e.request_value::<u8>();
+    let inner = error::request_value::<u8>(&e);
 
     assert_eq!(inner, Some(6));
 }
@@ -91,8 +93,7 @@ fn provide_reference_expressions() {
         two: "two",
     }
     .build();
-    let e = &e as &dyn snafu::Error;
-    let inner = e.request_ref::<str>();
+    let inner = error::request_ref::<str>(&e);
 
     assert_eq!(inner, Some("one"));
 }
@@ -104,8 +105,7 @@ fn provide_static_references_as_values() {
     struct StaticValueError;
 
     let e = StaticValueError;
-    let e = &e as &dyn snafu::Error;
-    let inner = e.request_value::<&'static str>();
+    let inner = error::request_value::<&'static str>(&e);
 
     assert_eq!(inner, Some("static"));
 }
@@ -119,8 +119,7 @@ fn provide_optional_value() {
     }
 
     let e = MaybeProvideSnafu { thing: Some(42) }.build();
-    let e = &e as &dyn snafu::Error;
-    let inner = e.request_value::<u8>();
+    let inner = error::request_value::<u8>(&e);
 
     assert_eq!(inner, Some(42));
 }
@@ -134,8 +133,7 @@ fn provide_optional_reference() {
     }
 
     let e = MaybeProvideSnafu { thing: Some(42) }.build();
-    let e = &e as &dyn snafu::Error;
-    let inner = e.request_ref::<u8>();
+    let inner = error::request_ref::<u8>(&e);
 
     assert_eq!(inner, Some(&42));
 }
@@ -149,8 +147,7 @@ fn implicit_fields_can_be_provided() {
     }
 
     let e = WithImplicitDataSnafu.build();
-    let e = &e as &dyn snafu::Error;
-    let inner = e.request_ref::<SomeImplicitData<1>>();
+    let inner = error::request_ref::<SomeImplicitData<1>>(&e);
 
     assert_eq!(inner, Some(&SomeImplicitData(1)));
 }
@@ -167,8 +164,7 @@ fn message_fields_can_be_provided() {
     }
 
     let e = WhateverError::without_source("Bad stuff".into());
-    let e = &e as &dyn snafu::Error;
-    let inner = e.request_ref::<String>();
+    let inner = error::request_ref::<String>(&e);
 
     let inner = inner.map(String::as_str);
     assert_eq!(inner, Some("Bad stuff"));
@@ -185,8 +181,7 @@ fn sources_are_automatically_provided() {
     }
 
     let e = WithSourceSnafu.into_error(InnerError);
-    let e = &e as &dyn snafu::Error;
-    let inner = e.request_ref::<InnerError>();
+    let inner = error::request_ref::<InnerError>(&e);
 
     assert_eq!(inner, Some(&InnerError));
 }
@@ -203,8 +198,7 @@ fn sources_can_be_not_automatically_provided() {
     }
 
     let e = WithSourceSnafu.into_error(InnerError);
-    let e = &e as &dyn snafu::Error;
-    let inner = e.request_ref::<InnerError>();
+    let inner = error::request_ref::<InnerError>(&e);
 
     assert_eq!(inner, None);
 }
@@ -222,8 +216,7 @@ fn sources_provided_values_are_chained() {
     }
 
     let e = OuterSnafu.into_error(InnerError);
-    let e = &e as &dyn snafu::Error;
-    let inner = e.request_value::<&str>();
+    let inner = error::request_value::<&str>(&e);
 
     assert_eq!(inner, Some("inner"));
 }
@@ -241,8 +234,7 @@ fn sources_provided_values_can_be_superseded() {
     }
 
     let e = OuterSnafu.into_error(InnerError);
-    let e = &e as &dyn snafu::Error;
-    let inner = e.request_value::<&str>();
+    let inner = error::request_value::<&str>(&e);
 
     assert_eq!(inner, Some("outer"));
 }
@@ -255,8 +247,7 @@ fn backtraces_are_automatically_provided() {
     }
 
     let e = WithBacktraceSnafu.build();
-    let e = &e as &dyn snafu::Error;
-    let bt = e.request_ref::<Backtrace>();
+    let bt = error::request_ref::<Backtrace>(&e);
 
     assert!(bt.is_some(), "was {bt:?}");
 }
@@ -270,8 +261,7 @@ fn backtraces_can_be_not_automatically_provided() {
     }
 
     let e = WithBacktraceSnafu.build();
-    let e = &e as &dyn snafu::Error;
-    let bt = e.request_ref::<Backtrace>();
+    let bt = error::request_ref::<Backtrace>(&e);
 
     assert!(bt.is_none(), "was {bt:?}");
 }
@@ -284,8 +274,7 @@ fn backtraces_support_conversion_via_as_backtrace() {
     }
 
     let e = AsBacktraceSnafu.build();
-    let e = &e as &dyn snafu::Error;
-    let bt = e.request_ref::<Backtrace>();
+    let bt = error::request_ref::<Backtrace>(&e);
 
     assert!(bt.is_some(), "was {bt:?}");
 }
@@ -307,8 +296,7 @@ fn backtraces_pick_deepest_by_default() {
     let outer_bt = &e.backtrace.backtrace;
     let inner_bt = &e.source.backtrace.backtrace;
 
-    let e = &e as &dyn snafu::Error;
-    let provided_bt = e.request_ref::<Backtrace>().unwrap();
+    let provided_bt = error::request_ref::<Backtrace>(&e).unwrap();
 
     assert!(
         std::ptr::eq(inner_bt, provided_bt),
@@ -335,12 +323,11 @@ fn can_chain_to_arbitrary_fields() {
         lhs: SomeProvidedData(99),
         rhs: SomeProvidedData(false),
     };
-    let e = &e as &dyn snafu::Error;
 
-    let lhs = e.request_value::<u8>();
+    let lhs = error::request_value::<u8>(&e);
     assert_eq!(lhs, Some(99));
 
-    let rhs = e.request_value::<bool>();
+    let rhs = error::request_value::<bool>(&e);
     assert_eq!(rhs, Some(false));
 }
 
@@ -358,12 +345,11 @@ fn can_chain_to_arbitrary_optional_fields() {
         lhs: Some(SomeProvidedData(99)),
         rhs: Some(SomeProvidedData(false)),
     };
-    let e = &e as &dyn snafu::Error;
 
-    let lhs = e.request_value::<u8>();
+    let lhs = error::request_value::<u8>(&e);
     assert_eq!(lhs, Some(99));
 
-    let rhs = e.request_value::<bool>();
+    let rhs = error::request_value::<bool>(&e);
     assert_eq!(rhs, Some(false));
 }
 
@@ -386,9 +372,8 @@ fn chaining_to_arbitrary_fields_evaluated_once() {
     let e = ErrorWithChildren {
         val: SomeProvidedData(99),
     };
-    let e = &e as &dyn snafu::Error;
 
-    let lhs = e.request_ref::<SomeProvidedData<u8>>();
+    let lhs = error::request_ref::<SomeProvidedData<u8>>(&e);
     assert_eq!(lhs, Some(&SomeProvidedData(99)));
     assert_eq!(COUNT.load(Ordering::SeqCst), 1);
 }
@@ -408,10 +393,9 @@ fn order_of_flags_does_not_matter() {
         omega: Some(-1),
     }
     .build();
-    let e = &e as &dyn snafu::Error;
 
-    let alpha = e.request_ref::<u8>();
-    let omega = e.request_ref::<i8>();
+    let alpha = error::request_ref::<u8>(&e);
+    let omega = error::request_ref::<i8>(&e);
 
     assert_eq!(alpha, Some(&255));
     assert_eq!(omega, Some(&-1));
@@ -427,8 +411,7 @@ fn opaque_errors_chain_to_inner_errors() {
     struct OuterError(InnerError);
 
     let e = OuterError::from(InnerError);
-    let e = &e as &dyn snafu::Error;
-    let inner = e.request_value::<u8>();
+    let inner = error::request_value::<u8>(&e);
 
     assert_eq!(inner, Some(42));
 }
@@ -444,8 +427,7 @@ fn opaque_errors_can_supersede_provided_values() {
     struct OuterError(InnerError);
 
     let e = OuterError::from(InnerError);
-    let e = &e as &dyn snafu::Error;
-    let inner = e.request_value::<u8>();
+    let inner = error::request_value::<u8>(&e);
 
     assert_eq!(inner, Some(99));
 }
@@ -467,8 +449,7 @@ fn opaque_errors_can_chain_provided() {
         }
         .build(),
     );
-    let e = &e as &dyn snafu::Error;
-    let inner = e.request_value::<u8>();
+    let inner = error::request_value::<u8>(&e);
 
     assert_eq!(inner, Some(99));
 }
@@ -484,8 +465,7 @@ fn whatever_errors_provide_the_source_error() {
     }
 
     let e = make().unwrap_err();
-    let e = &e as &dyn snafu::Error;
-    let inner = e.request_ref::<dyn snafu::Error>();
+    let inner = error::request_ref::<dyn snafu::Error>(&e);
 
     let inner = inner.map(ToString::to_string);
     let inner = inner.as_deref();
@@ -504,8 +484,7 @@ fn whatever_errors_chain_to_the_source_error() {
     }
 
     let e = make().unwrap_err();
-    let e = &e as &dyn snafu::Error;
-    let inner = e.request_value::<u8>();
+    let inner = error::request_value::<u8>(&e);
 
     assert_eq!(inner, Some(0));
 }
@@ -541,19 +520,35 @@ impl snafu::AsBacktrace for SomeBacktrace {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 struct SomeProvidedData<T>(T);
 
-impl<T> any::Provider for SomeProvidedData<T>
+use std::fmt;
+
+impl<T> fmt::Debug for SomeProvidedData<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        "SomeProvidedData(...)".fmt(f)
+    }
+}
+
+impl<T> fmt::Display for SomeProvidedData<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
+}
+
+impl<T> snafu::Error for SomeProvidedData<T>
 where
     T: Copy + 'static,
 {
-    fn provide(&self, demand: &mut any::Demand<'_>) {
-        demand.provide_value::<T>(self.0);
+    fn provide(&self, request: &mut error::Request<'_>) {
+        request.provide_value::<T>(self.0);
     }
 }
 
 mod doctests {
+    use crate::error;
+
     #[test]
     fn example_1() {
         use snafu::prelude::*;
@@ -579,8 +574,7 @@ mod doctests {
         }
 
         let e = LoginSnafu { user_id: UserId(0) }.build();
-        let e = &e as &dyn std::error::Error;
-        match e.request_ref::<UserId>() {
+        match error::request_ref::<UserId>(&e) {
             // Present when ApiError::Login or ApiError::Logout
             Some(user_id) => {
                 println!("{user_id:?} experienced an error");
@@ -612,20 +606,15 @@ mod doctests {
         }
 
         let outer = OuterSnafu.into_error(InnerSnafu { user_id: UserId(0) }.build());
-        let outer = &outer as &dyn std::error::Error;
 
         // We can get the source error and downcast it at once
-        outer
-            .request_ref::<InnerError>()
-            .expect("Must have a source");
+        error::request_ref::<InnerError>(&outer).expect("Must have a source");
 
         // We can get the deepest backtrace
-        outer
-            .request_ref::<snafu::Backtrace>()
-            .expect("Must have a backtrace");
+        error::request_ref::<snafu::Backtrace>(&outer).expect("Must have a backtrace");
 
         // We can get arbitrary values from sources as well
-        outer.request_ref::<UserId>().expect("Must have a user id");
+        error::request_ref::<UserId>(&outer).expect("Must have a user id");
     }
 
     #[test]
@@ -642,8 +631,7 @@ mod doctests {
         struct WebserverError;
 
         let e = WebserverError;
-        let e = &e as &dyn std::error::Error;
-        assert_eq!(Some(HTTP_NOT_FOUND), e.request_value::<HttpCode>());
+        assert_eq!(Some(HTTP_NOT_FOUND), error::request_value::<HttpCode>(&e));
     }
 
     #[test]
@@ -665,8 +653,7 @@ mod doctests {
             right_side: 2,
         }
         .build();
-        let e = &e as &dyn std::error::Error;
-        assert_eq!(Some(Summation(3)), e.request_value::<Summation>());
+        assert_eq!(Some(Summation(3)), error::request_value::<Summation>(&e));
     }
 
     #[test]
@@ -680,9 +667,8 @@ mod doctests {
         }
 
         let e = RefFlagExampleSnafu { name: "alice" }.build();
-        let e = &e as &dyn std::error::Error;
 
-        assert_eq!(Some("alice"), e.request_ref::<str>());
+        assert_eq!(Some("alice"), error::request_ref::<str>(&e));
     }
 
     #[test]
@@ -696,9 +682,8 @@ mod doctests {
         }
 
         let e = OptFlagExampleSnafu { char_code: b'x' }.build();
-        let e = &e as &dyn std::error::Error;
 
-        assert_eq!(Some('x'), e.request_value::<char>());
+        assert_eq!(Some('x'), error::request_value::<char>(&e));
     }
 
     #[test]
@@ -719,34 +704,29 @@ mod doctests {
         }
 
         let e = PriorityFlagExampleSnafu.into_error(InnerError);
-        let e = &e as &dyn std::error::Error;
 
-        assert_eq!(Some(Fatal(false)), e.request_value::<Fatal>());
+        assert_eq!(Some(Fatal(false)), error::request_value::<Fatal>(&e));
     }
 
     #[test]
     fn example_8() {
         use snafu::prelude::*;
-        use std::any;
-
-        #[derive(Debug)]
-        struct BlobOfData;
-
-        impl any::Provider for BlobOfData {
-            fn provide<'a>(&'a self, demand: &mut any::Demand<'a>) {
-                demand.provide_value::<u8>(1);
-            }
-        }
 
         #[derive(Debug, Snafu)]
-        #[snafu(provide(ref, chain, BlobOfData => data))]
+        #[snafu(provide(u8 => 1))]
+        struct NotTheSourceError;
+
+        #[derive(Debug, Snafu)]
+        #[snafu(provide(ref, chain, NotTheSourceError => data))]
         struct ChainFlagExampleError {
-            data: BlobOfData,
+            data: NotTheSourceError,
         }
 
-        let e = ChainFlagExampleSnafu { data: BlobOfData }.build();
-        let e = &e as &dyn std::error::Error;
+        let e = ChainFlagExampleSnafu {
+            data: NotTheSourceError,
+        }
+        .build();
 
-        assert_eq!(Some(1), e.request_value::<u8>());
+        assert_eq!(Some(1), error::request_value::<u8>(&e));
     }
 }

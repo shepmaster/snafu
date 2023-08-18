@@ -414,9 +414,9 @@ enum Error {
 ## Providing data beyond the `Error` trait
 
 When the [`unstable-provider-api` feature flag][] is enabled, errors
-will implement the standard library's [`Provider` API][provider
-API]. This allows arbitrary data to be associated with an error
-instance, expanding the abilities of the receiver of the error:
+will implement the [`Error::provide` method][Error::provide]. This
+allows arbitrary data to be associated with an error instance,
+expanding the abilities of the receiver of the error:
 
 ```rust,ignore
 use snafu::prelude::*;
@@ -442,8 +442,7 @@ enum ApiError {
 }
 
 let e = LoginSnafu { user_id: UserId(0) }.build();
-let e = &e as &dyn std::error::Error;
-match e.request_ref::<UserId>() {
+match error::request_ref::<UserId>(&e) {
     // Present when ApiError::Login or ApiError::Logout
     Some(user_id) => {
         println!("{user_id:?} experienced an error");
@@ -488,20 +487,15 @@ struct OuterError {
 }
 
 let outer = OuterSnafu.into_error(InnerSnafu { user_id: UserId(0) }.build());
-let outer = &outer as &dyn std::error::Error;
 
 // We can get the source error and downcast it at once
-outer
-    .request_ref::<InnerError>()
-    .expect("Must have a source");
+error::request_ref::<InnerError>(&outer).expect("Must have a source");
 
 // We can get the deepest backtrace
-outer
-    .request_ref::<snafu::Backtrace>()
-    .expect("Must have a backtrace");
+error::request_ref::<snafu::Backtrace>(&outer).expect("Must have a backtrace");
 
 // We can get arbitrary values from sources as well
-outer.request_ref::<UserId>().expect("Must have a user id");
+error::request_ref::<UserId>(&outer).expect("Must have a user id");
 ```
 
 By default, SNAFU will gather the provided data from the source first,
@@ -529,8 +523,7 @@ const HTTP_NOT_FOUND: HttpCode = HttpCode(404);
 struct WebserverError;
 
 let e = WebserverError;
-let e = &e as &dyn std::error::Error;
-assert_eq!(Some(HTTP_NOT_FOUND), e.request_value::<HttpCode>());
+assert_eq!(Some(HTTP_NOT_FOUND), error::request_value::<HttpCode>(&e));
 ```
 
 The expression may access any field of the error as well as `self`:
@@ -553,8 +546,7 @@ let e = AdditionSnafu {
     right_side: 2,
 }
 .build();
-let e = &e as &dyn std::error::Error;
-assert_eq!(Some(Summation(3)), e.request_value::<Summation>());
+assert_eq!(Some(Summation(3)), error::request_value::<Summation>(&e));
 ```
 
 ### Configuring how data is provided
@@ -580,9 +572,8 @@ struct RefFlagExampleError {
 }
 
 let e = RefFlagExampleSnafu { name: "alice" }.build();
-let e = &e as &dyn std::error::Error;
 
-assert_eq!(Some("alice"), e.request_ref::<str>());
+assert_eq!(Some("alice"), error::request_ref::<str>(&e));
 ```
 
 #### `provide(opt, ...`
@@ -602,16 +593,15 @@ struct OptFlagExampleError {
 }
 
 let e = OptFlagExampleSnafu { char_code: b'x' }.build();
-let e = &e as &dyn std::error::Error;
 
-assert_eq!(Some('x'), e.request_value::<char>());
+assert_eq!(Some('x'), error::request_value::<char>(&e));
 ```
 
 #### `provide(priority, ...`
 
 [provide-flag-priority]: #providepriority-
 
-The [Provider API][] works by types and can only return one piece of
+[`Error::provide`][] works by types and can only return one piece of
 data for a type. When there are multiple pieces of data for the same
 type, the one that is provided *first* will be used.
 
@@ -640,44 +630,39 @@ struct PriorityFlagExampleError {
 }
 
 let e = PriorityFlagExampleSnafu.into_error(InnerError);
-let e = &e as &dyn std::error::Error;
 
-assert_eq!(Some(Fatal(false)), e.request_value::<Fatal>());
+assert_eq!(Some(Fatal(false)), error::request_value::<Fatal>(&e));
 ```
 
 #### `provide(chain, ...`
 
 [provide-flag-chain]: #providechain-
 
-If a member of your error implements the [Provider API][] and you'd
-like for its data to be included when providing data for your error,
-but it isn't automatically provided because it's not a source error,
-you may add the `chain` flag. This flag must always be combined with
-the [`ref` flag][provide-flag-ref].
+If a member of your error implements [`Error`][] and you'd like for
+its data to be included when providing data for your error, but it
+isn't automatically provided because it's not a source error, you may
+add the `chain` flag. This flag must always be combined with the
+[`ref` flag][provide-flag-ref].
 
 ```rust,ignore
 use snafu::prelude::*;
-use std::any;
-
-#[derive(Debug)]
-struct BlobOfData;
-
-impl any::Provider for BlobOfData {
-    fn provide<'a>(&'a self, demand: &mut any::Demand<'a>) {
-        demand.provide_value::<u8>(1);
-    }
-}
 
 #[derive(Debug, Snafu)]
-#[snafu(provide(ref, chain, BlobOfData => data))]
+#[snafu(provide(u8 => 1))]
+struct NotTheSourceError;
+
+#[derive(Debug, Snafu)]
+#[snafu(provide(ref, chain, NotTheSourceError => data))]
 struct ChainFlagExampleError {
-    data: BlobOfData,
+    data: NotTheSourceError,
 }
 
-let e = ChainFlagExampleSnafu { data: BlobOfData }.build();
-let e = &e as &dyn std::error::Error;
+let e = ChainFlagExampleSnafu {
+    data: NotTheSourceError,
+}
+.build();
 
-assert_eq!(Some(1), e.request_value::<u8>());
+assert_eq!(Some(1), error::request_value::<u8>(&e));
 ```
 
 ### API stability concerns
@@ -692,8 +677,8 @@ refactor your code.
 Stating your guarantees is especially useful for opaque errors, which
 will expose all the provided data from the inner error type.
 
-[provider API]: https://doc.rust-lang.org/nightly/std/any/index.html#provider-and-demand
-[`request_ref`]: https://doc.rust-lang.org/nightly/std/error/trait.Error.html#method.request_ref
+[`Error::provide`]: https://doc.rust-lang.org/nightly/core/error/trait.Error.html#method.provide
+[`request_ref`]: https://doc.rust-lang.org/nightly/std/error/fn.request_ref.html
 
 ## Controlling implicitly generated data
 

@@ -192,10 +192,14 @@ where
 
                 #[cfg(feature = "unstable-provider-api")]
                 {
-                    use core::any;
+                    use crate::error;
 
-                    any::request_value::<ExitCode>(&e)
-                        .or_else(|| any::request_ref::<ExitCode>(&e).copied())
+                    // Broken. https://github.com/rust-lang/rust/pull/114973
+                    // error::request_value::<ExitCode>(&e)
+                    //     .or_else(|| error::request_ref::<ExitCode>(&e).copied())
+
+                    error::request_ref::<ExitCode>(&e)
+                        .copied()
                         .unwrap_or(ExitCode::FAILURE)
                 }
 
@@ -235,9 +239,9 @@ impl<'a> fmt::Display for ReportFormatter<'a> {
 
         #[cfg(feature = "unstable-provider-api")]
         {
-            use core::any;
+            use crate::error;
 
-            if let Some(bt) = any::request_ref::<crate::Backtrace>(self.0) {
+            if let Some(bt) = error::request_ref::<crate::Backtrace>(self.0) {
                 writeln!(f, "\nBacktrace:\n{}", bt)?;
             }
         }

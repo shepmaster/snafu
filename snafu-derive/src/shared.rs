@@ -656,7 +656,7 @@ pub mod error {
 
             let provide_fn = if cfg!(feature = "unstable-provider-api") {
                 Some(quote! {
-                    fn provide<'a>(&'a self, #PROVIDE_ARG: &mut core::any::Demand<'a>) {
+                    fn provide<'a>(&'a self, #PROVIDE_ARG: &mut #crate_root::error::Request<'a>) {
                         match *self {
                             #(#provide_arms,)*
                         };
@@ -788,7 +788,7 @@ pub mod error {
                 }
             });
 
-            let user_chained = quote_chained(&provides);
+            let user_chained = quote_chained(crate_root, &provides);
 
             let shorthand_calls = provide_refs.map(|(ty, name)| {
                 quote! { #PROVIDE_ARG.provide_ref::<#ty>(#name) }
@@ -854,22 +854,26 @@ pub mod error {
     }
 
     pub(crate) fn quote_chained<'a>(
+        crate_root: &'a dyn ToTokens,
         provides: &'a [ProvidePlus<'a>],
     ) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a {
-        provides.iter().filter(|pp| pp.provide.is_chain).map(|pp| {
-            let arm = if pp.provide.is_opt {
-                quote! { ::core::option::Option::Some(chained_item) }
-            } else {
-                quote! { chained_item }
-            };
-            let cached_name = &pp.cached_name;
+        provides
+            .iter()
+            .filter(|pp| pp.provide.is_chain)
+            .map(move |pp| {
+                let arm = if pp.provide.is_opt {
+                    quote! { ::core::option::Option::Some(chained_item) }
+                } else {
+                    quote! { chained_item }
+                };
+                let cached_name = &pp.cached_name;
 
-            quote! {
-                if let #arm = #cached_name {
-                    ::core::any::Provider::provide(chained_item, #PROVIDE_ARG);
+                quote! {
+                    if let #arm = #cached_name {
+                        #crate_root::Error::provide(chained_item, #PROVIDE_ARG);
+                    }
                 }
-            }
-        })
+            })
     }
 
     fn quote_provides<'a, I>(provides: I) -> impl Iterator<Item = proc_macro2::TokenStream> + 'a

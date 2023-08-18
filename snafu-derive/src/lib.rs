@@ -1946,13 +1946,13 @@ impl TupleStructInfo {
 
             let provides = shared::error::enhance_provider_list(&provides);
             let cached_expressions = shared::error::quote_cached_expressions(&provides);
-            let user_chained = shared::error::quote_chained(&provides);
+            let user_chained = shared::error::quote_chained(&crate_root, &provides);
 
             let (hi_explicit_calls, lo_explicit_calls) =
                 shared::error::build_explicit_provide_calls(&provides);
 
             Some(quote! {
-                fn provide<'a>(&'a self, #PROVIDE_ARG: &mut core::any::Demand<'a>) {
+                fn provide<'a>(&'a self, #PROVIDE_ARG: &mut #crate_root::error::Request<'a>) {
                     match self {
                         Self(v) => {
                             #(#cached_expressions;)*
