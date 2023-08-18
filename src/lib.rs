@@ -4,7 +4,7 @@
 #![cfg_attr(feature = "unstable-core-error", feature(error_in_core))]
 #![cfg_attr(
     feature = "unstable-provider-api",
-    feature(error_generic_member_access, provide_any)
+    feature(error_generic_member_access)
 )]
 #![cfg_attr(feature = "unstable-try-trait", feature(try_trait_v2))]
 
@@ -347,7 +347,15 @@ doc_comment::doctest!("../README.md", readme_tests);
 
 #[cfg(feature = "unstable-core-error")]
 #[doc(hidden)]
+pub use core::error;
+
+#[cfg(feature = "unstable-core-error")]
+#[doc(hidden)]
 pub use core::error::Error;
+
+#[cfg(all(not(feature = "unstable-core-error"), any(feature = "std", test)))]
+#[doc(hidden)]
+pub use std::error;
 
 #[cfg(all(not(feature = "unstable-core-error"), any(feature = "std", test)))]
 #[doc(hidden)]
@@ -1193,11 +1201,9 @@ impl GenerateImplicitData for Option<Backtrace> {
     fn generate_with_source(source: &dyn crate::Error) -> Self {
         #[cfg(feature = "unstable-provider-api")]
         {
-            use core::any;
-
             if !backtrace_collection_enabled() {
                 None
-            } else if any::request_ref::<Backtrace>(source).is_some() {
+            } else if error::request_ref::<Backtrace>(source).is_some() {
                 None
             } else {
                 Some(Backtrace::generate_with_source(source))

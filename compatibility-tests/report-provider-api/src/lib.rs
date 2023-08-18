@@ -1,10 +1,11 @@
 #![cfg(test)]
-#![feature(error_generic_member_access, provide_any)]
+#![feature(error_generic_member_access)]
 
 use snafu::{prelude::*, Report};
 use std::process::ExitCode;
 
 #[test]
+#[ignore] // https://github.com/rust-lang/rust/pull/114973
 fn provided_exit_code_is_returned() {
     use std::process::Termination;
 

@@ -1,5 +1,5 @@
 #![cfg(test)]
-#![feature(error_generic_member_access, provide_any)]
+#![feature(error_generic_member_access)]
 
 use snafu::{prelude::*, IntoError};
 
