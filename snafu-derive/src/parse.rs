@@ -40,7 +40,7 @@ pub(crate) fn attributes_from_syn(
     let mut errs = Vec::new();
 
     for attr in attrs {
-        if attr.path.is_ident("snafu") {
+        if attr.path().is_ident("snafu") {
             let attr_list = Punctuated::<Attribute, token::Comma>::parse_terminated;
 
             match attr.parse_args_with(attr_list) {
@@ -49,11 +49,11 @@ pub(crate) fn attributes_from_syn(
                 }
                 Err(e) => errs.push(e),
             }
-        } else if attr.path.is_ident("doc") {
+        } else if attr.path().is_ident("doc") {
             // Ignore any errors that occur while parsing the doc
             // comment. This isn't our attribute so we shouldn't
             // assume that we know what values are acceptable.
-            if let Ok(comment) = syn::parse2::<DocComment>(attr.tokens) {
+            if let Ok(comment) = syn::parse2::<DocComment>(attr.meta.to_token_stream()) {
                 ours.push(comment.into());
             }
         }
@@ -422,6 +422,7 @@ impl ToTokens for Display {
 }
 
 struct DocComment {
+    doc_ident: Ident,
     eq_token: token::Eq,
     str: LitStr,
 }
@@ -441,6 +442,7 @@ impl From<DocComment> for SnafuAttribute {
 impl Parse for DocComment {
     fn parse(input: ParseStream) -> Result<Self> {
         Ok(Self {
+            doc_ident: input.parse()?,
             eq_token: input.parse()?,
             str: input.parse()?,
         })
@@ -449,6 +451,7 @@ impl Parse for DocComment {
 
 impl ToTokens for DocComment {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.doc_ident.to_tokens(tokens);
         self.eq_token.to_tokens(tokens);
         self.str.to_tokens(tokens);
     }
