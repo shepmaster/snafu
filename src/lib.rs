@@ -535,7 +535,7 @@ macro_rules! ensure_whatever {
     };
 }
 
-/// Additions to [`Result`](std::result::Result).
+/// Additions to [`Result`][].
 pub trait ResultExt<T, E>: Sized {
     /// Extend a [`Result`]'s error with additional context-sensitive information.
     ///
@@ -568,9 +568,8 @@ pub trait ResultExt<T, E>: Sized {
     /// }
     /// ```
     ///
-    /// Note that the context selector will call
-    /// [`Into::into`](std::convert::Into::into) on each field, so the types
-    /// are not required to exactly match.
+    /// Note that the context selector will call [`Into::into`][] on each field,
+    /// so the types are not required to exactly match.
     fn context<C, E2>(self, context: C) -> Result<T, E2>
     where
         C: IntoError<E2, Source = E>,
@@ -608,8 +607,7 @@ pub trait ResultExt<T, E>: Sized {
     /// ```
     ///
     /// Note that this *may not* be needed in many cases because the context
-    /// selector will call [`Into::into`](std::convert::Into::into) on each
-    /// field.
+    /// selector will call [`Into::into`][] on each field.
     fn with_context<F, C, E2>(self, context: F) -> Result<T, E2>
     where
         F: FnOnce(&mut E) -> C,
@@ -767,7 +765,7 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
 /// [`Result`]: std::result::Result
 pub struct NoneError;
 
-/// Additions to [`Option`](std::option::Option).
+/// Additions to [`Option`][].
 pub trait OptionExt<T>: Sized {
     /// Convert an [`Option`][] into a [`Result`][] with additional
     /// context-sensitive information.
@@ -795,9 +793,8 @@ pub trait OptionExt<T>: Sized {
     /// }
     /// ```
     ///
-    /// Note that the context selector will call
-    /// [`Into::into`](std::convert::Into::into) on each field, so the types
-    /// are not required to exactly match.
+    /// Note that the context selector will call [`Into::into`][] on each field,
+    /// so the types are not required to exactly match.
     fn context<C, E>(self, context: C) -> Result<T, E>
     where
         C: IntoError<E, Source = NoneError>,
@@ -836,8 +833,7 @@ pub trait OptionExt<T>: Sized {
     /// ```
     ///
     /// Note that this *may not* be needed in many cases because the context
-    /// selector will call [`Into::into`](std::convert::Into::into) on each
-    /// field.
+    /// selector will call [`Into::into`][] on each field.
     fn with_context<F, C, E>(self, context: F) -> Result<T, E>
     where
         F: FnOnce() -> C,
@@ -978,8 +974,8 @@ impl<T> OptionExt<T> for Option<T> {
     }
 }
 
-/// Backports changes to the [`Error`](std::error::Error) trait to
-/// versions of Rust lacking them.
+/// Backports changes to the [`Error`][] trait to versions of Rust
+/// lacking them.
 ///
 /// It is recommended to always call these methods explicitly so that
 /// it is easy to replace usages of this trait when you start
@@ -994,7 +990,7 @@ impl<T> OptionExt<T> for Option<T> {
 /// # }
 /// ```
 pub trait ErrorCompat {
-    /// Returns a [`Backtrace`](Backtrace) that may be printed.
+    /// Returns a [`Backtrace`][] that may be printed.
     fn backtrace(&self) -> Option<&Backtrace> {
         None
     }
