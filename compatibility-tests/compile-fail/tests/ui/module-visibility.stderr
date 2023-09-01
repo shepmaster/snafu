@@ -2,7 +2,9 @@ error[E0603]: module `error` is private
   --> tests/ui/module-visibility.rs:16:21
    |
 16 |     let _ = inside::error::VariantSnafu;
-   |                     ^^^^^ private module
+   |                     ^^^^^  ------------ unit struct `VariantSnafu` is not publicly re-exported
+   |                     |
+   |                     private module
    |
 note: the module `error` is defined here
   --> tests/ui/module-visibility.rs:4:21
