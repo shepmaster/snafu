@@ -1266,9 +1266,24 @@ impl AsBacktrace for Backtrace {
 
 /// The source code location where the error was reported.
 ///
-/// To use it, add a field `location: Location` to your error. This
-/// will automatically register it as [implicitly generated
-/// data][implicit].
+/// To use it, add a field of type `Location` to your error and
+/// register it as [implicitly generated data][implicit]. When
+/// constructing the error, you do not need to provide the location:
+///
+/// ```rust
+/// # use snafu::prelude::*;
+/// #[derive(Debug, Snafu)]
+/// struct NeighborhoodError {
+///     #[snafu(implicit)]
+///     loc: snafu::Location,
+/// }
+///
+/// fn check_next_door() -> Result<(), NeighborhoodError> {
+///     ensure!(everything_quiet(), NeighborhoodSnafu);
+///     Ok(())
+/// }
+/// # fn everything_quiet() -> bool { false }
+/// ```
 ///
 /// [implicit]: Snafu#controlling-implicitly-generated-data
 ///
@@ -1323,13 +1338,13 @@ impl AsBacktrace for Backtrace {
 /// #[derive(Debug, Snafu)]
 /// struct ImplicitLocationError {
 ///     source: AnotherError,
+///     #[snafu(implicit)]
 ///     location: Location,
 /// }
 ///
 /// #[derive(Debug, Snafu)]
 /// struct ExplicitLocationError {
 ///     source: AnotherError,
-///     #[snafu(implicit(false))]
 ///     location: Location,
 /// }
 /// # }

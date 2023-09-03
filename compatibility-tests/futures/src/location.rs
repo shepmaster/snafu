@@ -3,19 +3,20 @@ use snafu::{location, prelude::*, Location};
 
 #[derive(Debug, Copy, Clone, Snafu)]
 struct InnerError {
+    #[snafu(implicit)]
     location: Location,
 }
 
 #[derive(Debug, Copy, Clone, Snafu)]
 struct WrappedError {
     source: InnerError,
+    #[snafu(implicit)]
     location: Location,
 }
 
 #[derive(Debug, Snafu)]
 struct ManuallyWrappedError {
     source: InnerError,
-    #[snafu(implicit(false))]
     location: Location,
 }
 
@@ -26,6 +27,7 @@ pub struct MyWhatever {
     #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
     source: Option<Box<dyn std::error::Error>>,
     message: String,
+    #[snafu(implicit)]
     location: Location,
 }
 
