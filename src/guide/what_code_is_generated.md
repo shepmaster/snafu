@@ -66,10 +66,9 @@ struct UserIdInvalidSnafu<I> {
     user_id: I,
 }
 
-struct ConfigValidationFailedSnafu {
-    checksum: u64,
-    key: String,
-    source: crypto::Error,
+struct ConfigValidationFailedSnafu<I, S> {
+    checksum: I,
+    key: S,
 }
 ```
 
