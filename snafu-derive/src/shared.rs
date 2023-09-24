@@ -528,6 +528,20 @@ pub mod display {
 
             let source_field = selector_kind.source_field();
 
+            if field_container.is_transparent {
+                // transparent errors always have a source field
+                let source_field_name = source_field.unwrap().name();
+
+                let match_arm = quote! {
+                    #pattern_ident { ref #source_field_name, .. } => {
+                        ::core::fmt::Display::fmt(#source_field_name, #FORMATTER_ARG)
+                    }
+                };
+
+                stream.extend(match_arm);
+                return;
+            }
+
             let mut shorthand_names = &BTreeSet::new();
             let mut assigned_names = &BTreeSet::new();
 
@@ -677,7 +691,12 @@ pub mod error {
     impl ToTokens for ErrorSourceMatchArm<'_> {
         fn to_tokens(&self, stream: &mut TokenStream) {
             let Self {
-                field_container: FieldContainer { selector_kind, .. },
+                field_container:
+                    FieldContainer {
+                        selector_kind,
+                        is_transparent,
+                        ..
+                    },
                 pattern_ident,
             } = *self;
 
@@ -692,6 +711,10 @@ pub mod error {
                     let convert_to_error_source = if selector_kind.is_whatever() {
                         quote! {
                             #field_name.as_ref().map(|e| e.as_error_source())
+                        }
+                    } else if *is_transparent {
+                        quote! {
+                            #field_name.as_error_source().source()
                         }
                     } else {
                         quote! {

@@ -10,6 +10,7 @@ mod enum_misuse {
     #[snafu(implicit)]
     #[snafu(provide)]
     #[snafu(provide(u8 => 0))]
+    #[snafu(transparent)]
     enum EnumError {
         AVariant,
     }
@@ -43,6 +44,7 @@ mod field_misuse {
             #[snafu(source(from(XXXX, Box::new)))]
             #[snafu(context)]
             #[snafu(crate_root(XXXX))]
+            #[snafu(transparent)]
             source: String,
 
             #[snafu(provide(false))]
@@ -68,6 +70,7 @@ mod struct_misuse {
     #[snafu(implicit)]
     #[snafu(provide)]
     #[snafu(provide(u8 => 0))]
+    #[snafu(transparent)]
     struct StructError(Box<UsableError>);
 }
 
