@@ -399,7 +399,7 @@ impl<'a> Iterator for CleanedErrorText<'a> {
         use std::mem;
 
         let mut step = self.0.take()?;
-        let mut error_text = mem::replace(&mut step.error_text, Default::default());
+        let mut error_text = mem::take(&mut step.error_text);
 
         match step.error.source() {
             Some(next_error) => {

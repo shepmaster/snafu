@@ -51,6 +51,7 @@ pub fn body(
         quote! { -> ::core::result::Result<(), ::snafu::Report<#error_ty>> }
     };
 
+    #[allow(clippy::collapsible_else_if)]
     let block = if asyncness.is_some() {
         if cfg!(feature = "rust_1_61") {
             quote! {

@@ -810,7 +810,7 @@ pub mod error {
         }
     }
 
-    pub(crate) fn enhance_provider_list<'a>(provides: &'a [Provide]) -> Vec<ProvidePlus<'a>> {
+    pub(crate) fn enhance_provider_list(provides: &[Provide]) -> Vec<ProvidePlus<'_>> {
         provides
             .iter()
             .enumerate()
