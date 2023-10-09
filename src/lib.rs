@@ -690,6 +690,121 @@ pub trait ResultExt<T, E>: Sized {
         S: Into<String>,
         E2: FromString,
         E: Into<E2::Source>;
+
+    /// Convert a [`Result`]'s error into a boxed trait object
+    /// compatible with multiple threads.
+    ///
+    /// This is useful when you have errors of multiple types that you
+    /// wish to treat as one type. This may occur when dealing with
+    /// errors in a generic context, such as when the error is a
+    /// trait's associated type.
+    ///
+    /// In cases like this, you cannot name the original error type
+    /// without making the outer error type generic as well. Using an
+    /// error trait object offers an alternate solution.
+    ///
+    /// ```rust
+    /// # use std::convert::TryInto;
+    /// use snafu::prelude::*;
+    ///
+    /// fn convert_value_into_u8<V>(v: V) -> Result<u8, ConversionFailedError>
+    /// where
+    ///     V: TryInto<u8>,
+    ///     V::Error: snafu::Error + Send + Sync + 'static,
+    /// {
+    ///     v.try_into().boxed().context(ConversionFailedSnafu)
+    /// }
+    ///
+    /// #[derive(Debug, Snafu)]
+    /// struct ConversionFailedError {
+    ///     source: Box<dyn snafu::Error + Send + Sync + 'static>,
+    /// }
+    /// ```
+    ///
+    /// ## Avoiding misapplication
+    ///
+    /// We recommended **against** using this to create fewer error
+    /// variants which in turn would group unrelated errors. While
+    /// convenient for the programmer, doing so usually makes lower
+    /// quality error messages for the user.
+    ///
+    /// ```rust
+    /// use snafu::prelude::*;
+    /// use std::fs;
+    ///
+    /// fn do_not_do_this() -> Result<i32, UselessError> {
+    ///     let content = fs::read_to_string("/path/to/config/file")
+    ///         .boxed()
+    ///         .context(UselessSnafu)?;
+    ///     content.parse().boxed().context(UselessSnafu)
+    /// }
+    ///
+    /// #[derive(Debug, Snafu)]
+    /// struct UselessError {
+    ///     source: Box<dyn snafu::Error + Send + Sync + 'static>,
+    /// }
+    /// ```
+    #[cfg(any(feature = "std", test))]
+    fn boxed<'a>(self) -> Result<T, Box<dyn Error + Send + Sync + 'a>>
+    where
+        E: Error + Send + Sync + 'a;
+
+    /// Convert a [`Result`]'s error into a boxed trait object.
+    ///
+    /// This is useful when you have errors of multiple types that you
+    /// wish to treat as one type. This may occur when dealing with
+    /// errors in a generic context, such as when the error is a
+    /// trait's associated type.
+    ///
+    /// In cases like this, you cannot name the original error type
+    /// without making the outer error type generic as well. Using an
+    /// error trait object offers an alternate solution.
+    ///
+    /// ```rust
+    /// # use std::convert::TryInto;
+    /// use snafu::prelude::*;
+    ///
+    /// fn convert_value_into_u8<V>(v: V) -> Result<u8, ConversionFailedError>
+    /// where
+    ///     V: TryInto<u8>,
+    ///     V::Error: snafu::Error + 'static,
+    /// {
+    ///     v.try_into().boxed_local().context(ConversionFailedSnafu)
+    /// }
+    ///
+    /// #[derive(Debug, Snafu)]
+    /// struct ConversionFailedError {
+    ///     source: Box<dyn snafu::Error + 'static>,
+    /// }
+    /// ```
+    ///
+    /// ## Avoiding misapplication
+    ///
+    /// We recommended **against** using this to create fewer error
+    /// variants which in turn would group unrelated errors. While
+    /// convenient for the programmer, doing so usually makes lower
+    /// quality error messages for the user.
+    ///
+    /// ```rust
+    /// use snafu::prelude::*;
+    /// use std::fs;
+    ///
+    /// fn do_not_do_this() -> Result<i32, UselessError> {
+    ///     let content = fs::read_to_string("/path/to/config/file")
+    ///         .boxed_local()
+    ///         .context(UselessSnafu)?;
+    ///     content.parse().boxed_local().context(UselessSnafu)
+    /// }
+    ///
+    /// #[derive(Debug, Snafu)]
+    /// struct UselessError {
+    ///     source: Box<dyn snafu::Error + 'static>,
+    /// }
+    /// ```
+    #[cfg(any(feature = "std", test))]
+    fn boxed_local<'a>(self) -> Result<T, Box<dyn Error + 'a>>
+    where
+        E: Error + 'a;
 }
 
 impl<T, E> ResultExt<T, E> for Result<T, E> {
@@ -755,6 +870,22 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
                 Err(FromString::with_source(e.into(), context.into()))
             }
         }
+    }
+
+    #[cfg(any(feature = "std", test))]
+    fn boxed<'a>(self) -> Result<T, Box<dyn Error + Send + Sync + 'a>>
+    where
+        E: Error + Send + Sync + 'a,
+    {
+        self.map_err(|e| Box::new(e) as _)
+    }
+
+    #[cfg(any(feature = "std", test))]
+    fn boxed_local<'a>(self) -> Result<T, Box<dyn Error + 'a>>
+    where
+        E: Error + 'a,
+    {
+        self.map_err(|e| Box::new(e) as _)
     }
 }
 
