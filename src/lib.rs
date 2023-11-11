@@ -65,14 +65,12 @@
 //! ```rust
 //! use snafu::{prelude::*, ErrorCompat, Whatever};
 //!
-//! fn main() {
 //! # fn returns_an_error() -> Result<(), Whatever> { Ok(()) }
-//!     if let Err(e) = returns_an_error() {
-//!         eprintln!("An error occurred: {}", e);
-//!         if let Some(bt) = ErrorCompat::backtrace(&e) {
-//! #           #[cfg(not(feature = "backtraces-impl-backtrace-crate"))]
-//!             eprintln!("{}", bt);
-//!         }
+//! if let Err(e) = returns_an_error() {
+//!     eprintln!("An error occurred: {}", e);
+//!     if let Some(bt) = ErrorCompat::backtrace(&e) {
+//! #       #[cfg(not(feature = "backtraces-impl-backtrace-crate"))]
+//!         eprintln!("{}", bt);
 //!     }
 //! }
 //! ```

@@ -121,10 +121,7 @@ enum ContextSelectorKind {
 
 impl ContextSelectorKind {
     fn is_whatever(&self) -> bool {
-        match self {
-            ContextSelectorKind::Whatever { .. } => true,
-            _ => false,
-        }
+        matches!(self, ContextSelectorKind::Whatever { .. })
     }
 
     fn user_fields(&self) -> &[Field] {
@@ -931,7 +928,7 @@ fn field_container(
         let field = Field {
             name: name.clone(),
             ty: syn_field.ty.clone(),
-            provide: provide_attr.is_some() || (is_implicit_provide(&name) && !provide_opt_out),
+            provide: provide_attr.is_some() || (is_implicit_provide(name) && !provide_opt_out),
             original,
         };
 
@@ -1318,7 +1315,7 @@ struct DocComment {
 impl DocComment {
     fn push_str(&mut self, s: &str) {
         if !self.content.is_empty() {
-            self.content.push_str(" ");
+            self.content.push(' ');
         }
         self.content.push_str(s);
     }
@@ -1437,7 +1434,7 @@ trait GenericAwareNames {
     fn provided_generics_without_defaults(&self) -> Vec<proc_macro2::TokenStream> {
         self.provided_generic_lifetimes()
             .into_iter()
-            .chain(self.provided_generic_types_without_defaults().into_iter())
+            .chain(self.provided_generic_types_without_defaults())
             .collect()
     }
 
@@ -1581,9 +1578,9 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
             original_generics_without_defaults: &self.0.provided_generics_without_defaults(),
             parameterized_error_name: &self.0.parameterized_name(),
             selector_doc_string: &selector_doc_string,
-            selector_kind: &selector_kind,
+            selector_kind,
             selector_name: variant_name,
-            user_fields: &selector_kind.user_fields(),
+            user_fields: selector_kind.user_fields(),
             visibility: selector_visibility,
             where_clauses: &self.0.provided_where_clauses(),
             default_suffix,
@@ -1768,7 +1765,7 @@ impl NamedStructInfo {
         };
 
         let error_source_match_arm = ErrorSourceMatchArm {
-            field_container: &field_container,
+            field_container,
             pattern_ident,
         };
         let error_source_match_arm = quote! { #error_source_match_arm };
@@ -1816,7 +1813,7 @@ impl NamedStructInfo {
             display_format: display_format.as_ref(),
             doc_comment: doc_comment.as_ref(),
             pattern_ident: &quote! { Self },
-            selector_kind: &selector_kind,
+            selector_kind,
         };
         let arm = quote! { #arm };
 
@@ -1843,15 +1840,15 @@ impl NamedStructInfo {
 
         let context_selector = ContextSelector {
             backtrace_field: backtrace_field.as_ref(),
-            implicit_fields: implicit_fields,
+            implicit_fields,
             crate_root: &crate_root,
             error_constructor_name: &name,
             original_generics_without_defaults: &original_generics,
             parameterized_error_name: &parameterized_struct_name,
             selector_doc_string: &selector_doc_string,
-            selector_kind: &selector_kind,
+            selector_kind,
             selector_name: &field_container.name,
-            user_fields: &user_fields,
+            user_fields,
             visibility: selector_visibility,
             where_clauses: &where_clauses,
             default_suffix: &SuffixKind::Default,

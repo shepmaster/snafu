@@ -662,31 +662,19 @@ impl ProvideFlag {
     }
 
     fn is_chain(&self) -> bool {
-        match self {
-            ProvideFlag::Chain(_) => true,
-            _ => false,
-        }
+        matches!(self, ProvideFlag::Chain(_))
     }
 
     fn is_opt(&self) -> bool {
-        match self {
-            ProvideFlag::Opt(_) => true,
-            _ => false,
-        }
+        matches!(self, ProvideFlag::Opt(_))
     }
 
     fn is_priority(&self) -> bool {
-        match self {
-            ProvideFlag::Priority(_) => true,
-            _ => false,
-        }
+        matches!(self, ProvideFlag::Priority(_))
     }
 
     fn is_ref(&self) -> bool {
-        match self {
-            ProvideFlag::Ref(_) => true,
-            _ => false,
-        }
+        matches!(self, ProvideFlag::Ref(_))
     }
 }
 
@@ -743,7 +731,7 @@ impl Parse for Source {
     fn parse(input: ParseStream) -> Result<Self> {
         Ok(Self {
             source_token: input.parse()?,
-            args: MaybeArg::parse_with(&input, Punctuated::parse_terminated)?,
+            args: MaybeArg::parse_with(input, Punctuated::parse_terminated)?,
         })
     }
 }
