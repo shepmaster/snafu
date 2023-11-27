@@ -2037,20 +2037,6 @@ impl GenericAwareNames for TupleStructInfo {
     }
 }
 
-trait Transpose<T, E> {
-    fn my_transpose(self) -> Result<Option<T>, E>;
-}
-
-impl<T, E> Transpose<T, E> for Option<Result<T, E>> {
-    fn my_transpose(self) -> Result<Option<T>, E> {
-        match self {
-            Some(Ok(v)) => Ok(Some(v)),
-            Some(Err(e)) => Err(e),
-            None => Ok(None),
-        }
-    }
-}
-
 mod sponge {
     use std::iter::FromIterator;
 
