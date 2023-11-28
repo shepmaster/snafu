@@ -183,3 +183,69 @@ error: `transparent` attribute is only valid on enum variants or structs with na
    |
 73 |     #[snafu(transparent)]
    |             ^^^^^^^^^^^
+
+error: `backtrace` attribute is only valid on enum variant or struct fields with a name, not on a tuple struct field
+  --> tests/ui/attribute-misuse.rs:81:21
+   |
+81 |             #[snafu(backtrace)]
+   |                     ^^^^^^^^^
+
+error: `context` attribute is only valid on enum variants or structs with named fields, not on a tuple struct field
+  --> tests/ui/attribute-misuse.rs:82:21
+   |
+82 |             #[snafu(context)]
+   |                     ^^^^^^^
+
+error: `crate_root` attribute is only valid on an enum or a struct, not on a tuple struct field
+  --> tests/ui/attribute-misuse.rs:83:21
+   |
+83 |             #[snafu(crate_root(nowhere))]
+   |                     ^^^^^^^^^^^^^^^^^^^
+
+error: `display` attribute is only valid on enum variants or structs with named fields, not on a tuple struct field
+  --> tests/ui/attribute-misuse.rs:84:21
+   |
+84 |             #[snafu(display("display should not work here"))]
+   |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: `implicit` attribute is only valid on enum variant or struct fields with a name, not on a tuple struct field
+  --> tests/ui/attribute-misuse.rs:85:21
+   |
+85 |             #[snafu(implicit)]
+   |                     ^^^^^^^^
+
+error: `module` attribute is only valid on an enum or structs with named fields, not on a tuple struct field
+  --> tests/ui/attribute-misuse.rs:86:21
+   |
+86 |             #[snafu(module)]
+   |                     ^^^^^^
+
+error: `provide` attribute is only valid on enum variant or struct fields with a name, not on a tuple struct field
+  --> tests/ui/attribute-misuse.rs:87:21
+   |
+87 |             #[snafu(provide)]
+   |                     ^^^^^^^
+
+error: `source` attribute is only valid on enum variant or struct fields with a name, not on a tuple struct field
+  --> tests/ui/attribute-misuse.rs:88:21
+   |
+88 |             #[snafu(source)]
+   |                     ^^^^^^
+
+error: `transparent` attribute is only valid on enum variants or structs with named fields, not on a tuple struct field
+  --> tests/ui/attribute-misuse.rs:89:21
+   |
+89 |             #[snafu(transparent)]
+   |                     ^^^^^^^^^^^
+
+error: `visibility` attribute is only valid on an enum, enum variants, or a struct with named fields, not on a tuple struct field
+  --> tests/ui/attribute-misuse.rs:90:21
+   |
+90 |             #[snafu(visibility(pub))]
+   |                     ^^^^^^^^^^^^^^^
+
+error: `whatever` attribute is only valid on enum variants or structs with named fields, not on a tuple struct field
+  --> tests/ui/attribute-misuse.rs:91:21
+   |
+91 |             #[snafu(whatever)]
+   |                     ^^^^^^^^

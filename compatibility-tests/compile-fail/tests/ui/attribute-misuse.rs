@@ -72,6 +72,29 @@ mod struct_misuse {
     #[snafu(provide(u8 => 0))]
     #[snafu(transparent)]
     struct StructError(Box<UsableError>);
+
+    mod field_misuse {
+        use snafu::prelude::*;
+
+        #[derive(Debug, Snafu)]
+        struct Opaque(
+            #[snafu(backtrace)]
+            #[snafu(context)]
+            #[snafu(crate_root(nowhere))]
+            #[snafu(display("display should not work here"))]
+            #[snafu(implicit)]
+            #[snafu(module)]
+            #[snafu(provide)]
+            #[snafu(source)]
+            #[snafu(transparent)]
+            #[snafu(visibility(pub))]
+            #[snafu(whatever)]
+            Box<InnerError>,
+        );
+
+        #[derive(Debug, Snafu)]
+        struct InnerError;
+    }
 }
 
 fn main() {}
