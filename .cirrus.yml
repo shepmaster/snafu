@@ -16,8 +16,6 @@ stable_test_task:
   primary_test_script:
     - rustc --version
     - cargo test --all
-  backtrace_shim_test_script:
-    - cargo test --manifest-path compatibility-tests/backtrace-shim/Cargo.toml
   backtraces_impl_backtrace_crate_test_script:
     - cargo test --manifest-path compatibility-tests/backtraces-impl-backtrace-crate/Cargo.toml
   context_selectors_have_documentation_test_script:
@@ -63,8 +61,6 @@ doc_test_task:
     - rustc +nightly --version
   docs_script:
     - cargo +nightly doc
-  backtraces_docs_script:
-    - cargo +nightly doc --features=backtraces
   backtraces_impl_backtrace_crate_docs_script:
     - cargo +nightly doc --features=backtraces-impl-backtrace-crate
   futures_docs_script:
@@ -82,8 +78,6 @@ doc_tests_task:
     fingerprint_script: cat Cargo.toml
   version_information_script:
     - rustc +nightly --version
-  backtraces_doctests_script:
-    - cargo +nightly test --doc --features=backtraces
   backtraces_impl_backtrace_crate_doctests_script:
     - cargo +nightly test --doc --features=backtraces-impl-backtrace-crate
   futures_doctests_script:
@@ -171,23 +165,7 @@ nightly_test_task:
     - cargo test
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
-std_backtraces_test_task:
-  name: "Rust Beta (backtraces)"
-  container:
-    image: rust:latest
-    cpu: 1
-    memory: 2Gi
-  cargo_cache:
-    folder: $CARGO_HOME/registry
-    fingerprint_script: cat Cargo.toml
-  setup_script:
-    - rustup toolchain install beta
-  backtraces_impl_std_test_script:
-    - cd compatibility-tests/backtraces-impl-std && RUST_BACKTRACE=1 cargo test
-  backtraces_impl_std_docs_script:
-    - cargo +beta doc --features=backtraces-impl-std
-  before_cache_script: rm -rf $CARGO_HOME/registry/index
-
+# Our Minimal Supported Rust Version (MSRV)
 v1_56_test_task:
   name: "Rust 1.56"
   container:
@@ -200,6 +178,22 @@ v1_56_test_task:
   primary_test_script:
     - rustup self update
     - cd compatibility-tests/v1_56/
+    - rustc --version
+    - cargo test
+  before_cache_script: rm -rf $CARGO_HOME/registry/index
+
+v1_61_test_task:
+  name: "Rust 1.61"
+  container:
+    image: rust:1.61
+    cpu: 1
+    memory: 2Gi
+  cargo_cache:
+    folder: $CARGO_HOME/registry
+    fingerprint_script: cat Cargo.toml
+  primary_test_script:
+    - rustup self update
+    - cd compatibility-tests/v1_61/
     - rustc --version
     - cargo test
   before_cache_script: rm -rf $CARGO_HOME/registry/index

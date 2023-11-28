@@ -26,3 +26,23 @@ and test functions.
 
 [`Termination`]: std::process::Termination
 [`Report`]: crate::Report
+
+## `rust_1_65`
+
+<dl class="snafu-ff-meta">
+<dt>Default</dt>
+<dd>enabled</dd>
+<dt>Implies</dt>
+<dd>
+
+[`rust_1_61`](#rust_1_61)
+
+</dd>
+</dl>
+
+When enabled, SNAFU will assume that it's safe to target features
+available in Rust 1.65. Notably, the [`Backtrace`][] type is used when
+the standard library is available and no other backtrace provider is
+selected.
+
+[`Backtrace`]: std::backtrace::Backtrace

@@ -5,52 +5,148 @@ type AnotherError = Box<dyn std::error::Error>;
 #[derive(Debug, Snafu)]
 enum Error {
     #[snafu(display("Invalid user {user_id}:\n{backtrace}"))]
-    InvalidUser { user_id: i32, backtrace: Backtrace },
+    InvalidUser {
+        user_id: i32,
+        backtrace: Backtrace,
+    },
+
     WithSource {
         source: AnotherError,
         backtrace: Backtrace,
     },
+
     WithSourceAndOtherInfo {
         user_id: i32,
         source: AnotherError,
+        backtrace: Backtrace,
+    },
+
+    WithBacktrace {
         backtrace: Backtrace,
     },
 }
 
 type Result<T, E = Error> = std::result::Result<T, E>;
 
-fn example(user_id: i32) -> Result<()> {
-    ensure!(user_id >= 42, InvalidUserSnafu { user_id });
-    Ok(())
+fn example() -> Result<()> {
+    WithBacktraceSnafu.fail()
 }
 
 #[test]
-fn display_can_access_backtrace() {
-    let e = example(0).unwrap_err();
-    let text = e.to_string();
-    assert!(
-        text.contains("disabled backtrace"),
-        "{:?} does not contain expected text",
-        text
-    );
-}
+fn is_compatible_with_std_error_trait() {
+    fn expects_std_trait<E: std::error::Error>() {}
 
-fn trigger() -> Result<(), AnotherError> {
-    Err("boom".into())
+    expects_std_trait::<Error>();
 }
 
 #[test]
-fn errors_with_sources_can_have_backtraces() {
-    let e = trigger().context(WithSourceSnafu).unwrap_err();
-    let backtrace = ErrorCompat::backtrace(&e).unwrap();
-    assert!(backtrace.to_string().contains("disabled backtrace"));
+fn is_compatible_with_std_backtrace_type() {
+    fn expects_std_type(_: &std::backtrace::Backtrace) {}
+
+    let error = example().unwrap_err();
+    let backtrace = ErrorCompat::backtrace(&error).unwrap();
+    expects_std_type(&backtrace);
 }
 
 #[test]
-fn errors_with_sources_and_other_info_can_have_backtraces() {
-    let e = trigger()
-        .context(WithSourceAndOtherInfoSnafu { user_id: 42 })
-        .unwrap_err();
-    let backtrace = ErrorCompat::backtrace(&e).unwrap();
-    assert!(backtrace.to_string().contains("disabled backtrace"));
+fn backtrace_contains_function_names() {
+    let error = example().unwrap_err();
+    let backtrace = ErrorCompat::backtrace(&error).unwrap();
+    assert!(backtrace.to_string().contains("::example"));
+}
+
+mod delegation {
+    use snafu::{prelude::*, ErrorCompat};
+
+    mod house {
+        use snafu::{prelude::*, Backtrace};
+
+        #[derive(Debug, Snafu)]
+        pub struct FatalError {
+            backtrace: Backtrace,
+        }
+
+        pub fn answer_telephone() -> Result<(), FatalError> {
+            FatalSnafu.fail()
+        }
+    }
+
+    #[derive(Debug, Snafu)]
+    enum Error {
+        MovieTrope {
+            #[snafu(backtrace)]
+            source: house::FatalError,
+        },
+
+        SourceAndBacktraceAttrs {
+            // Testing source and backtrace attributes; the field should be recognized as a source,
+            // and allow us to get a backtrace delegated from the source error
+            #[snafu(source, backtrace)]
+            cause: house::FatalError,
+        },
+    }
+
+    fn delegate_example() -> Result<(), Error> {
+        house::answer_telephone().context(MovieTropeSnafu)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn backtrace_comes_from_delegated_error() {
+        let e = delegate_example().unwrap_err();
+        let text = ErrorCompat::backtrace(&e)
+            .map(ToString::to_string)
+            .unwrap_or_default();
+        assert!(
+            text.contains("answer_telephone"),
+            "{:?} does not contain `answer_telephone`",
+            text,
+        );
+    }
+
+    fn delegate_and_rename_example() -> Result<(), Error> {
+        house::answer_telephone().context(SourceAndBacktraceAttrsSnafu)
+    }
+
+    #[test]
+    fn backtrace_comes_from_renamed_delegated_error() {
+        let e = delegate_and_rename_example().unwrap_err();
+        let text = ErrorCompat::backtrace(&e)
+            .map(ToString::to_string)
+            .unwrap_or_default();
+        assert!(
+            text.contains("answer_telephone"),
+            "{:?} does not contain `answer_telephone`",
+            text,
+        );
+    }
+}
+
+mod whatever_nested {
+    use snafu::{prelude::*, Whatever};
+
+    fn inner_outer() -> Result<(), Whatever> {
+        not_a_whatever().with_whatever_context(|_| format!("Outer failure"))
+    }
+
+    fn not_a_whatever() -> Result<(), Box<dyn std::error::Error>> {
+        inner_whatever().map_err(Into::into)
+    }
+
+    fn inner_whatever() -> Result<(), Whatever> {
+        whatever!("Inner failure");
+    }
+
+    #[test]
+    fn backtrace_method_delegates_to_nested_whatever() {
+        let e = inner_outer().unwrap_err();
+        let bt = e.backtrace().expect("Must have a backtrace");
+        let text = bt.to_string();
+        assert!(
+            text.contains("::inner_whatever"),
+            "{:?} does not contain `::inner_whatever`",
+            text,
+        );
+    }
 }

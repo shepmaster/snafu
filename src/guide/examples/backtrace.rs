@@ -4,22 +4,19 @@
 
 use crate::{Snafu, Backtrace, ErrorCompat, GenerateImplicitData};
 
-/// Backtraces aren't yet supported by the stable Rust compiler. SNAFU
-/// provides a stable-compatible way of getting backtraces as well as
-/// support for the backtrace support in the nightly compiler. **By
-/// default, backtraces are disabled**. It is
-/// expected that the final executable adds SNAFU as a dependency and
-/// chooses the appropriate [feature
-/// flag](crate::guide::feature_flags) to enable backtraces.
+/// Rust 1.65 stabilized the [`std::backtrace::Backtrace`] type, but
+/// there's not yet a stable abstraction for accessing a backtrace
+/// from an arbitrary error value. SNAFU provides a stable-compatible
+/// way of accessing backtraces on a SNAFU-created error type. SNAFU
+/// also supports environments where backtraces are not available,
+/// such as `no_std` projects.
 ///
-/// When using SNAFU to define error types, it's recommended to start
-/// with a [`Backtrace`] field on every leaf error variant (those
-/// without a `source`). Backtraces are only captured on
-/// failure. Since backtraces are disabled by default, adding them in
-/// a library does not force any users to pay the price of backtraces
-/// if they are not used; they can be zero cost.
+/// When defining error types which include backtraces, it's
+/// recommended to start with a [`Backtrace`] field on every leaf
+/// error variant (those without a `source`). Backtraces are only
+/// captured on failure.
 ///
-/// Certain errors are used for flow control. Those don't need a
+/// Certain errors are used for flow control. These don't need a
 /// backtrace as they don't represent actual failures. However,
 /// sometimes an error is *mostly* used for flow control but might
 /// also indicate an error. In those cases, you can use
@@ -32,13 +29,13 @@ use crate::{Snafu, Backtrace, ErrorCompat, GenerateImplicitData};
 /// SNAFU error, for example, you can *delegate* retrieval of the
 /// backtrace to the source error. If the source error doesn't provide
 /// its own backtrace, you should capture your own backtrace. This
-/// backtrace would not be as useful as one captured by the source
+/// backtrace will not be as useful as one captured by the source
 /// error, but it's as useful as you can get.
 ///
 /// When you wish to display the backtrace of an error, you can use
 /// the [`ErrorCompat::backtrace`] method. It's recommended to always
 /// use this in the fully-qualified form so it will be easy to find
-/// and replace when Rust stabilizes backtraces.
+/// and replace when there's a stable way to access backtraces.
 ///
 /// ```
 /// # use snafu::guide::examples::backtrace::*;
@@ -63,7 +60,8 @@ use crate::{Snafu, Backtrace, ErrorCompat, GenerateImplicitData};
 // needed in most cases:
 #[snafu(crate_root(crate), visibility(pub))]
 pub enum Error {
-    /// The most common leaf error should always include a backtrace field.
+    /// The most common case: leaf errors should always include a
+    /// backtrace field.
     UsualCase {
         backtrace: Backtrace,
     },
