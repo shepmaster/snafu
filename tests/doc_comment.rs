@@ -9,7 +9,7 @@ enum Error {
     MissingUser,
 
     /// This is just a doc comment.
-    #[snafu(display("This is {}", stronger))]
+    #[snafu(display("This is {stronger}"))]
     Stronger { stronger: &'static str },
 
     #[doc(hidden)]

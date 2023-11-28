@@ -35,5 +35,5 @@ fn example() -> Result<u8, InnerError> {
 #[test]
 fn has_display() {
     let err = example().context(error::AlphaSnafu).unwrap_err();
-    assert_eq!(format!("{}", err), "Moo");
+    assert_eq!(err.to_string(), "Moo");
 }

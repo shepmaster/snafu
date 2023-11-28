@@ -14,7 +14,7 @@ mod default_with_lifetime {
         T: Display,
         S: std::error::Error + AsErrorSource,
     {
-        #[snafu(display("Boom: {}", value))]
+        #[snafu(display("Boom: {value}"))]
         Boom {
             value: T,
             name: &'a str,

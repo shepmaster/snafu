@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 #[derive(Debug, Clone, Snafu, PartialEq)]
 enum LeafError {
-    #[snafu(display("User ID {} is invalid", user_id))]
+    #[snafu(display("User ID {user_id} is invalid"))]
     InvalidUser { user_id: i32 },
     #[snafu(display("no user available"))]
     MissingUser,

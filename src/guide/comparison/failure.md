@@ -16,10 +16,10 @@ use std::ops::Range;
 
 fn check_range(x: usize, range: Range<usize>) -> Result<usize, Whatever> {
     if x < range.start {
-        whatever!("{} is below {}", x, range.start);
+        whatever!("{x} is below {}", range.start);
     }
     if x >= range.end {
-        whatever!("{} is above {}", x, range.end);
+        whatever!("{x} is above {}", range.end);
     }
     Ok(x)
 }

@@ -2,7 +2,7 @@ use snafu::prelude::*;
 use std::error::Error as StdError;
 
 #[derive(Debug, Snafu)]
-#[snafu(display("name: [{}]", name))]
+#[snafu(display("name: [{name}]"))]
 struct Error {
     name: String,
 }

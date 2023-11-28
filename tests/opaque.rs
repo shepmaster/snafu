@@ -20,7 +20,7 @@ mod inner {
 
     #[derive(Debug, Snafu)]
     enum InnerError {
-        #[snafu(display("The value {} is too big", count))]
+        #[snafu(display("The value {count} is too big"))]
         TooBig { count: i32 },
     }
 

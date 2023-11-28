@@ -11,9 +11,9 @@ enum Error {
         filename: PathBuf,
         source: io::Error,
     },
-    #[snafu(display("Could not open config file at {}", source))]
+    #[snafu(display("Could not open config file at {source}"))]
     SaveConfig { source: io::Error },
-    #[snafu(display("User ID {} is invalid", user_id))]
+    #[snafu(display("User ID {user_id} is invalid"))]
     InvalidUser { user_id: i32 },
     #[snafu(display("No user available"))]
     MissingUser,
