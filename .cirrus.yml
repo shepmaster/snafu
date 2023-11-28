@@ -156,23 +156,6 @@ nightly_test_task:
     - cargo test
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
-unstable_std_backtraces_test_task:
-  name: "Rust Nightly (backtraces)"
-  container:
-    image: rustlang/rust:nightly
-    cpu: 1
-    memory: 2Gi
-  cargo_cache:
-    folder: $CARGO_HOME/registry
-    fingerprint_script: cat Cargo.toml
-  setup_script:
-    - rustup toolchain install nightly-2022-06-21
-  unstable_backtraces_impl_std_test_script:
-    - cd compatibility-tests/unstable-backtraces-impl-std && RUST_BACKTRACE=1 cargo test
-  unstable_backtraces_impl_std_docs_script:
-    - cargo +nightly-2022-06-21 doc --features=unstable-backtraces-impl-std
-  before_cache_script: rm -rf $CARGO_HOME/registry/index
-
 std_backtraces_test_task:
   name: "Rust Beta (backtraces)"
   container:

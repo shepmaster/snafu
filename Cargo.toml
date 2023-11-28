@@ -43,9 +43,6 @@ backtraces = ["std", "backtrace"]
 # The backtrace type becomes `backtrace::Backtrace`
 backtraces-impl-backtrace-crate = ["backtraces"]
 
-# We implement `std::error::Error::backtrace`
-unstable-backtraces-impl-std = ["backtraces-impl-std", "snafu-derive/unstable-backtraces-impl-std"]
-
 # The backtrace type becomes `std::backtrace::Backtrace`
 backtraces-impl-std = []
 
