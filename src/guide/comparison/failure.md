@@ -3,7 +3,7 @@
 This comparison was made against the examples in [the guide for
 failure 0.1.8][failure-guide].
 
-[failure-guide]: https://rust-lang-nursery.github.io/failure/guidance.html
+[failure-guide]: https://boats.gitlab.io/failure/
 
 ## "Strings as errors"
 
