@@ -16,10 +16,7 @@ SNAFU is tested and compatible back to Rust 1.56, released on
 
 <dl class="snafu-ff-meta">
 <dt>Default</dt>
-<dd>disabled</dd>
-<dt>Implies</dt>
-<dd>
-</dd>
+<dd>enabled</dd>
 </dl>
 
 When enabled, SNAFU will assume that it's safe to target features
