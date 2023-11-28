@@ -53,6 +53,7 @@ struct EnumInfo {
     module: Option<ModuleName>,
 }
 
+/// A struct or enum variant, with named fields.
 struct FieldContainer {
     name: syn::Ident,
     backtrace_field: Option<Field>,
@@ -63,6 +64,7 @@ struct FieldContainer {
     visibility: Option<UserInput>,
     module: Option<ModuleName>,
     provides: Vec<Provide>,
+    is_transparent: bool,
 }
 
 impl FieldContainer {
@@ -635,6 +637,15 @@ const ATTR_CRATE_ROOT: OnlyValidOn = OnlyValidOn {
     valid_on: "an enum or a struct",
 };
 
+const ATTR_TRANSPARENT: OnlyValidOn = OnlyValidOn {
+    attribute: "transparent",
+    valid_on: "enum variants or structs with named fields",
+};
+
+const ATTR_TRANSPARENT_FALSE: DoesNothing = DoesNothing {
+    attribute: "transparent(false)",
+};
+
 const SOURCE_BOOL_FROM_INCOMPATIBLE: IncompatibleAttributes =
     IncompatibleAttributes(&["source(false)", "source(from)"]);
 
@@ -683,6 +694,7 @@ fn parse_snafu_enum(
             }
             Att::Backtrace(tokens, ..) => enum_errors.add(tokens, ATTR_BACKTRACE),
             Att::Implicit(tokens, ..) => enum_errors.add(tokens, ATTR_IMPLICIT),
+            Att::Transparent(tokens, ..) => enum_errors.add(tokens, ATTR_TRANSPARENT),
             Att::Whatever(tokens) => enum_errors.add(tokens, ATTR_WHATEVER),
             Att::DocComment(..) => { /* Just a regular doc comment. */ }
         }
@@ -768,6 +780,8 @@ fn field_container(
 
     let mut contexts = AtMostOne::new("context", outer_error_location);
     let mut whatevers = AtMostOne::new("whatever", outer_error_location);
+    let mut transparents = AtMostOne::new("transparent", outer_error_location);
+
     let mut doc_comment = DocComment::default();
     let mut reached_end_of_doc_comment = false;
 
@@ -780,6 +794,13 @@ fn field_container(
             Att::Visibility(tokens, v) => visibilities.add(v, tokens),
             Att::Context(tokens, c) => contexts.add(c, tokens),
             Att::Whatever(tokens) => whatevers.add((), tokens),
+            Att::Transparent(tokens, t) => {
+                if t {
+                    transparents.add((), tokens)
+                } else {
+                    outer_errors.add(tokens, ATTR_TRANSPARENT_FALSE)
+                }
+            }
             Att::Source(tokens, ..) => outer_errors.add(tokens, ATTR_SOURCE),
             Att::Backtrace(tokens, ..) => outer_errors.add(tokens, ATTR_BACKTRACE),
             Att::Implicit(tokens, ..) => outer_errors.add(tokens, ATTR_IMPLICIT),
@@ -907,6 +928,7 @@ fn field_container(
                 Att::Visibility(tokens, ..) => field_errors.add(tokens, ATTR_VISIBILITY),
                 Att::Display(tokens, ..) => field_errors.add(tokens, ATTR_DISPLAY),
                 Att::Context(tokens, ..) => field_errors.add(tokens, ATTR_CONTEXT),
+                Att::Transparent(tokens, ..) => field_errors.add(tokens, ATTR_TRANSPARENT),
                 Att::Whatever(tokens) => field_errors.add(tokens, ATTR_WHATEVER),
                 Att::CrateRoot(tokens, ..) => field_errors.add(tokens, ATTR_CRATE_ROOT),
                 Att::DocComment(..) => { /* Just a regular doc comment. */ }
@@ -1007,18 +1029,47 @@ fn field_container(
     let (module, errs) = modules.finish();
     errors.extend(errs);
 
-    let (display_format, errs) = display_formats.finish();
+    let (display_format, errs) = display_formats.finish_with_location();
     errors.extend(errs);
 
     let (visibility, errs) = visibilities.finish();
     errors.extend(errs);
 
     let (is_context, errs) = contexts.finish_with_location();
-    let is_context = is_context.map(|(c, tt)| (c.into_enabled(), tt));
+    let mut is_context = is_context.map(|(c, tt)| (c.into_enabled(), tt));
+    let mut is_context_false_checks_source = "Context selectors without context";
     errors.extend(errs);
 
     let (is_whatever, errs) = whatevers.finish_with_location();
     errors.extend(errs);
+
+    let (is_transparent, errs) = transparents.finish_with_location();
+    errors.extend(errs);
+
+    if let (Some((_, d_tt)), Some((_, t_tt))) = (&display_format, &is_transparent) {
+        let txt = "`transparent` errors cannot have a display format because they delegate `Display` to their source";
+        errors.extend([
+            syn::Error::new_spanned(d_tt, txt),
+            syn::Error::new_spanned(t_tt, txt),
+        ]);
+    }
+
+    match (&is_context, &is_transparent) {
+        (Some(((true, _), c_tt)), Some((_, t_tt))) => {
+            let txt = "`transparent` errors cannot have context";
+            errors.extend([
+                syn::Error::new_spanned(c_tt, txt),
+                syn::Error::new_spanned(t_tt, txt),
+            ]);
+        }
+        (None, Some((_, t_tt))) => {
+            // `transparent` implies `context(false)`. Treat `transparent` as if setting
+            // `context(false)` as well.
+            is_context = Some(((false, SuffixKind::Default), t_tt.clone()));
+            is_context_false_checks_source = "`transparent` errors";
+        }
+        (Some(((false, _), _)), Some(_)) | (_, None) => {}
+    }
 
     let source_field = source.map(|(val, _tts)| val);
 
@@ -1079,14 +1130,20 @@ fn field_container(
             errors.extend(user_fields.into_iter().map(|Field { original, .. }| {
                 syn::Error::new_spanned(
                     original,
-                    "Context selectors without context must not have context fields",
+                    format_args!(
+                        "{} must not have context fields",
+                        is_context_false_checks_source
+                    ),
                 )
             }));
 
             let source_field = source_field.ok_or_else(|| {
                 vec![syn::Error::new(
                     variant_span,
-                    "Context selectors without context must have a source field",
+                    format_args!(
+                        "{} must have a source field",
+                        is_context_false_checks_source
+                    ),
                 )]
             })?;
 
@@ -1099,11 +1156,12 @@ fn field_container(
         backtrace_field: backtrace.map(|(val, _tts)| val),
         implicit_fields,
         selector_kind,
-        display_format,
+        display_format: display_format.map(|(d, _)| d),
         doc_comment: doc_comment.finish(),
         visibility,
         module,
         provides,
+        is_transparent: is_transparent.is_some(),
     })
 }
 
@@ -1235,6 +1293,7 @@ fn parse_snafu_tuple_struct(
             Att::Implicit(tokens, ..) => struct_errors.add(tokens, ATTR_IMPLICIT),
             Att::Context(tokens, ..) => struct_errors.add(tokens, ATTR_CONTEXT),
             Att::Whatever(tokens) => struct_errors.add(tokens, ATTR_CONTEXT),
+            Att::Transparent(tokens, ..) => struct_errors.add(tokens, ATTR_TRANSPARENT),
             Att::CrateRoot(tokens, root) => crate_roots.add(root, tokens),
             Att::DocComment(..) => { /* Just a regular doc comment. */ }
         }
@@ -1351,6 +1410,7 @@ enum SnafuAttribute {
     Module(proc_macro2::TokenStream, ModuleName),
     Provide(proc_macro2::TokenStream, ProvideKind),
     Source(proc_macro2::TokenStream, Vec<Source>),
+    Transparent(proc_macro2::TokenStream, bool),
     Visibility(proc_macro2::TokenStream, UserInput),
     Whatever(proc_macro2::TokenStream),
 }

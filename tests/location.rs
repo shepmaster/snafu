@@ -17,8 +17,15 @@ mod basics {
         let one = UsageSnafu.build();
         let two = UsageSnafu.build();
 
-        assert_eq!(one.to_string(), "Created at tests/location.rs:17:30");
-        assert_eq!(two.to_string(), "Created at tests/location.rs:18:30");
+        let sep = std::path::MAIN_SEPARATOR;
+        assert_eq!(
+            one.to_string(),
+            format!("Created at tests{sep}location.rs:17:30")
+        );
+        assert_eq!(
+            two.to_string(),
+            format!("Created at tests{sep}location.rs:18:30")
+        );
     }
 }
 

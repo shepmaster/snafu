@@ -1,0 +1,35 @@
+error: `transparent` errors must not have context fields
+  --> tests/ui/transparent.rs:13:39
+   |
+13 |     HasUserFields { source: BoxError, a: i32, b: i32 },
+   |                                       ^^^^^^
+
+error: `transparent` errors must not have context fields
+  --> tests/ui/transparent.rs:13:47
+   |
+13 |     HasUserFields { source: BoxError, a: i32, b: i32 },
+   |                                               ^^^^^^
+
+error: `transparent(false)` attribute has no effect
+  --> tests/ui/transparent.rs:15:13
+   |
+15 |     #[snafu(transparent(false))]
+   |             ^^^^^^^^^^^^^^^^^^
+
+error: `transparent` errors cannot have a display format because they delegate `Display` to their source
+  --> tests/ui/transparent.rs:19:13
+   |
+19 |     #[snafu(display("Oh snap!"))]
+   |             ^^^^^^^^^^^^^^^^^^^
+
+error: `transparent` errors cannot have a display format because they delegate `Display` to their source
+  --> tests/ui/transparent.rs:18:13
+   |
+18 |     #[snafu(transparent)]
+   |             ^^^^^^^^^^^
+
+error: `transparent` errors must have a source field
+  --> tests/ui/transparent.rs:10:5
+   |
+10 |     MissingSource {},
+   |     ^^^^^^^^^^^^^

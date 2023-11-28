@@ -21,6 +21,7 @@ mod kw {
     custom_keyword!(module);
     custom_keyword!(provide);
     custom_keyword!(source);
+    custom_keyword!(transparent);
     custom_keyword!(visibility);
     custom_keyword!(whatever);
 
@@ -86,6 +87,7 @@ enum Attribute {
     Module(Module),
     Provide(Provide),
     Source(Source),
+    Transparent(Transparent),
     Visibility(Visibility),
     Whatever(Whatever),
 }
@@ -103,6 +105,7 @@ impl From<Attribute> for SnafuAttribute {
             Module(v) => SnafuAttribute::Module(v.to_token_stream(), v.into_value()),
             Provide(v) => SnafuAttribute::Provide(v.to_token_stream(), v.into_value()),
             Source(s) => SnafuAttribute::Source(s.to_token_stream(), s.into_components()),
+            Transparent(t) => SnafuAttribute::Transparent(t.to_token_stream(), t.into_bool()),
             Visibility(v) => SnafuAttribute::Visibility(v.to_token_stream(), v.into_arbitrary()),
             Whatever(o) => SnafuAttribute::Whatever(o.to_token_stream()),
         }
@@ -128,6 +131,8 @@ impl Parse for Attribute {
             input.parse().map(Attribute::Provide)
         } else if lookahead.peek(kw::source) {
             input.parse().map(Attribute::Source)
+        } else if lookahead.peek(kw::transparent) {
+            input.parse().map(Attribute::Transparent)
         } else if lookahead.peek(kw::visibility) {
             input.parse().map(Attribute::Visibility)
         } else if lookahead.peek(kw::whatever) {
@@ -799,6 +804,33 @@ impl ToTokens for SourceArg {
                 })
             }
         }
+    }
+}
+
+struct Transparent {
+    transparent_token: kw::transparent,
+    arg: MaybeArg<LitBool>,
+}
+
+impl Transparent {
+    fn into_bool(self) -> bool {
+        self.arg.into_option().map_or(true, |a| a.value)
+    }
+}
+
+impl Parse for Transparent {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(Self {
+            transparent_token: input.parse()?,
+            arg: input.parse()?,
+        })
+    }
+}
+
+impl ToTokens for Transparent {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.transparent_token.to_tokens(tokens);
+        self.arg.to_tokens(tokens);
     }
 }
 
