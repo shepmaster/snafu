@@ -76,13 +76,13 @@ use std::num::ParseIntError;
 
 #[derive(Debug, Snafu)]
 enum Error {
-    #[snafu(display(r#"Could not parse the area code from "{value}": {source}"#))]
+    #[snafu(display(r#"Could not parse the area code from "{value}""#))]
     AreaCodeInvalid {
         value: String,
         source: ParseIntError,
     },
 
-    #[snafu(display(r#"Could not parse the phone exchange from "{value}": {source}"#))]
+    #[snafu(display(r#"Could not parse the phone exchange from "{value}""#))]
     PhoneExchangeInvalid {
         value: String,
         source: ParseIntError,

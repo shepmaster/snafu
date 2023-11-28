@@ -15,10 +15,10 @@ use std::{fs, io, path::PathBuf};
 
 #[derive(Debug, Snafu)]
 enum Error {
-    #[snafu(display("Unable to read configuration from {}: {}", path.display(), source))]
+    #[snafu(display("Unable to read configuration from {}", path.display()))]
     ReadConfiguration { source: io::Error, path: PathBuf },
 
-    #[snafu(display("Unable to write result to {}: {}", path.display(), source))]
+    #[snafu(display("Unable to write result to {}", path.display()))]
     WriteResult { source: io::Error, path: PathBuf },
 }
 

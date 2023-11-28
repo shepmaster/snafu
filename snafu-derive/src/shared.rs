@@ -545,23 +545,19 @@ pub mod display {
             let mut shorthand_names = &BTreeSet::new();
             let mut assigned_names = &BTreeSet::new();
 
-            let format = match (display_format, doc_comment, source_field) {
-                (Some(v), _, _) => {
+            let format = match (display_format, doc_comment) {
+                (Some(v), _) => {
                     let exprs = &v.exprs;
                     shorthand_names = &v.shorthand_names;
                     assigned_names = &v.assigned_names;
                     quote! { #(#exprs),* }
                 }
-                (_, Some(d), _) => {
+                (_, Some(d)) => {
                     let content = &d.content;
                     shorthand_names = &d.shorthand_names;
                     quote! { #content }
                 }
-                (_, _, Some(f)) => {
-                    let field_name = &f.name;
-                    quote! { concat!(stringify!(#default_name), ": {}"), #field_name }
-                }
-                _ => quote! { stringify!(#default_name)},
+                _ => quote! { stringify!(#default_name) },
             };
 
             let field_names = super::AllFieldNames(field_container).field_names();

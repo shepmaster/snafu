@@ -6,7 +6,7 @@ use std::{
 
 #[derive(Debug, Snafu)]
 enum Error {
-    #[snafu(display("Could not open config file at {}: {}", filename.display(), source))]
+    #[snafu(display("Could not open config file at {}", filename.display()))]
     OpenConfig {
         filename: PathBuf,
         source: io::Error,
