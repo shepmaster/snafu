@@ -75,7 +75,6 @@ Most usages of SNAFU will want this feature disabled.
 
 </dd>
 </dl>
-</dl>
 
 When enabled, the [`Backtrace`] type in your enum variant will capture
 a backtrace when the error is generated. If you never use backtraces,
