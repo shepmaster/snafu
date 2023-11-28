@@ -216,6 +216,8 @@ pub mod prelude {
 
     // https://github.com/rust-lang/rust/issues/89020
     #[doc = include_str!("Snafu.md")]
+    // Links are reported as broken, but don't appear to be
+    #[allow(rustdoc::broken_intra_doc_links)]
     pub use snafu_derive::Snafu;
 
     #[cfg(any(feature = "std", test))]
@@ -299,6 +301,7 @@ macro_rules! generate_guide {
         #[cfg(feature = "guide")]
         #[doc = include_str!(concat!($prefix, "/", stringify!($name), ".md"))]
         pub mod $name {
+            use crate::*;
             generate_guide!(@gen concat!($prefix, "/", stringify!($name)), $($children)*);
         }
         #[cfg(not(feature = "guide"))]
