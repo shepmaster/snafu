@@ -1292,7 +1292,7 @@ fn parse_snafu_tuple_struct(
             Att::Backtrace(tokens, ..) => struct_errors.add(tokens, ATTR_BACKTRACE),
             Att::Implicit(tokens, ..) => struct_errors.add(tokens, ATTR_IMPLICIT),
             Att::Context(tokens, ..) => struct_errors.add(tokens, ATTR_CONTEXT),
-            Att::Whatever(tokens) => struct_errors.add(tokens, ATTR_CONTEXT),
+            Att::Whatever(tokens) => struct_errors.add(tokens, ATTR_WHATEVER),
             Att::Transparent(tokens, ..) => struct_errors.add(tokens, ATTR_TRANSPARENT),
             Att::CrateRoot(tokens, root) => crate_roots.add(root, tokens),
             Att::DocComment(..) => { /* Just a regular doc comment. */ }
