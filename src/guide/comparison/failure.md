@@ -3,7 +3,7 @@
 This comparison was made against the examples in [the guide for
 failure 0.1.8][failure-guide].
 
-[failure-guide]: https://rust-lang-nursery.github.io/failure/guidance.html
+[failure-guide]: https://boats.gitlab.io/failure/
 
 ## "Strings as errors"
 
@@ -16,10 +16,10 @@ use std::ops::Range;
 
 fn check_range(x: usize, range: Range<usize>) -> Result<usize, Whatever> {
     if x < range.start {
-        whatever!("{} is below {}", x, range.start);
+        whatever!("{x} is below {}", range.start);
     }
     if x >= range.end {
-        whatever!("{} is above {}", x, range.end);
+        whatever!("{x} is above {}", range.end);
     }
     Ok(x)
 }
@@ -76,13 +76,13 @@ use std::num::ParseIntError;
 
 #[derive(Debug, Snafu)]
 enum Error {
-    #[snafu(display(r#"Could not parse the area code from "{value}": {source}"#))]
+    #[snafu(display(r#"Could not parse the area code from "{value}""#))]
     AreaCodeInvalid {
         value: String,
         source: ParseIntError,
     },
 
-    #[snafu(display(r#"Could not parse the phone exchange from "{value}": {source}"#))]
+    #[snafu(display(r#"Could not parse the phone exchange from "{value}""#))]
     PhoneExchangeInvalid {
         value: String,
         source: ParseIntError,

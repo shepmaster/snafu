@@ -1,7 +1,7 @@
 use snafu::{prelude::*, Backtrace};
 
 #[derive(Debug, Snafu)]
-#[snafu(display("The argument at index {} was missing", idx))]
+#[snafu(display("The argument at index {idx} was missing"))]
 struct Error {
     idx: usize,
     backtrace: Backtrace,

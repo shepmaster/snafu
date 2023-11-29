@@ -32,17 +32,17 @@ it is valid. Detailed information on each attribute is below.
 
 ### Enum variant or struct
 
-| Option (inside `#[snafu(...)]`) | Description                                                                                                                                                                                     |
-|---------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `display("{field:?}: {}", foo)` | Sets the display implementation for this error variant using `format_args!` syntax. If this is omitted, the default is `"VariantName: {source}"` if there is a source or `"VariantName"` if not |
-| `context(false)`                | Skips creation of the context selector, implements `From` for the mandatory source error                                                                                                        |
-| `context(suffix(N))`            | Changes the suffix of the generated context selector to `N`                                                                                                                                     |
-| `context(suffix(false))`        | No suffix for the generated context selector                                                                                                                                                    |
-| `transparent`                   | Delegates `Display` and `Error::source` to this error's source, implies `context(false)`                                                                                                        |
-| `visibility(v)`                 | Sets the visibility of the generated context selector to `v` (e.g. `pub`)                                                                                                                       |
-| `visibility`                    | Resets visibility back to private                                                                                                                                                               |
-| `provide(flags, type => expr)`  | Provides the type using the `expr` with the optional flags                                                                                                                                      |
-| `whatever`                      | Stringly-typed error. Message field must be called `message`. Source optional, but if present must be of a specific [format](#controlling-stringly-typed-errors)                                |
+| Option (inside `#[snafu(...)]`) | Description                                                                                                                                                      |
+|---------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `display("{field:?}: {}", foo)` | Sets the display implementation for this error variant using `format_args!` syntax. If this is omitted, the default is `"VariantName"                            |
+| `context(false)`                | Skips creation of the context selector, implements `From` for the mandatory source error                                                                         |
+| `context(suffix(N))`            | Changes the suffix of the generated context selector to `N`                                                                                                      |
+| `context(suffix(false))`        | No suffix for the generated context selector                                                                                                                     |
+| `transparent`                   | Delegates `Display` and `Error::source` to this error's source, implies `context(false)`                                                                         |
+| `visibility(v)`                 | Sets the visibility of the generated context selector to `v` (e.g. `pub`)                                                                                        |
+| `visibility`                    | Resets visibility back to private                                                                                                                                |
+| `provide(flags, type => expr)`  | Provides the type using the `expr` with the optional flags                                                                                                       |
+| `whatever`                      | Stringly-typed error. Message field must be called `message`. Source optional, but if present must be of a specific [format](#controlling-stringly-typed-errors) |
 
 ### Context fields
 

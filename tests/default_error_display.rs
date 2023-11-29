@@ -17,5 +17,5 @@ fn default_error_display() {
         .fail::<()>()
         .context(NoDisplaySnafu)
         .unwrap_err();
-    assert_eq!(format!("{}", err), "NoDisplay: inner error",);
+    assert_eq!(err.to_string(), "NoDisplay");
 }

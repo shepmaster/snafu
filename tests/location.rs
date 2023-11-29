@@ -5,7 +5,7 @@ mod basics {
 
     #[derive(Debug, Snafu)]
     enum Error {
-        #[snafu(display("Created at {}", location))]
+        #[snafu(display("Created at {location}"))]
         Usage {
             #[snafu(implicit)]
             location: Location,
@@ -54,7 +54,7 @@ mod track_caller {
     }
 
     #[derive(Debug, Snafu)]
-    #[snafu(display("{}", message))]
+    #[snafu(display("{message}"))]
     #[snafu(whatever)]
     pub struct MyWhatever {
         #[snafu(source(from(Box<dyn std::error::Error>, Some)))]

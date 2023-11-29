@@ -136,8 +136,8 @@ fn debug_and_display_are_the_same() {
     let e = OuterSnafu.into_error(InnerError);
     let r = Report::from_error(e);
 
-    let display = format!("{}", r);
-    let debug = format!("{:?}", r);
+    let display = format!("{r}",);
+    let debug = format!("{r:?}");
 
     assert_eq!(display, debug);
 }

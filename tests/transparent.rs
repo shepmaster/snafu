@@ -48,7 +48,7 @@ fn implements_error() {
 fn implements_display() {
     let error = example().unwrap_err();
     // no `Beta: ` prefix
-    assert_eq!(error.to_string(), "BetaError: AlphaError");
+    assert_eq!(error.to_string(), "BetaError");
 }
 
 mod with_backtraces {

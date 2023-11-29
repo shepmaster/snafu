@@ -60,7 +60,7 @@ mod bounds {
 
         #[derive(Debug, Snafu)]
         enum Error<T: Display> {
-            #[snafu(display("Boom: {}", value))]
+            #[snafu(display("Boom: {value}"))]
             Boom { value: T },
         }
 
@@ -86,7 +86,7 @@ mod bounds {
         where
             T: Display,
         {
-            #[snafu(display("Boom: {}", value))]
+            #[snafu(display("Boom: {value}"))]
             Boom { value: T },
         }
 

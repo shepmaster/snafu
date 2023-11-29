@@ -4,9 +4,9 @@ use snafu::prelude::*;
 
 #[derive(Debug, Snafu)]
 pub enum Enum<'id> {
-    #[snafu(display("`{}` is foo, yo", to))]
+    #[snafu(display("`{to}` is foo, yo"))]
     Foo { to: &'id u32 },
-    #[snafu(display("bar `{}` frobnicated `{}`", from, to))]
+    #[snafu(display("bar `{from}` frobnicated `{to}`"))]
     Bar { from: &'id String, to: &'id i8 },
 }
 

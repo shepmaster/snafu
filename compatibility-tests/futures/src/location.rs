@@ -21,7 +21,7 @@ struct ManuallyWrappedError {
 }
 
 #[derive(Debug, Snafu)]
-#[snafu(display("{}", message))]
+#[snafu(display("{message}"))]
 #[snafu(whatever)]
 pub struct MyWhatever {
     #[snafu(source(from(Box<dyn std::error::Error>, Some)))]

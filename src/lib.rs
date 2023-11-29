@@ -42,7 +42,7 @@
 //!
 //! fn is_valid_id(id: u16) -> Result<(), Whatever> {
 //!     if id < 10 {
-//!         whatever!("ID may not be less than 10, but it was {}", id);
+//!         whatever!("ID may not be less than 10, but it was {id}");
 //!     }
 //!     Ok(())
 //! }
@@ -55,7 +55,7 @@
 //!
 //! fn read_config_file(path: &str) -> Result<String, Whatever> {
 //!     std::fs::read_to_string(path)
-//!         .with_whatever_context(|_| format!("Could not read file {}", path))
+//!         .with_whatever_context(|_| format!("Could not read file {path}"))
 //! }
 //! ```
 //!
@@ -67,10 +67,10 @@
 //!
 //! # fn returns_an_error() -> Result<(), Whatever> { Ok(()) }
 //! if let Err(e) = returns_an_error() {
-//!     eprintln!("An error occurred: {}", e);
+//!     eprintln!("An error occurred: {e}");
 //!     if let Some(bt) = ErrorCompat::backtrace(&e) {
 //! #       #[cfg(not(feature = "backtraces-impl-backtrace-crate"))]
-//!         eprintln!("{}", bt);
+//!         eprintln!("{bt}");
 //!     }
 //! }
 //! ```
@@ -516,8 +516,7 @@ macro_rules! whatever {
 /// # fn moon_is_rising() -> bool { false }
 ///     ensure_whatever!(
 ///         moon_is_rising(),
-///         "We are recalibrating the dynamos for account {}, sorry",
-///         account_id,
+///         "We are recalibrating the dynamos for account {account_id}, sorry",
 ///     );
 ///
 ///     Ok(100)
@@ -658,7 +657,7 @@ pub trait ResultExt<T, E>: Sized {
     /// fn example() -> Result<(), Whatever> {
     ///     let filename = "/this/does/not/exist";
     ///     std::fs::read_to_string(filename)
-    ///         .with_whatever_context(|_| format!("couldn't open the file {}", filename))?;
+    ///         .with_whatever_context(|_| format!("couldn't open the file {filename}"))?;
     ///     Ok(())
     /// }
     ///
@@ -912,7 +911,7 @@ pub trait OptionExt<T>: Sized {
     ///
     /// fn example(user_id: i32) -> Result<(), Error> {
     ///     let name = username(user_id).context(UserLookupSnafu { user_id })?;
-    ///     println!("Username was {}", name);
+    ///     println!("Username was {name}");
     ///     Ok(())
     /// }
     ///
@@ -951,7 +950,7 @@ pub trait OptionExt<T>: Sized {
     ///         user_id,
     ///         previous_ids: Vec::new(),
     ///     })?;
-    ///     println!("Username was {}", name);
+    ///     println!("Username was {name}");
     ///     Ok(())
     /// }
     ///
@@ -1012,7 +1011,7 @@ pub trait OptionExt<T>: Sized {
     ///
     /// fn example(env_var_name: &str) -> Result<(), Whatever> {
     ///     std::env::var_os(env_var_name).with_whatever_context(|| {
-    ///         format!("couldn't get the environment variable {}", env_var_name)
+    ///         format!("couldn't get the environment variable {env_var_name}")
     ///     })?;
     ///     Ok(())
     /// }
@@ -1566,7 +1565,7 @@ macro_rules! location {
 ///     if a > b {
 ///         Ok(a - b)
 ///     } else {
-///         whatever!("Can't subtract {} - {}", a, b)
+///         whatever!("Can't subtract {a} - {b}")
 ///     }
 /// }
 ///

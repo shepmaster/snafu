@@ -60,7 +60,7 @@ mod bounds {
         use std::fmt::Display;
 
         #[derive(Debug, Snafu)]
-        #[snafu(display("key: {}", key))]
+        #[snafu(display("key: {key}"))]
         struct Error<T: Display> {
             key: T,
         }
@@ -78,7 +78,7 @@ mod bounds {
         use std::fmt::Display;
 
         #[derive(Debug, Snafu)]
-        #[snafu(display("key: {}", key))]
+        #[snafu(display("key: {key}"))]
         struct Error<T>
         where
             T: Display,

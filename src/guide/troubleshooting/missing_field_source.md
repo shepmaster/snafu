@@ -14,7 +14,7 @@ use std::io;
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub(crate)))]
 pub enum ProjectError {
-    #[snafu(display("Unable to read configuration from {path}: {source}"))]
+    #[snafu(display("Unable to read configuration from {path}"))]
     IOConfigError {
         path: &'static str,
         source: io::Error,

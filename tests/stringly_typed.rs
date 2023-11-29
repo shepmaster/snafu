@@ -6,7 +6,7 @@ mod message_only {
 
     #[derive(Debug, Snafu)]
     enum Error {
-        #[snafu(whatever, display("{}", message))]
+        #[snafu(whatever, display("{message}"))]
         Whatever { message: String },
     }
 
@@ -53,7 +53,7 @@ mod message_and_source {
     #[derive(Debug, Snafu)]
     enum Error {
         // THOUGHT: Should display automatically do message?
-        #[snafu(whatever, display("{}", message))]
+        #[snafu(whatever, display("{message}"))]
         Whatever {
             #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
             source: Option<Box<dyn std::error::Error>>,
@@ -210,7 +210,7 @@ mod struck {
         use snafu::{prelude::*, Backtrace};
 
         #[derive(Debug, Snafu)]
-        #[snafu(whatever, display("{}", message))]
+        #[snafu(whatever, display("{message}"))]
         struct Error {
             #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
             source: Option<Box<dyn std::error::Error>>,
@@ -252,7 +252,7 @@ mod send_and_sync {
 
     #[derive(Debug, Snafu)]
     enum Error {
-        #[snafu(whatever, display("{}", message))]
+        #[snafu(whatever, display("{message}"))]
         Whatever {
             #[snafu(source(from(Box<dyn std::error::Error + Send + Sync>, Some)))]
             source: Option<Box<dyn std::error::Error + Send + Sync>>,

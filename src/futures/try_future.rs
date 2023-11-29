@@ -138,7 +138,7 @@ pub trait TryFutureExt: TryFuture + Sized {
     ///
     /// fn example(arg: &'static str) -> impl TryFuture<Ok = i32, Error = Whatever> {
     ///     api_function(arg)
-    ///         .with_whatever_context(move |_| format!("The API failed for argument {}", arg))
+    ///         .with_whatever_context(move |_| format!("The API failed for argument {arg}"))
     /// }
     ///
     /// # type ApiError = Box<dyn std::error::Error>;

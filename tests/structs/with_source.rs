@@ -7,7 +7,7 @@ use std::{
 };
 
 #[derive(Debug, Snafu)]
-#[snafu(display("filename: {}, source: {}", filename.display(), source))]
+#[snafu(display("filename: {}, source: {source}", filename.display()))]
 struct Error {
     filename: PathBuf,
     source: io::Error,
