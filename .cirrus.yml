@@ -33,6 +33,17 @@ stable_test_task:
         cargo +stable fmt --all -- --check;
         popd;
       done
+  all_compatibility_tests_used_script:
+    - >
+      for n in compatibility-tests/*; do
+        n=$(basename $n);
+        if grep -q $n .cirrus.yml; then
+          echo "$n found";
+        else
+          echo "$n missing";
+          exit 1;
+        fi;
+      done
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
 doc_test_task:
@@ -152,6 +163,10 @@ nightly_test_task:
     - cargo test
   report_provider_api_test_script:
     - cd compatibility-tests/backtrace-provider-api/
+    - rustc --version
+    - cargo test
+  yeet_selectors_test_script:
+    - cd compatibility-tests/yeet-selectors/
     - rustc --version
     - cargo test
   before_cache_script: rm -rf $CARGO_HOME/registry/index
