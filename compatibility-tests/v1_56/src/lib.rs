@@ -107,4 +107,17 @@ mod report {
     fn it_works() -> Result<(), Error> {
         Ok(())
     }
+
+    #[test]
+    fn procedural_macro_works_with_result_return_type() {
+        #[derive(Debug, Snafu)]
+        struct Error;
+
+        #[snafu::report]
+        fn mainlike_result() -> Result<(), Error> {
+            Ok(())
+        }
+
+        let _: Result<(), snafu::Report<Error>> = mainlike_result();
+    }
 }

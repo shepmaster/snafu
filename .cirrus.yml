@@ -205,19 +205,3 @@ v1_56_test_task:
     - rustc --version
     - cargo test
   before_cache_script: rm -rf $CARGO_HOME/registry/index
-
-v1_61_test_task:
-  name: "Rust 1.61"
-  container:
-    image: rust:1.61
-    cpu: 1
-    memory: 2Gi
-  cargo_cache:
-    folder: $CARGO_HOME/registry
-    fingerprint_script: cat Cargo.toml
-  primary_test_script:
-    - rustup self update
-    - cd compatibility-tests/v1_61/
-    - rustc --version
-    - cargo test
-  before_cache_script: rm -rf $CARGO_HOME/registry/index

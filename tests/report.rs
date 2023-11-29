@@ -1,4 +1,5 @@
 use snafu::{prelude::*, CleanedErrorText, IntoError, Report};
+use std::process::ExitCode;
 
 macro_rules! assert_contains {
     (needle: $needle:expr, haystack: $haystack:expr) => {
@@ -151,7 +152,36 @@ fn procedural_macro_works_with_result_return_type() {
         Ok(())
     }
 
-    let _: Result<(), Report<Error>> = mainlike_result();
+    let _: Report<Error> = mainlike_result();
+}
+
+#[test]
+fn termination_returns_failure_code() {
+    use std::process::Termination;
+
+    #[derive(Debug, Snafu)]
+    struct Error;
+
+    let r = Report::from_error(Error);
+    let code: ExitCode = r.report();
+
+    assert!(
+        nasty_hack_exit_code_eq(code, ExitCode::FAILURE),
+        "Wanted {:?} but got {:?}",
+        ExitCode::FAILURE,
+        code,
+    );
+}
+
+fn nasty_hack_exit_code_eq(left: ExitCode, right: ExitCode) -> bool {
+    use std::mem;
+
+    let (left, right): (u8, u8) = unsafe {
+        assert_eq!(mem::size_of::<u8>(), mem::size_of::<ExitCode>());
+        (mem::transmute(left), mem::transmute(right))
+    };
+
+    left == right
 }
 
 #[derive(Debug, Snafu)]
