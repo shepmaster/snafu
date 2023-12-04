@@ -298,6 +298,7 @@ enum ErrorLocation {
     OnNamedStruct,
     InNamedStruct,
     OnTupleStruct,
+    OnTupleStructField,
 }
 
 impl fmt::Display for ErrorLocation {
@@ -312,6 +313,7 @@ impl fmt::Display for ErrorLocation {
             OnNamedStruct => "on a named struct".fmt(f),
             InNamedStruct => "within a named struct".fmt(f),
             OnTupleStruct => "on a tuple struct".fmt(f),
+            OnTupleStructField => "on a tuple struct field".fmt(f),
         }
     }
 }
@@ -1292,7 +1294,7 @@ fn parse_snafu_tuple_struct(
             Att::Backtrace(tokens, ..) => struct_errors.add(tokens, ATTR_BACKTRACE),
             Att::Implicit(tokens, ..) => struct_errors.add(tokens, ATTR_IMPLICIT),
             Att::Context(tokens, ..) => struct_errors.add(tokens, ATTR_CONTEXT),
-            Att::Whatever(tokens) => struct_errors.add(tokens, ATTR_CONTEXT),
+            Att::Whatever(tokens) => struct_errors.add(tokens, ATTR_WHATEVER),
             Att::Transparent(tokens, ..) => struct_errors.add(tokens, ATTR_TRANSPARENT),
             Att::CrateRoot(tokens, root) => crate_roots.add(root, tokens),
             Att::DocComment(..) => { /* Just a regular doc comment. */ }
@@ -1314,7 +1316,30 @@ fn parse_snafu_tuple_struct(
         return Err(vec![one_field_error(span)]);
     }
 
-    let ty = inner.into_value().ty;
+    let inner = inner.into_value();
+
+    let mut field_errors = errors.scoped(ErrorLocation::OnTupleStructField);
+
+    for attr in attributes_from_syn(inner.attrs)? {
+        use SnafuAttribute as Att;
+
+        match attr {
+            Att::Backtrace(tokens, ..) => field_errors.add(tokens, ATTR_BACKTRACE),
+            Att::Context(tokens, ..) => field_errors.add(tokens, ATTR_CONTEXT),
+            Att::CrateRoot(tokens, ..) => field_errors.add(tokens, ATTR_CRATE_ROOT),
+            Att::Display(tokens, ..) => field_errors.add(tokens, ATTR_DISPLAY),
+            Att::Implicit(tokens, ..) => field_errors.add(tokens, ATTR_IMPLICIT),
+            Att::Module(tokens, ..) => field_errors.add(tokens, ATTR_MODULE),
+            Att::Provide(tokens, ..) => field_errors.add(tokens, ATTR_PROVIDE_FLAG),
+            Att::Source(tokens, ..) => field_errors.add(tokens.clone(), ATTR_SOURCE),
+            Att::Transparent(tokens, ..) => field_errors.add(tokens, ATTR_TRANSPARENT),
+            Att::Visibility(tokens, ..) => field_errors.add(tokens, ATTR_VISIBILITY),
+            Att::Whatever(tokens) => field_errors.add(tokens, ATTR_WHATEVER),
+            Att::DocComment(..) => { /* Just a regular doc comment. */ }
+        }
+    }
+
+    let ty = inner.ty;
     let (maybe_transformation, errs) = transformations.finish();
     let transformation = maybe_transformation
         .map(|(source_ty, expr)| Transformation::Transform {
