@@ -10,7 +10,6 @@ cases:
 - [`backtraces`](#backtraces)
 - [`backtraces-impl-backtrace-crate`](#backtraces-impl-backtrace-crate)
 - [`backtraces-impl-std`](#backtraces-impl-std)
-- [`unstable-backtraces-impl-std`](#unstable-backtraces-impl-std)
 - [`unstable-provider-api`](#unstable-provider-api)
 - [`futures`](#futures)
 - [`unstable-try-trait`](#unstable-try-trait)
@@ -116,23 +115,6 @@ this feature will no longer be supported and will be removed.
 
 When enabled, the SNAFU [`Backtrace`] type becomes an alias to the
 [`std::backtrace::Backtrace`] type.
-
-It is recommended that only applications make use of this feature.
-
-## `unstable-backtraces-impl-std`
-
-<dl class="snafu-ff-meta">
-<dt>Default</dt>
-<dd>disabled</dd>
-<dt>Implies</dt>
-<dd>
-
-[`backtraces-impl-std`](#backtraces-impl-std)
-
-</dd>
-</dl>
-
-When enabled, the `std::error::Error::backtrace` method is implemented.
 
 It is recommended that only applications make use of this feature.
 

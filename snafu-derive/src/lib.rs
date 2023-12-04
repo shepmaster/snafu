@@ -1994,16 +1994,6 @@ impl TupleStructInfo {
             }
         };
 
-        let std_backtrace_fn = if cfg!(feature = "unstable-backtraces-impl-std") {
-            quote! {
-                fn backtrace(&self) -> ::core::option::Option<&std::backtrace::Backtrace> {
-                    #crate_root::ErrorCompat::backtrace(self)
-                }
-            }
-        } else {
-            quote! {}
-        };
-
         let provide_fn = if cfg!(feature = "unstable-provider-api") {
             use shared::error::PROVIDE_ARG;
 
@@ -2040,7 +2030,6 @@ impl TupleStructInfo {
                 #description_fn
                 #cause_fn
                 #source_fn
-                #std_backtrace_fn
                 #provide_fn
             }
         };

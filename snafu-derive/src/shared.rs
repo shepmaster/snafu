@@ -648,16 +648,6 @@ pub mod error {
                 }
             };
 
-            let std_backtrace_fn = if cfg!(feature = "unstable-backtraces-impl-std") {
-                Some(quote! {
-                    fn backtrace(&self) -> ::core::option::Option<&::std::backtrace::Backtrace> {
-                        #crate_root::ErrorCompat::backtrace(self)
-                    }
-                })
-            } else {
-                None
-            };
-
             let provide_fn = if cfg!(feature = "unstable-provider-api") {
                 Some(quote! {
                     fn provide<'a>(&'a self, #PROVIDE_ARG: &mut #crate_root::error::Request<'a>) {
@@ -680,7 +670,6 @@ pub mod error {
                     #description_fn
                     #cause_fn
                     #source_fn
-                    #std_backtrace_fn
                     #provide_fn
                 }
             };
