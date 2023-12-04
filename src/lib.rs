@@ -215,10 +215,10 @@ pub mod prelude {
     pub use crate::{ensure, OptionExt as _, ResultExt as _};
 
     // https://github.com/rust-lang/rust/issues/89020
-    doc_comment::doc_comment! {
-        include_str!("Snafu.md"),
-        pub use snafu_derive::Snafu;
-    }
+    #[doc = include_str!("Snafu.md")]
+    // Links are reported as broken, but don't appear to be
+    #[allow(rustdoc::broken_intra_doc_links)]
+    pub use snafu_derive::Snafu;
 
     #[cfg(any(feature = "std", test))]
     pub use crate::{ensure_whatever, whatever};
@@ -273,15 +273,11 @@ mod report;
 pub use report::CleanedErrorText;
 pub use report::{Report, __InternalExtractErrorType};
 
-doc_comment::doc_comment! {
-    include_str!("Snafu.md"),
-    pub use snafu_derive::Snafu;
-}
+#[doc = include_str!("Snafu.md")]
+pub use snafu_derive::Snafu;
 
-doc_comment::doc_comment! {
-    include_str!("report.md"),
-    pub use snafu_derive::report;
-}
+#[doc = include_str!("report.md")]
+pub use snafu_derive::report;
 
 macro_rules! generate_guide {
     (pub mod $name:ident { $($children:tt)* } $($rest:tt)*) => {
@@ -303,11 +299,10 @@ macro_rules! generate_guide {
     };
     (@gen $prefix:expr, pub mod $name:ident { $($children:tt)* } $($rest:tt)*) => {
         #[cfg(feature = "guide")]
-        doc_comment::doc_comment! {
-            include_str!(concat!($prefix, "/", stringify!($name), ".md")),
-            pub mod $name {
-                generate_guide!(@gen concat!($prefix, "/", stringify!($name)), $($children)*);
-            }
+        #[doc = include_str!(concat!($prefix, "/", stringify!($name), ".md"))]
+        pub mod $name {
+            use crate::*;
+            generate_guide!(@gen concat!($prefix, "/", stringify!($name)), $($children)*);
         }
         #[cfg(not(feature = "guide"))]
         /// Not currently built; please add the `guide` feature flag.
@@ -339,8 +334,6 @@ generate_guide! {
         @code pub mod examples;
     }
 }
-
-doc_comment::doctest!("../README.md", readme_tests);
 
 #[cfg(feature = "unstable-core-error")]
 #[doc(hidden)]
@@ -1619,4 +1612,10 @@ impl Whatever {
 
         Some(best_backtrace)
     }
+}
+
+mod tests {
+    #[cfg(doc)]
+    #[doc = include_str!("../README.md")]
+    fn readme_tests() {}
 }
