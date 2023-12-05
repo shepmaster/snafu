@@ -9,6 +9,56 @@ modifying code to account for new releases.
 
 [upgrading guide]: https://docs.rs/snafu/*/snafu/guide/upgrading/index.html
 
+## [0.8.0] - 2023-12-xx
+
+### Added
+
+- `snafu(transparent)` allows creating compound error types that act
+  as if they were not present, delegating thier `Display` and `Error`
+  implementations to the source error. This is useful when aggregating
+  smaller errors that already completely explain the failure.
+
+- `ResultExt::boxed` and `ResultExt::boxed_local` are available to
+  convert an error value into an owned trait object. This is useful
+  when an error type is a generic controlled by the caller.
+
+### Changed
+
+- Rust 1.56 is now the *minimum* supported Rust version. This is a
+  **breaking change**.
+
+- Rust 1.65 is now the *default* supported Rust version. This is a
+  **breaking change**.
+
+- The item type of the `ChainCompat` iterator is now `&'a (dyn Error +
+  'b)` to allow downcasting the error trait object to a concrete
+  type. This is a **breaking change**.
+
+- Error fields marked `location` are no longer automatically
+  implicitly created. This is a **breaking change**.
+
+- Adding `#[snafu]` attributes to the field of a tuple struct are now
+  errors. This is a **breaking change**.
+
+- The SNAFU copy of the `Error` trait now marks the `description` and
+  `cause` methods as deprecated, following the standard library's
+  example. This trait is only active when using SNAFU in a no_std
+  environment and no functional difference is intended.
+
+### Removed
+
+- The default `Display` implementation no longer includes the error
+  text of the source error. This is a **breaking change**.
+
+- The `backtraces` and `unstable-backtraces-impl-std` feature flags
+  have been removed. This is a **breaking change**. The `Backtrace`
+  type is now the standard library's `Backtrace` type when it is
+  available.
+
+### Fixed
+
+[0.8.0]: https://github.com/shepmaster/snafu/releases/tag/0.8.0
+
 ## [0.7.5] - 2023-07-09
 
 ### Added

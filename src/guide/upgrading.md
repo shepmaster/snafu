@@ -1,11 +1,95 @@
 # Upgrading from previous releases
 
+- [Version 0.7 → 0.8](#version-07--08)
 - [Version 0.6 → 0.7](#version-06--07)
 - [Version 0.5 → 0.6](#version-05--06)
 - [Version 0.4 → 0.5](#version-04--05)
 - [Version 0.3 → 0.4](#version-03--04)
 - [Version 0.2 → 0.3](#version-02--03)
 - [Version 0.1 → 0.2](#version-01--02)
+
+## Version 0.7 → 0.8
+
+### Fields named `location` are no longer automatically implicitly generated
+
+Previously, fields named `location` would be implicitly
+generated. However, this proved to be confusing and usually not what
+users wanted. If you have `#[snafu(implicit(false))]` on a field named
+`location`, that can be removed. If you are using this functionality,
+you will need to add `#[snafu(implicit)]` on those fields.
+
+#### Before
+
+```rust,ignore
+#[derive(Debug, Snafu)]
+struct ErrorWithGeneratedLocation {
+    location: snafu::Location,
+}
+
+#[derive(Debug, Snafu)]
+struct ErrorWithNonGeneratedLocation {
+    #[snafu(implicit(false))]
+    location: usize,
+}
+```
+
+#### After
+
+```rust,ignore
+#[derive(Debug, Snafu)]
+struct ErrorWithGeneratedLocation {
+    #[snafu(implicit)]
+    location: snafu::Location,
+}
+
+#[derive(Debug, Snafu)]
+struct ErrorWithNonGeneratedLocation {
+    location: usize,
+}
+```
+
+### The default implementation of `Display` no longer includes the source
+
+To better follow the Error Handling Project Group's suggested
+[guideline][], the generated implementation of `Display` no longer
+includes the underlying source's `Display`. High quality error types
+already define their own `Display` format strings via
+`snafu(display(...))`, so this should not impact many users.
+
+To combine all `Display` messages in the entire error chain, you can
+use higher-level tools like [`report`](macro@report) or [`Report`][] or
+lower-level tools like [`CleanedErrorText`][].
+
+If you wish to ignore the suggested guideline, you will need to add a
+`Display` implementation that explicitly includes the source text.
+
+[guideline]: https://blog.rust-lang.org/inside-rust/2021/07/01/What-the-error-handling-project-group-is-working-towards.html#guidelines-for-implementing-displayfmt-and-errorsource
+
+#### Before
+
+```rust,ignore
+#[derive(Debug, Snafu)]
+struct ErrorWithDefaultDisplay {
+    source: std::io::Error,
+}
+```
+
+#### After
+
+```rust,ignore
+#[derive(Debug, Snafu)]
+#[snafu(display("ErrorWithDefaultDisplay: {source}"))]
+struct ErrorWithDefaultDisplay {
+    source: std::io::Error,
+}
+```
+
+### Minimum supported version of Rust is now 1.56
+
+If you are writing a library, you will need to increase your minimum
+supported version of Rust to 1.56 or better. If you are writing an
+application, you should be able to upgrade your installed compiler by
+the same mechanism that you installed it.
 
 ## Version 0.6 → 0.7
 
