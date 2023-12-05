@@ -274,6 +274,19 @@ pub use report::CleanedErrorText;
 pub use report::{Report, __InternalExtractErrorType};
 
 #[doc = include_str!("Snafu.md")]
+#[doc(alias(
+    "backtrace",
+    "context",
+    "crate_root",
+    "display",
+    "implicit",
+    "module",
+    "provide",
+    "source",
+    "transparent",
+    "visibility",
+    "whatever",
+))]
 pub use snafu_derive::Snafu;
 
 #[doc = include_str!("report.md")]
