@@ -201,7 +201,7 @@ mod message_source_and_backtrace {
 
         let e = exercise(false).unwrap_err();
         let bt = ErrorCompat::backtrace(&e).expect("Must have a backtrace");
-        assert_eq!("disabled backtrace", bt.to_string());
+        assert!(bt.to_string().contains("has_a_backtrace"));
     }
 }
 

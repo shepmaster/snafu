@@ -227,40 +227,29 @@ pub mod prelude {
     pub use crate::futures::{TryFutureExt as _, TryStreamExt as _};
 }
 
-#[cfg(all(
-    not(feature = "backtraces"),
-    not(feature = "backtraces-impl-backtrace-crate"),
-    not(feature = "backtraces-impl-std"),
-))]
-mod backtrace_inert;
-#[cfg(all(
-    not(feature = "backtraces"),
-    not(feature = "backtraces-impl-backtrace-crate"),
-    not(feature = "backtraces-impl-std"),
-))]
-pub use crate::backtrace_inert::*;
+#[cfg(not(any(
+    all(feature = "std", feature = "rust_1_65"),
+    feature = "backtraces-impl-backtrace-crate"
+)))]
+#[path = "backtrace_impl_inert.rs"]
+mod backtrace_impl;
+
+#[cfg(feature = "backtraces-impl-backtrace-crate")]
+#[path = "backtrace_impl_backtrace_crate.rs"]
+mod backtrace_impl;
 
 #[cfg(all(
-    feature = "backtraces",
-    not(feature = "backtraces-impl-backtrace-crate"),
-    not(feature = "backtraces-impl-std"),
+    feature = "std",
+    feature = "rust_1_65",
+    not(feature = "backtraces-impl-backtrace-crate")
 ))]
-mod backtrace_shim;
-#[cfg(all(
-    feature = "backtraces",
-    not(feature = "backtraces-impl-backtrace-crate"),
-    not(feature = "backtraces-impl-std"),
-))]
-pub use crate::backtrace_shim::*;
+#[path = "backtrace_impl_std.rs"]
+mod backtrace_impl;
+
+pub use backtrace_impl::*;
 
 #[cfg(any(feature = "std", test))]
 mod once_bool;
-
-#[cfg(feature = "backtraces-impl-backtrace-crate")]
-pub use backtrace::Backtrace;
-
-#[cfg(feature = "backtraces-impl-std")]
-pub use std::backtrace::Backtrace;
 
 #[cfg(feature = "futures")]
 pub mod futures;
@@ -1367,34 +1356,6 @@ fn backtrace_collection_enabled() -> bool {
             .or_else(|| env::var_os("RUST_BACKTRACE"))
             .map_or(false, |v| v == "1")
     })
-}
-
-#[cfg(feature = "backtraces-impl-backtrace-crate")]
-impl GenerateImplicitData for Backtrace {
-    fn generate() -> Self {
-        Backtrace::new()
-    }
-}
-
-#[cfg(feature = "backtraces-impl-backtrace-crate")]
-impl AsBacktrace for Backtrace {
-    fn as_backtrace(&self) -> Option<&Backtrace> {
-        Some(self)
-    }
-}
-
-#[cfg(feature = "backtraces-impl-std")]
-impl GenerateImplicitData for Backtrace {
-    fn generate() -> Self {
-        Backtrace::force_capture()
-    }
-}
-
-#[cfg(feature = "backtraces-impl-std")]
-impl AsBacktrace for Backtrace {
-    fn as_backtrace(&self) -> Option<&Backtrace> {
-        Some(self)
-    }
 }
 
 /// The source code location where the error was reported.

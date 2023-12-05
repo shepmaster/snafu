@@ -22,11 +22,14 @@ exclude = [
 ]
 
 [package.metadata.docs.rs]
-# The backtraces-impl-* features are incompatible with each other
-features = [ "std", "backtraces", "futures", "guide" ]
+# We don't use `all-features` for a few reasons:
+# - `backtraces-impl-backtrace-crate` replaces the default stdlib implementation
+# - `unstable-*` features might break with little warning
+# - `internal-dev-dependencies` is internal
+features = ["futures", "guide"]
 
 [features]
-default = ["std", "rust_1_61"]
+default = ["std", "rust_1_65"]
 
 # Implement the `std::error::Error` trait.
 std = []
@@ -37,14 +40,11 @@ unstable-core-error = []
 # Add support for `Termination` for `Report`
 rust_1_61 = ["snafu-derive/rust_1_61"]
 
-# Makes the backtrace type live
-backtraces = ["std", "backtrace"]
+# `Backtrace` was stabilized
+rust_1_65 = ["rust_1_61"]
 
 # The backtrace type becomes `backtrace::Backtrace`
-backtraces-impl-backtrace-crate = ["backtraces"]
-
-# The backtrace type becomes `std::backtrace::Backtrace`
-backtraces-impl-std = []
+backtraces-impl-backtrace-crate = ["backtrace"]
 
 # The std::error::Error provider API will be implemented.
 unstable-provider-api = ["snafu-derive/unstable-provider-api"]

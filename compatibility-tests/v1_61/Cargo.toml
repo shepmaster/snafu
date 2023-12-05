@@ -1,8 +1,8 @@
 [package]
-name = "backtraces-impl-std"
+name = "v1_61"
 version = "0.1.0"
 authors = ["Jake Goulding <jake.goulding@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-snafu = { path = "../..", features = ["backtraces-impl-std"] }
+snafu = { path = "../..", default-features = false, features = ["std", "rust_1_61"] }
