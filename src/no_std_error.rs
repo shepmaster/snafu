@@ -3,12 +3,19 @@
 use core::fmt::{Debug, Display};
 
 pub trait Error: Debug + Display {
+    #[deprecated(since = "1.42.0", note = "use the Display impl or to_string()")]
     fn description(&self) -> &str {
         "description() is deprecated; use Display"
     }
+
+    #[deprecated(
+        since = "1.33.0",
+        note = "replaced by Error::source, which can support downcasting"
+    )]
     fn cause(&self) -> Option<&dyn Error> {
         self.source()
     }
+
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         None
     }
