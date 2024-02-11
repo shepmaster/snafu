@@ -1521,6 +1521,7 @@ trait GenericAwareNames {
         self.provided_generic_lifetimes()
             .into_iter()
             .chain(self.provided_generic_types_without_defaults())
+            .chain(self.provided_generic_consts_without_defaults())
             .collect()
     }
 
@@ -1536,6 +1537,29 @@ trait GenericAwareNames {
                 quote! {
                     #(#attrs)*
                     #lifetime
+                }
+            })
+            .collect()
+    }
+
+    fn provided_generic_consts_without_defaults(&self) -> Vec<proc_macro2::TokenStream> {
+        self.generics()
+            .const_params()
+            .map(|c| {
+                let syn::ConstParam {
+                    attrs,
+                    const_token,
+                    ident,
+                    colon_token,
+                    ty,
+                    ..
+                } = c;
+                quote! {
+                    #(#attrs)*
+                    #const_token
+                    #ident
+                    #colon_token
+                    #ty
                 }
             })
             .collect()
