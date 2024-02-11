@@ -1496,9 +1496,10 @@ trait GenericAwareNames {
 
     fn provided_generic_types_without_defaults(&self) -> Vec<proc_macro2::TokenStream> {
         use syn::TypeParam;
+
         self.generics()
             .type_params()
-            .map(|t: &TypeParam| {
+            .map(|t| {
                 let TypeParam {
                     attrs,
                     ident,
