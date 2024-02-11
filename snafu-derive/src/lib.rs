@@ -1524,16 +1524,13 @@ trait GenericAwareNames {
     }
 
     fn provided_generic_lifetimes(&self) -> Vec<proc_macro2::TokenStream> {
-        use syn::{GenericParam, LifetimeParam};
+        use syn::LifetimeParam;
 
         self.generics()
-            .params
-            .iter()
-            .flat_map(|p| match p {
-                GenericParam::Lifetime(LifetimeParam { lifetime, .. }) => {
-                    Some(quote! { #lifetime })
-                }
-                _ => None,
+            .lifetimes()
+            .map(|l| {
+                let LifetimeParam { lifetime, .. } = l;
+                quote! { #lifetime }
             })
             .collect()
     }
