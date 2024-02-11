@@ -1530,8 +1530,13 @@ trait GenericAwareNames {
         self.generics()
             .lifetimes()
             .map(|l| {
-                let LifetimeParam { lifetime, .. } = l;
-                quote! { #lifetime }
+                let LifetimeParam {
+                    attrs, lifetime, ..
+                } = l;
+                quote! {
+                    #(#attrs)*
+                    #lifetime
+                }
             })
             .collect()
     }
