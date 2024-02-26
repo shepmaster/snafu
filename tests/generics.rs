@@ -98,3 +98,73 @@ mod bounds {
         }
     }
 }
+
+mod const_generics {
+    use snafu::prelude::*;
+
+    #[derive(Debug, Snafu)]
+    #[snafu(display("Exceeded {N}"))]
+    pub struct Error<const N: i32>;
+
+    #[test]
+    fn implements_error() {
+        fn check_bounds<T: std::error::Error>() {}
+        check_bounds::<Error<1>>();
+        check_bounds::<Error<2>>();
+    }
+
+    #[test]
+    fn can_be_constructed() {
+        fn make_one() -> Result<(), Error<1>> {
+            Snafu.fail()
+        }
+
+        fn make_two() -> Result<(), Error<2>> {
+            Snafu.fail()
+        }
+
+        assert!(make_one().is_err());
+        assert!(make_two().is_err());
+    }
+
+    #[test]
+    fn can_use_const_in_display() {
+        let e: Error<42> = Snafu.build();
+        assert_eq!(e.to_string(), "Exceeded 42");
+    }
+
+    mod with_default {
+        use snafu::prelude::*;
+
+        #[derive(Debug, Snafu)]
+        #[snafu(display("Exceeded {N}"))]
+        pub struct Error<const N: i32 = 42>;
+
+        #[test]
+        fn implements_error() {
+            fn check_bounds<T: std::error::Error>() {}
+            check_bounds::<Error>();
+            check_bounds::<Error<99>>();
+        }
+
+        #[test]
+        fn can_be_constructed() {
+            fn make_forty_two() -> Result<(), Error> {
+                Snafu.fail()
+            }
+
+            fn make_ninety_nine() -> Result<(), Error<99>> {
+                Snafu.fail()
+            }
+
+            assert!(make_forty_two().is_err());
+            assert!(make_ninety_nine().is_err());
+        }
+
+        #[test]
+        fn can_use_const_in_display() {
+            let e: Error = Snafu.build();
+            assert_eq!(e.to_string(), "Exceeded 42");
+        }
+    }
+}
