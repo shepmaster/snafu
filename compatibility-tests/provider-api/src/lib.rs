@@ -576,8 +576,8 @@ mod doctests {
         let e = LoginSnafu { user_id: UserId(0) }.build();
         match error::request_ref::<UserId>(&e) {
             // Present when ApiError::Login or ApiError::Logout
-            Some(user_id) => {
-                println!("{user_id:?} experienced an error");
+            Some(UserId(user_id)) => {
+                println!("{user_id} experienced an error");
             }
             // Absent when ApiError::NetworkUnreachable
             None => {
@@ -591,7 +591,7 @@ mod doctests {
         use snafu::{prelude::*, IntoError};
 
         #[derive(Debug)]
-        struct UserId(u8);
+        struct UserId(());
 
         #[derive(Debug, Snafu)]
         struct InnerError {
@@ -605,7 +605,9 @@ mod doctests {
             source: InnerError,
         }
 
-        let outer = OuterSnafu.into_error(InnerSnafu { user_id: UserId(0) }.build());
+        let user_id = UserId(());
+        let inner = InnerSnafu { user_id }.build();
+        let outer = OuterSnafu.into_error(inner);
 
         // We can get the source error and downcast it at once
         error::request_ref::<InnerError>(&outer).expect("Must have a source");
