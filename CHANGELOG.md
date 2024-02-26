@@ -9,6 +9,14 @@ modifying code to account for new releases.
 
 [upgrading guide]: https://docs.rs/snafu/*/snafu/guide/upgrading/index.html
 
+## [0.8.1] - 2023-02-26
+
+### Added
+
+- Error types that use constant generics are now supported.
+
+[0.8.1]: https://github.com/shepmaster/snafu/releases/tag/0.8.1
+
 ## [0.8.0] - 2023-12-28
 
 ### Added
@@ -54,8 +62,6 @@ modifying code to account for new releases.
   have been removed. This is a **breaking change**. The `Backtrace`
   type is now the standard library's `Backtrace` type when it is
   available.
-
-### Fixed
 
 [0.8.0]: https://github.com/shepmaster/snafu/releases/tag/0.8.0
 
