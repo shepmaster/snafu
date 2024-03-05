@@ -358,8 +358,10 @@ pub mod context_selector {
             let parameterized_error_name = self.parameterized_error_name;
             let error_constructor_name = self.error_constructor_name;
             let construct_implicit_fields = self.construct_implicit_fields();
+            let original_generics_without_defaults = self.original_generics_without_defaults;
             let construct_implicit_fields_with_source =
                 self.construct_implicit_fields_with_source();
+            let extended_where_clauses = self.extended_where_clauses();
 
             // testme: transform
 
@@ -381,7 +383,10 @@ pub mod context_selector {
             let message_field_name = &message_field.name;
 
             quote! {
-                impl #crate_root::FromString for #parameterized_error_name {
+                impl<#(#original_generics_without_defaults,)*> #crate_root::FromString for #parameterized_error_name
+                where
+                    #(#extended_where_clauses),*
+                {
                     type Source = #source_ty;
 
                     #[track_caller]
