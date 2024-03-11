@@ -56,3 +56,28 @@ fn async_std_main_attribute_last() {
 async fn async_std_test_attribute_last() -> Result<(), Error> {
     Ok(())
 }
+
+#[test]
+fn works_with_tough_inference() {
+    #[derive(Debug, Snafu)]
+    struct InnerError;
+
+    #[derive(Debug, Snafu)]
+    struct OuterError {
+        source: InnerError,
+    }
+
+    fn inner() -> Result<(), InnerError> {
+        InnerSnafu.fail()
+    }
+
+    #[snafu::report]
+    #[tokio::main(flavor = "current_thread")]
+    async fn mainlike() -> Result<(), OuterError> {
+        loop {
+            inner().context(OuterSnafu)?;
+        }
+    }
+
+    let _: Report<_> = mainlike();
+}

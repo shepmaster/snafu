@@ -56,15 +56,15 @@ pub fn body(
         if cfg!(feature = "rust_1_61") {
             quote! {
                 {
-                    let __snafu_body = async #block;
-                    <::snafu::Report<_> as ::core::convert::From<_>>::from(__snafu_body.await)
+                    let __snafu_body: #output_ty = async #block.await;
+                    <::snafu::Report<_> as ::core::convert::From<_>>::from(__snafu_body)
                 }
             }
         } else {
             quote! {
                 {
-                    let __snafu_body = async #block;
-                    ::core::result::Result::map_err(__snafu_body.await, ::snafu::Report::from_error)
+                    let __snafu_body: #output_ty = async #block.await;
+                    ::core::result::Result::map_err(__snafu_body, ::snafu::Report::from_error)
                 }
             }
         }
@@ -72,15 +72,15 @@ pub fn body(
         if cfg!(feature = "rust_1_61") {
             quote! {
                 {
-                    let __snafu_body = || #block;
-                    <::snafu::Report<_> as ::core::convert::From<_>>::from(__snafu_body())
+                    let __snafu_body: #output_ty = (|| #block)();
+                    <::snafu::Report<_> as ::core::convert::From<_>>::from(__snafu_body)
                 }
             }
         } else {
             quote! {
                 {
-                    let __snafu_body = || #block;
-                    ::core::result::Result::map_err(__snafu_body(), ::snafu::Report::from_error)
+                    let __snafu_body: #output_ty = (|| #block)();
+                    ::core::result::Result::map_err(__snafu_body, ::snafu::Report::from_error)
                 }
             }
         }
