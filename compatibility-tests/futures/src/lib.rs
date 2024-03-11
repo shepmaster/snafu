@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 mod location;
+mod report;
 
 mod api {
     use futures::{stream, StreamExt, TryStream};

@@ -156,6 +156,30 @@ fn procedural_macro_works_with_result_return_type() {
 }
 
 #[test]
+fn procedural_macro_works_with_tough_inference() {
+    #[derive(Debug, Snafu)]
+    struct InnerError;
+
+    #[derive(Debug, Snafu)]
+    struct OuterError {
+        source: InnerError,
+    }
+
+    fn inner() -> Result<(), InnerError> {
+        InnerSnafu.fail()
+    }
+
+    #[snafu::report]
+    fn mainlike_result() -> Result<(), OuterError> {
+        loop {
+            inner().context(OuterSnafu)?;
+        }
+    }
+
+    let _: Report<_> = mainlike_result();
+}
+
+#[test]
 fn termination_returns_failure_code() {
     use std::process::Termination;
 

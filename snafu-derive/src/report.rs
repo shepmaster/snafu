@@ -51,37 +51,28 @@ pub fn body(
         quote! { -> ::core::result::Result<(), ::snafu::Report<#error_ty>> }
     };
 
-    #[allow(clippy::collapsible_else_if)]
-    let block = if asyncness.is_some() {
-        if cfg!(feature = "rust_1_61") {
-            quote! {
-                {
-                    let __snafu_body = async #block;
-                    <::snafu::Report<_> as ::core::convert::From<_>>::from(__snafu_body.await)
-                }
-            }
-        } else {
-            quote! {
-                {
-                    let __snafu_body = async #block;
-                    ::core::result::Result::map_err(__snafu_body.await, ::snafu::Report::from_error)
-                }
+    let captured_original_body = if asyncness.is_some() {
+        quote! { async #block.await }
+    } else {
+        quote! { (|| #block)() }
+    };
+
+    let ascribed_original_result = quote! {
+        let __snafu_body: #output_ty = #captured_original_body;
+    };
+
+    let block = if cfg!(feature = "rust_1_61") {
+        quote! {
+            {
+                #ascribed_original_result;
+                <::snafu::Report<_> as ::core::convert::From<_>>::from(__snafu_body)
             }
         }
     } else {
-        if cfg!(feature = "rust_1_61") {
-            quote! {
-                {
-                    let __snafu_body = || #block;
-                    <::snafu::Report<_> as ::core::convert::From<_>>::from(__snafu_body())
-                }
-            }
-        } else {
-            quote! {
-                {
-                    let __snafu_body = || #block;
-                    ::core::result::Result::map_err(__snafu_body(), ::snafu::Report::from_error)
-                }
+        quote! {
+            {
+                #ascribed_original_result;
+                ::core::result::Result::map_err(__snafu_body, ::snafu::Report::from_error)
             }
         }
     };

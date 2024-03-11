@@ -6,4 +6,6 @@ edition = "2018"
 
 [dependencies]
 snafu = { path = "../..", features = ["futures"] }
+async-std = { version = "1.12.0", features = ["attributes"] }
 futures = "0.3.0"
+tokio = { version = "1.0", features = ["macros", "rt"] }
