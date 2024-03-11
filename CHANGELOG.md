@@ -9,6 +9,18 @@ modifying code to account for new releases.
 
 [upgrading guide]: https://docs.rs/snafu/*/snafu/guide/upgrading/index.html
 
+## [0.8.2] - 2023-03-11
+
+### Fixed
+
+- Adding a custom Whatever variant to a generic error enum is now
+  supported.
+
+- The `#[report]` macro works better on functions that require more
+  complicated type inference for their return types.
+
+[0.8.2]: https://github.com/shepmaster/snafu/releases/tag/0.8.2
+
 ## [0.8.1] - 2023-02-26
 
 ### Added
@@ -86,7 +98,7 @@ modifying code to account for new releases.
 
 ### Changed
 
-- `Report` and the `[report]` macro now remove redundant parts from
+- `Report` and the `#[report]` macro now remove redundant parts from
   the messages that many errors duplicate from their underlying
   sources.
 
@@ -178,7 +190,7 @@ with the [snafu-upgrade-assistant][].
 - Formatting shorthand syntax for error type data fields is now supported:
   `#[snafu(display("Hello {name}"))]`.
 
-- `[snafu(module)]` can be specified on an error type. This will
+- `#[snafu(module)]` can be specified on an error type. This will
   create a module for the error type and all associated context
   selectors will be placed in that module.
 
@@ -186,7 +198,7 @@ with the [snafu-upgrade-assistant][].
   lightweight tracking of the source location where the error was
   created.
 
-- `[snafu(implicit)]` can be specified on context selector data fields
+- `#[snafu(implicit)]` can be specified on context selector data fields
   to automatically generate it via `snafu::GenerateImplicitData` when
   the error is created.
 
