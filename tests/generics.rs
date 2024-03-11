@@ -62,6 +62,13 @@ mod bounds {
         enum Error<T: Display> {
             #[snafu(display("Boom: {value}"))]
             Boom { value: T },
+
+            #[snafu(whatever, display("{message}"))]
+            Whatever {
+                message: String,
+                #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
+                source: Option<Box<dyn std::error::Error>>,
+            },
         }
 
         #[test]
@@ -88,6 +95,13 @@ mod bounds {
         {
             #[snafu(display("Boom: {value}"))]
             Boom { value: T },
+
+            #[snafu(whatever, display("{message}"))]
+            Whatever {
+                message: String,
+                #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
+                source: Option<Box<dyn std::error::Error>>,
+            },
         }
 
         #[test]
