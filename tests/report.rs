@@ -200,8 +200,13 @@ fn termination_returns_failure_code() {
 fn nasty_hack_exit_code_eq(left: ExitCode, right: ExitCode) -> bool {
     use std::mem;
 
-    let (left, right): (u8, u8) = unsafe {
-        assert_eq!(mem::size_of::<u8>(), mem::size_of::<ExitCode>());
+    #[cfg(target_os = "windows")]
+    type ExitCodeSize = u32;
+    #[cfg(not(target_os = "windows"))]
+    type ExitCodeSize = u8;
+
+    let (left, right): (ExitCodeSize, ExitCodeSize) = unsafe {
+        assert_eq!(mem::size_of::<ExitCodeSize>(), mem::size_of::<ExitCode>());
         (mem::transmute(left), mem::transmute(right))
     };
 
