@@ -1558,7 +1558,7 @@ macro_rules! location {
 #[snafu(crate_root(crate))]
 #[snafu(whatever)]
 #[snafu(display("{message}"))]
-#[snafu(provide(opt, ref, chain, dyn std::error::Error => source.as_deref()))]
+#[snafu(provide(opt, ref, chain, dyn std::error::Error + Send + Sync => source.as_deref()))]
 #[cfg(any(feature = "std", test))]
 pub struct Whatever {
     #[snafu(source(from(Box<dyn std::error::Error + Send + Sync>, Some)))]

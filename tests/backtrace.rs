@@ -130,7 +130,7 @@ mod whatever_nested {
         not_a_whatever().with_whatever_context(|_| format!("Outer failure"))
     }
 
-    fn not_a_whatever() -> Result<(), Box<dyn std::error::Error>> {
+    fn not_a_whatever() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         inner_whatever().map_err(Into::into)
     }
 
