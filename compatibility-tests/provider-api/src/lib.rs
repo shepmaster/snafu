@@ -563,12 +563,12 @@ mod doctests {
                 user_id: UserId,
             },
 
-            Logout {
+            _Logout {
                 #[snafu(provide)]
                 user_id: UserId,
             },
 
-            NetworkUnreachable {
+            _NetworkUnreachable {
                 source: std::io::Error,
             },
         }

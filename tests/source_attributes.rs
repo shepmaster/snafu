@@ -2,7 +2,7 @@ use snafu::prelude::*;
 
 #[derive(Debug, Snafu)]
 enum InnerError {
-    Boom,
+    _Boom,
 }
 
 fn inner() -> Result<(), InnerError> {

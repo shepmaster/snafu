@@ -10,12 +10,14 @@ mod outer {
             PubCrate {
                 id: i32,
             },
+
             #[snafu(visibility(pub(in crate::outer)))]
             PubInPath {
                 id: i32,
             },
+
             #[snafu(visibility)]
-            Private {
+            _Private {
                 id: i32,
             },
         }
