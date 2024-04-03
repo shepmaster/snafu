@@ -9,7 +9,7 @@ modifying code to account for new releases.
 
 [upgrading guide]: https://docs.rs/snafu/*/snafu/guide/upgrading/index.html
 
-## [0.8.2] - 2023-03-11
+## [0.8.2] - 2024-03-11
 
 ### Fixed
 
@@ -21,7 +21,7 @@ modifying code to account for new releases.
 
 [0.8.2]: https://github.com/shepmaster/snafu/releases/tag/0.8.2
 
-## [0.8.1] - 2023-02-26
+## [0.8.1] - 2024-02-26
 
 ### Added
 
