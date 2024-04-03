@@ -6,7 +6,7 @@ enum LeafError {
     #[snafu(display("User ID {user_id} is invalid"))]
     InvalidUser { user_id: i32 },
     #[snafu(display("no user available"))]
-    MissingUser,
+    _MissingUser,
 }
 
 #[derive(Debug, Clone, Snafu, PartialEq)]

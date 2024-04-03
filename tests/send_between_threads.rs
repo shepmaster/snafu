@@ -11,7 +11,7 @@ enum InnerError {
 
 #[derive(Debug, Snafu)]
 enum Error {
-    Leaf {
+    _Leaf {
         name: String,
     },
 
@@ -19,15 +19,15 @@ enum Error {
         source: InnerError,
     },
 
-    BoxedWrapper {
+    _BoxedWrapper {
         source: Box<InnerError>,
     },
 
-    BoxedTraitObjectSend {
+    _BoxedTraitObjectSend {
         source: Box<dyn std::error::Error + Send + 'static>,
     },
 
-    BoxedTraitObjectSendSync {
+    _BoxedTraitObjectSendSync {
         source: Box<dyn std::error::Error + Send + Sync + 'static>,
     },
 }

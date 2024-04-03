@@ -13,7 +13,7 @@ enum Error {
     Stronger { stronger: &'static str },
 
     #[doc(hidden)]
-    Hidden,
+    _Hidden,
 }
 
 #[test]
