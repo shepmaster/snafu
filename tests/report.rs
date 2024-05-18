@@ -142,6 +142,22 @@ fn debug_and_display_are_the_same() {
     assert_eq!(display, debug);
 }
 
+/// `Report as Termination` prints-out the "Error:" prefix.  Ensure that `Report as Display` does
+/// not also add such a prefix, to avoid printing-out "Error: Error: ...".
+#[test]
+fn display_not_prefixed() {
+    #[derive(Debug, Snafu)]
+    #[snafu(display("This is my Display text!"))]
+    struct Error;
+
+    let r = Report::from_error(Error);
+    let msg = r.to_string();
+    let msg = msg.trim_start();
+
+    assert!(!msg.starts_with("Err"));
+    assert!(!msg.starts_with("err"));
+}
+
 #[test]
 fn procedural_macro_works_with_result_return_type() {
     #[derive(Debug, Snafu)]
