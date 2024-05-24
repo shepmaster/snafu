@@ -5,8 +5,8 @@ use a_rose::{Backtrace, Snafu};
 #[derive(Debug, Snafu)]
 #[snafu(crate_root(a_rose))]
 enum EnumError {
-    Leaf { username: String },
-    WithBacktrace { backtrace: Backtrace },
+    _Leaf { username: String },
+    _WithBacktrace { backtrace: Backtrace },
 }
 
 #[derive(Debug, Snafu)]
