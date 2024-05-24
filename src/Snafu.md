@@ -46,15 +46,15 @@ it is valid. Detailed information on each attribute is below.
 
 ### Context fields
 
-| Option (inside `#[snafu(...)]`) | Description                                                                                               |
-|---------------------------------|-----------------------------------------------------------------------------------------------------------|
-| `source`                        | Marks a field as the source error (even if not called `source`)                                           |
-| `source(from(type, transform))` | As above, plus converting from `type` to the field type by calling `transform`                            |
-| `source(false)`                 | Marks a field that is named `source` as a regular field                                                   |
-| `backtrace`                     | Marks a field as backtrace (even if not called `backtrace`)                                               |
-| `backtrace(false)`              | Marks a field that is named `backtrace` as a regular field                                                |
-| `implicit`                      | Marks a field as implicit (Type needs to implement [`GenerateImplicitData`](crate::GenerateImplicitData)) |
-| `provide`                       | Marks a field as providing a reference to the type                                                        |
+| Option (inside `#[snafu(...)]`) | Description                                                                    |
+|---------------------------------|--------------------------------------------------------------------------------|
+| `source`                        | Marks a field as the source error (even if not called `source`)                |
+| `source(from(type, transform))` | As above, plus converting from `type` to the field type by calling `transform` |
+| `source(false)`                 | Marks a field that is named `source` as a regular field                        |
+| `backtrace`                     | Marks a field as backtrace (even if not called `backtrace`)                    |
+| `backtrace(false)`              | Marks a field that is named `backtrace` as a regular field                     |
+| `implicit`                      | Marks a field as implicit (Type needs to implement [`GenerateImplicitData`][]) |
+| `provide`                       | Marks a field as providing a reference to the type                             |
 
 ## Controlling `Display`
 
