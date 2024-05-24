@@ -9,6 +9,17 @@ modifying code to account for new releases.
 
 [upgrading guide]: https://docs.rs/snafu/*/snafu/guide/upgrading/index.html
 
+## [0.8.3] - 2024-05-24
+
+### Changed
+
+- `Report` now prints an "Error: " prefix when returned directly from
+  `main` or tests.
+
+- Support heck version 0.5 in addition to 0.4.
+
+[0.8.3]: https://github.com/shepmaster/snafu/releases/tag/0.8.3
+
 ## [0.8.2] - 2024-03-11
 
 ### Fixed
