@@ -22,4 +22,4 @@ proc-macro = true
 syn = { version = "2.0", features = ["full"] }
 quote = "1.0.25"
 proc-macro2 = "1.0.52"
-heck = "0.4"
+heck = { version = ">= 0.4, < 0.6", default-features = false }
