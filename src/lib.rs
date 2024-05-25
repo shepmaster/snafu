@@ -566,6 +566,45 @@ pub trait ResultExt<T, E>: Sized {
         C: IntoError<E2, Source = E>,
         E2: Error + ErrorCompat;
 
+    /// Extend a [`Result`]'s error with additional context-sensitive information, returned in Box to prevent large Enum variants.
+    ///
+    /// [`Result`]: std::result::Result
+    ///
+    /// ```rust
+    /// use snafu::prelude::*;
+    ///
+    /// #[derive(Debug, Snafu)]
+    /// enum Error {
+    ///     Authenticating {
+    ///         user_name: String,
+    ///         user_id: i32,
+    ///         source: ApiError,
+    ///     },
+    /// }
+    ///
+    /// fn example() -> Result<(), Error> {
+    ///     another_function().context(AuthenticatingSnafu {
+    ///         user_name: "admin",
+    ///         user_id: 42,
+    ///     })?;
+    ///     Ok(())
+    /// }
+    ///
+    /// # type ApiError = Box<dyn std::error::Error>;
+    /// fn another_function() -> Result<i32, ApiError> {
+    ///     /* ... */
+    /// # Ok(42)
+    /// }
+    /// ```
+    ///
+    /// Note that the context selector will call [`Into::into`][] on each field,
+    /// so the types are not required to exactly match.
+    #[cfg(feature = "std")]
+    fn boxed_context<C, E2>(self, context: C) -> Result<T, Box<E2>>
+    where
+        C: IntoError<E2, Source = E>,
+        E2: Error + ErrorCompat;
+
     /// Extend a [`Result`][]'s error with lazily-generated context-sensitive information.
     ///
     /// [`Result`]: std::result::Result
@@ -600,6 +639,46 @@ pub trait ResultExt<T, E>: Sized {
     /// Note that this *may not* be needed in many cases because the context
     /// selector will call [`Into::into`][] on each field.
     fn with_context<F, C, E2>(self, context: F) -> Result<T, E2>
+    where
+        F: FnOnce(&mut E) -> C,
+        C: IntoError<E2, Source = E>,
+        E2: Error + ErrorCompat;
+
+    /// Extend a [`Result`][]'s error with lazily-generated context-sensitive information, returned in Box to prevent large Enum variants.
+    ///
+    /// [`Result`]: std::result::Result
+    ///
+    /// ```rust
+    /// use snafu::prelude::*;
+    ///
+    /// #[derive(Debug, Snafu)]
+    /// enum Error {
+    ///     Authenticating {
+    ///         user_name: String,
+    ///         user_id: i32,
+    ///         source: ApiError,
+    ///     },
+    /// }
+    ///
+    /// fn example() -> Result<(), Error> {
+    ///     another_function().with_context(|_| AuthenticatingSnafu {
+    ///         user_name: "admin".to_string(),
+    ///         user_id: 42,
+    ///     })?;
+    ///     Ok(())
+    /// }
+    ///
+    /// # type ApiError = std::io::Error;
+    /// fn another_function() -> Result<i32, ApiError> {
+    ///     /* ... */
+    /// # Ok(42)
+    /// }
+    /// ```
+    ///
+    /// Note that this *may not* be needed in many cases because the context
+    /// selector will call [`Into::into`][] on each field.
+    #[cfg(feature = "std")]
+    fn with_boxed_context<F, C, E2>(self, context: F) -> Result<T, Box<E2>>
     where
         F: FnOnce(&mut E) -> C,
         C: IntoError<E2, Source = E>,
@@ -812,6 +891,20 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
         }
     }
 
+    #[cfg(feature = "std")]
+    #[track_caller]
+    fn boxed_context<C, E2>(self, context: C) -> Result<T, Box<E2>>
+    where
+        C: IntoError<E2, Source = E>,
+        E2: Error + ErrorCompat,
+    {
+        // https://github.com/rust-lang/rust/issues/74042
+        match self {
+            Ok(v) => Ok(v),
+            Err(error) => Err(Box::new(context.into_error(error))),
+        }
+    }
+
     #[track_caller]
     fn with_context<F, C, E2>(self, context: F) -> Result<T, E2>
     where
@@ -825,6 +918,24 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
             Err(mut error) => {
                 let context = context(&mut error);
                 Err(context.into_error(error))
+            }
+        }
+    }
+
+    #[cfg(feature = "std")]
+    #[track_caller]
+    fn with_boxed_context<F, C, E2>(self, context: F) -> Result<T, Box<E2>>
+    where
+        F: FnOnce(&mut E) -> C,
+        C: IntoError<E2, Source = E>,
+        E2: Error + ErrorCompat,
+    {
+        // https://github.com/rust-lang/rust/issues/74042
+        match self {
+            Ok(v) => Ok(v),
+            Err(mut error) => {
+                let context = context(&mut error);
+                Err(Box::new(context.into_error(error)))
             }
         }
     }

@@ -135,11 +135,41 @@ mod track_caller {
     }
 
     #[test]
+    fn track_caller_is_applied_on_result_boxed_context() {
+        let base_line = line!();
+        let wrap_no_user_fields = InnerSnafu
+            .fail::<()>()
+            .boxed_context(WrapNoUserFieldsSnafu)
+            .unwrap_err();
+        assert_eq!(
+            wrap_no_user_fields.location.line,
+            base_line + 3,
+            "Actual location: {}",
+            wrap_no_user_fields.location,
+        );
+    }
+
+    #[test]
     fn track_caller_is_applied_on_result_with_context() {
         let base_line = line!();
         let wrap_no_user_fields = InnerSnafu
             .fail::<()>()
             .with_context(|_| WrapNoUserFieldsSnafu)
+            .unwrap_err();
+        assert_eq!(
+            wrap_no_user_fields.location.line,
+            base_line + 3,
+            "Actual location: {}",
+            wrap_no_user_fields.location,
+        );
+    }
+
+    #[test]
+    fn track_caller_is_applied_on_result_with_boxed_context() {
+        let base_line = line!();
+        let wrap_no_user_fields = InnerSnafu
+            .fail::<()>()
+            .with_boxed_context(|_| WrapNoUserFieldsSnafu)
             .unwrap_err();
         assert_eq!(
             wrap_no_user_fields.location.line,
