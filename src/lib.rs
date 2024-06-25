@@ -1507,7 +1507,7 @@ impl fmt::Display for Location {
 #[macro_export]
 macro_rules! location {
     () => {
-        Location::new(file!(), line!(), column!())
+        $crate::Location::new(file!(), line!(), column!())
     };
 }
 
