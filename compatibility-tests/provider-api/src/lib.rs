@@ -1,5 +1,5 @@
 #![cfg(test)]
-#![feature(error_generic_member_access, error_in_core)]
+#![feature(error_generic_member_access)]
 
 use snafu::{prelude::*, Backtrace, IntoError};
 

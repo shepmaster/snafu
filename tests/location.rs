@@ -150,6 +150,18 @@ mod track_caller {
     }
 
     #[test]
+    fn track_caller_is_applied_without_context() {
+        let base_line = line!();
+        let wrap_no_context: WrapNoContext = InnerSnafu.build().into();
+        assert_eq!(
+            wrap_no_context.location.line,
+            base_line + 1,
+            "Actual location: {}",
+            wrap_no_context.location,
+        );
+    }
+
+    #[test]
     fn track_caller_is_applied_on_result_whatever_context() {
         let base_line = line!();
         let whatever: MyWhatever = InnerSnafu
@@ -226,8 +238,4 @@ mod track_caller {
             whatever.location,
         );
     }
-
-    // `track_caller` not supported on the `Try` trait, so we have no
-    // useful location for `context(false)` errors. Check back in the
-    // future to see if there's a fix.
 }
