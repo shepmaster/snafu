@@ -9,6 +9,15 @@ modifying code to account for new releases.
 
 [upgrading guide]: https://docs.rs/snafu/*/snafu/guide/upgrading/index.html
 
+## [0.8.4] - 2024-07-08
+
+### Fixed
+
+- Use the fully-qualified path to `Location` in the `location!()`
+  macro.
+
+[0.8.4]: https://github.com/shepmaster/snafu/releases/tag/0.8.4
+
 ## [0.8.3] - 2024-05-24
 
 ### Changed
