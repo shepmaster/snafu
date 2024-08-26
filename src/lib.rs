@@ -338,25 +338,41 @@ generate_guide! {
     }
 }
 
-#[cfg(feature = "unstable-core-error")]
+#[cfg(any(feature = "rust_1_81", feature = "unstable-core-error"))]
 #[doc(hidden)]
 pub use core::error;
 
-#[cfg(feature = "unstable-core-error")]
+#[cfg(any(feature = "rust_1_81", feature = "unstable-core-error"))]
 #[doc(hidden)]
 pub use core::error::Error;
 
-#[cfg(all(not(feature = "unstable-core-error"), any(feature = "std", test)))]
+#[cfg(all(
+    not(any(feature = "rust_1_81", feature = "unstable-core-error")),
+    any(feature = "std", test)
+))]
 #[doc(hidden)]
 pub use std::error;
 
-#[cfg(all(not(feature = "unstable-core-error"), any(feature = "std", test)))]
+#[cfg(all(
+    not(any(feature = "rust_1_81", feature = "unstable-core-error")),
+    any(feature = "std", test)
+))]
 #[doc(hidden)]
 pub use std::error::Error;
 
-#[cfg(not(any(feature = "unstable-core-error", feature = "std", test)))]
+#[cfg(not(any(
+    feature = "rust_1_81",
+    feature = "unstable-core-error",
+    feature = "std",
+    test
+)))]
 mod no_std_error;
-#[cfg(not(any(feature = "unstable-core-error", feature = "std", test)))]
+#[cfg(not(any(
+    feature = "rust_1_81",
+    feature = "unstable-core-error",
+    feature = "std",
+    test
+)))]
 #[doc(hidden)]
 pub use no_std_error::Error;
 

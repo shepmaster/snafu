@@ -43,6 +43,9 @@ rust_1_61 = ["snafu-derive/rust_1_61"]
 # `Backtrace` was stabilized
 rust_1_65 = ["rust_1_61"]
 
+# `core::error` was stabilized
+rust_1_81 = ["rust_1_65"]
+
 # The backtrace type becomes `backtrace::Backtrace`
 backtraces-impl-backtrace-crate = ["backtrace"]
 
