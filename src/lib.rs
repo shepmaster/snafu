@@ -366,7 +366,7 @@ pub use std::error::Error;
     feature = "std",
     test
 )))]
-mod no_std_error;
+mod fallback_error;
 #[cfg(not(any(
     feature = "rust_1_81",
     feature = "unstable-core-error",
@@ -374,7 +374,7 @@ mod no_std_error;
     test
 )))]
 #[doc(hidden)]
-pub use no_std_error::Error;
+pub use fallback_error::Error;
 
 /// Ensure a condition is true. If it is not, return from the function
 /// with an error.
