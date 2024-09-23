@@ -9,6 +9,16 @@ modifying code to account for new releases.
 
 [upgrading guide]: https://docs.rs/snafu/*/snafu/guide/upgrading/index.html
 
+## [0.8.5] - 2024-09-23
+
+### Added
+
+- Implement the `core::error::Error` trait instead of
+  `std::error::Error` when the `rust_1_81` feature flag is
+  enabled. This supersedes the `unstable-core-error` feature flag.
+
+[0.8.5]: https://github.com/shepmaster/snafu/releases/tag/0.8.5
+
 ## [0.8.4] - 2024-07-08
 
 ### Fixed
