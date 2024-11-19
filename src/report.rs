@@ -4,6 +4,9 @@ use core::fmt;
 #[cfg(all(feature = "std", feature = "rust_1_61"))]
 use std::process::{ExitCode, Termination};
 
+#[cfg(feature = "alloc")]
+use alloc::string::{String, ToString};
+
 /// Opinionated solution to format an error in a user-friendly
 /// way. Useful as the return type from `main` and test functions.
 ///
@@ -379,10 +382,10 @@ fn trace_cleaning_enabled() -> bool {
 /// 2. Middle error text
 /// 3. Inner error text
 /// ```
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 pub struct CleanedErrorText<'a>(Option<CleanedErrorTextStep<'a>>);
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 impl<'a> CleanedErrorText<'a> {
     /// Constructs the iterator.
     pub fn new(error: &'a dyn crate::Error) -> Self {
@@ -390,13 +393,13 @@ impl<'a> CleanedErrorText<'a> {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 impl<'a> Iterator for CleanedErrorText<'a> {
     /// The original error, the display string and if it has been cleaned
     type Item = (&'a dyn crate::Error, String, bool);
 
     fn next(&mut self) -> Option<Self::Item> {
-        use std::mem;
+        use core::mem;
 
         let mut step = self.0.take()?;
         let mut error_text = mem::take(&mut step.error_text);
@@ -425,13 +428,13 @@ impl<'a> Iterator for CleanedErrorText<'a> {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 struct CleanedErrorTextStep<'a> {
     error: &'a dyn crate::Error,
     error_text: String,
 }
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 impl<'a> CleanedErrorTextStep<'a> {
     fn new(error: &'a dyn crate::Error) -> Self {
         let error_text = error.to_string();

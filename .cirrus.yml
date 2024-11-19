@@ -16,6 +16,8 @@ stable_test_task:
   primary_test_script:
     - rustc --version
     - cargo test --all
+  alloc_only_test_script:
+    - cargo test --manifest-path compatibility-tests/alloc-only/Cargo.toml
   backtraces_impl_backtrace_crate_test_script:
     - cargo test --manifest-path compatibility-tests/backtraces-impl-backtrace-crate/Cargo.toml
   context_selectors_have_documentation_test_script:

@@ -5,6 +5,7 @@ there are Cargo [feature flags] that extend SNAFU for various use
 cases:
 
 - [`std`](#std)
+- [`alloc`](#alloc)
 - [`unstable-core-error`](#unstable-core-error)
 - [`guide`](#guide)
 - [`backtraces-impl-backtrace-crate`](#backtraces-impl-backtrace-crate)
@@ -29,6 +30,12 @@ cases:
 <dl class="snafu-ff-meta">
 <dt>Default</dt>
 <dd>enabled</dd>
+<dt>Implies</dt>
+<dd>
+
+[`alloc`](#alloc)
+
+</dd>
 </dl>
 
 When enabled, SNAFU will implement the standard library's `Error`
@@ -40,6 +47,22 @@ See also [`rust_1_81`](compatibility#rust_1_81) and
 [`unstable-core-error`](#unstable-core-error).
 
 Most usages of SNAFU will want this feature enabled.
+
+## `alloc`
+
+<dl class="snafu-ff-meta">
+<dt>Default</dt>
+<dd>enabled</dd>
+</dl>
+
+When enabled, SNAFU will gain methods dealing with boxed trait objects
+(`Box<dyn Error>`) and stringly-typed errors such as [`Whatever`].
+
+Most usages of SNAFU will want this feature enabled.
+
+If you wish to use this feature without the [`std`](#std) feature, you
+will need to enable the [`rust_1_81`](compatibility#rust_1_81)
+feature.
 
 ## `unstable-core-error`
 

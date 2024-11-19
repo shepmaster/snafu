@@ -1,0 +1,7 @@
+[package]
+name = "alloc-only"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+snafu = { path = "../..", default-features = false, features = ["alloc", "rust_1_81"] }
