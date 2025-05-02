@@ -286,6 +286,7 @@ pub mod context_selector {
                     }
 
                     #[doc = "Consume the selector and return a `Result` with the associated error"]
+                    #[allow(dead_code)]
                     #[track_caller]
                     #visibility fn fail<#(#original_generics_without_defaults,)* __T>(self) -> ::core::result::Result<__T, #parameterized_error_name>
                     where
