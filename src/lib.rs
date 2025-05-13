@@ -968,7 +968,7 @@ pub trait OptionExt<T>: Sized {
     /// context-sensitive information.
     ///
     /// [Option]: std::option::Option
-    /// [Result]: std::option::Result
+    /// [Result]: std::result::Result
     ///
     /// ```rust
     /// use snafu::prelude::*;

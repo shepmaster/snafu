@@ -28,7 +28,8 @@ error[E0277]: the trait bound `snafu::Report<_>: From<()>` is not satisfied
 6 | #[snafu::report]
   | ^^^^^^^^^^^^^^^^ the trait `From<()>` is not implemented for `snafu::Report<_>`
   |
-  = help: the trait `From<Result<(), _>>` is implemented for `snafu::Report<_>`
+  = help: the trait `From<()>` is not implemented for `snafu::Report<_>`
+          but trait `From<Result<(), _>>` is implemented for it
   = help: for that trait implementation, expected `Result<(), _>`, found `()`
   = note: this error originates in the attribute macro `snafu::report` (in Nightly builds, run with -Z macro-backtrace for more info)
 
@@ -38,6 +39,7 @@ error[E0277]: the trait bound `snafu::Report<_>: From<ExitCode>` is not satisfie
 9 | #[snafu::report]
   | ^^^^^^^^^^^^^^^^ the trait `From<ExitCode>` is not implemented for `snafu::Report<_>`
   |
-  = help: the trait `From<Result<(), _>>` is implemented for `snafu::Report<_>`
+  = help: the trait `From<ExitCode>` is not implemented for `snafu::Report<_>`
+          but trait `From<Result<(), _>>` is implemented for it
   = help: for that trait implementation, expected `Result<(), _>`, found `ExitCode`
   = note: this error originates in the attribute macro `snafu::report` (in Nightly builds, run with -Z macro-backtrace for more info)
