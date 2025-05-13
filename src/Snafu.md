@@ -38,6 +38,7 @@ it is valid. Detailed information on each attribute is below.
 | `context(false)`                | Skips creation of the context selector, implements `From` for the mandatory source error                                                                         |
 | `context(suffix(N))`            | Changes the suffix of the generated context selector to `N`                                                                                                      |
 | `context(suffix(false))`        | No suffix for the generated context selector                                                                                                                     |
+| `context(name(N))`              | The generated context selector will be named `N`                                                                                                                 |
 | `transparent`                   | Delegates `Display` and `Error::source` to this error's source, implies `context(false)`                                                                         |
 | `visibility(v)`                 | Sets the visibility of the generated context selector to `v` (e.g. `pub`)                                                                                        |
 | `visibility`                    | Resets visibility back to private                                                                                                                                |
@@ -154,6 +155,30 @@ fn my_code() -> Result<(), Error> {
 suffix for variants of the enum. In that case, if you wish to have one
 variant with a suffix, you will need to express it explicitly with
 `#[snafu(context(suffix(SomeIdentifier)))]`.
+
+### Changing the context selector name
+
+If you'd prefer the context selector to have a completely distinct
+name from the original, you may specify the exact name with
+`#[snafu(context(name(SomeIdentifier)))]`.
+
+**Example**
+
+```rust
+# use snafu::prelude::*;
+#
+#[derive(Debug, Snafu)]
+enum Error {
+    #[snafu(context(name(ButThisNameInstead)))]
+    ItIsNotThisName,
+}
+
+fn my_code() -> Result<(), Error> {
+    ButThisNameInstead.fail()?;
+
+    Ok(())
+}
+```
 
 ### Disabling the context selector
 
