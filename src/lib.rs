@@ -267,6 +267,11 @@
 
 use core::fmt;
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+#[cfg(feature = "alloc")]
+use alloc::{boxed::Box, string::String};
+
 pub mod prelude {
     //! Traits and macros used by most projects. Add `use
     //! snafu::prelude::*` to your code to quickly get started with
@@ -280,7 +285,7 @@ pub mod prelude {
     #[allow(rustdoc::broken_intra_doc_links)]
     pub use snafu_derive::Snafu;
 
-    #[cfg(any(feature = "std", test))]
+    #[cfg(any(feature = "alloc", test))]
     pub use crate::{ensure_whatever, whatever};
 
     #[cfg(feature = "futures")]
@@ -318,7 +323,7 @@ mod error_chain;
 pub use crate::error_chain::*;
 
 mod report;
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 pub use report::CleanedErrorText;
 pub use report::{Report, __InternalExtractErrorType};
 
@@ -466,6 +471,10 @@ macro_rules! ensure {
     };
 }
 
+#[cfg(feature = "alloc")]
+#[doc(hidden)]
+pub use alloc::format as __format;
+
 /// Instantiate and return a stringly-typed error message.
 ///
 /// This can be used with the provided [`Whatever`][] type or with a
@@ -540,12 +549,12 @@ macro_rules! ensure {
 /// }
 /// ```
 #[macro_export]
-#[cfg(any(feature = "std", test))]
+#[cfg(any(feature = "alloc", test))]
 macro_rules! whatever {
     ($fmt:literal$(, $($arg:expr),* $(,)?)?) => {
         return core::result::Result::Err({
             $crate::FromString::without_source(
-                format!($fmt$(, $($arg),*)*),
+                $crate::__format!($fmt$(, $($arg),*)*),
             )
         });
     };
@@ -556,7 +565,7 @@ macro_rules! whatever {
                 return core::result::Result::Err({
                     $crate::FromString::with_source(
                         core::convert::Into::into(e),
-                        format!($fmt$(, $($arg),*)*),
+                        $crate::__format!($fmt$(, $($arg),*)*),
                     )
                 });
             }
@@ -593,7 +602,7 @@ macro_rules! whatever {
 /// }
 /// ```
 #[macro_export]
-#[cfg(any(feature = "std", test))]
+#[cfg(any(feature = "alloc", test))]
 macro_rules! ensure_whatever {
     ($predicate:expr, $fmt:literal$(, $($arg:expr),* $(,)?)?) => {
         if !$predicate {
@@ -706,7 +715,7 @@ pub trait ResultExt<T, E>: Sized {
     /// let err = example().unwrap_err();
     /// assert_eq!("couldn't open the file", err.to_string());
     /// ```
-    #[cfg(any(feature = "std", test))]
+    #[cfg(any(feature = "alloc", test))]
     fn whatever_context<S, E2>(self, context: S) -> Result<T, E2>
     where
         S: Into<String>,
@@ -750,7 +759,7 @@ pub trait ResultExt<T, E>: Sized {
     ///
     /// assert!(result.is_ok());
     /// ```
-    #[cfg(any(feature = "std", test))]
+    #[cfg(any(feature = "alloc", test))]
     fn with_whatever_context<F, S, E2>(self, context: F) -> Result<T, E2>
     where
         F: FnOnce(&mut E) -> S,
@@ -811,7 +820,7 @@ pub trait ResultExt<T, E>: Sized {
     ///     source: Box<dyn snafu::Error + Send + Sync + 'static>,
     /// }
     /// ```
-    #[cfg(any(feature = "std", test))]
+    #[cfg(any(feature = "alloc", test))]
     fn boxed<'a>(self) -> Result<T, Box<dyn Error + Send + Sync + 'a>>
     where
         E: Error + Send + Sync + 'a;
@@ -868,7 +877,7 @@ pub trait ResultExt<T, E>: Sized {
     ///     source: Box<dyn snafu::Error + 'static>,
     /// }
     /// ```
-    #[cfg(any(feature = "std", test))]
+    #[cfg(any(feature = "alloc", test))]
     fn boxed_local<'a>(self) -> Result<T, Box<dyn Error + 'a>>
     where
         E: Error + 'a;
@@ -905,7 +914,7 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
         }
     }
 
-    #[cfg(any(feature = "std", test))]
+    #[cfg(any(feature = "alloc", test))]
     #[track_caller]
     fn whatever_context<S, E2>(self, context: S) -> Result<T, E2>
     where
@@ -920,7 +929,7 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
         }
     }
 
-    #[cfg(any(feature = "std", test))]
+    #[cfg(any(feature = "alloc", test))]
     #[track_caller]
     fn with_whatever_context<F, S, E2>(self, context: F) -> Result<T, E2>
     where
@@ -939,7 +948,7 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
         }
     }
 
-    #[cfg(any(feature = "std", test))]
+    #[cfg(any(feature = "alloc", test))]
     fn boxed<'a>(self) -> Result<T, Box<dyn Error + Send + Sync + 'a>>
     where
         E: Error + Send + Sync + 'a,
@@ -947,7 +956,7 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
         self.map_err(|e| Box::new(e) as _)
     }
 
-    #[cfg(any(feature = "std", test))]
+    #[cfg(any(feature = "alloc", test))]
     fn boxed_local<'a>(self) -> Result<T, Box<dyn Error + 'a>>
     where
         E: Error + 'a,
@@ -1062,7 +1071,7 @@ pub trait OptionExt<T>: Sized {
     /// let err = example("UNDEFINED_ENVIRONMENT_VARIABLE").unwrap_err();
     /// assert_eq!("couldn't get the environment variable", err.to_string());
     /// ```
-    #[cfg(any(feature = "std", test))]
+    #[cfg(any(feature = "alloc", test))]
     fn whatever_context<S, E>(self, context: S) -> Result<T, E>
     where
         S: Into<String>,
@@ -1105,7 +1114,7 @@ pub trait OptionExt<T>: Sized {
     ///
     /// assert!(result.is_ok());
     /// ```
-    #[cfg(any(feature = "std", test))]
+    #[cfg(any(feature = "alloc", test))]
     fn with_whatever_context<F, S, E>(self, context: F) -> Result<T, E>
     where
         F: FnOnce() -> S,
@@ -1141,7 +1150,7 @@ impl<T> OptionExt<T> for Option<T> {
         }
     }
 
-    #[cfg(any(feature = "std", test))]
+    #[cfg(any(feature = "alloc", test))]
     #[track_caller]
     fn whatever_context<S, E>(self, context: S) -> Result<T, E>
     where
@@ -1154,7 +1163,7 @@ impl<T> OptionExt<T> for Option<T> {
         }
     }
 
-    #[cfg(any(feature = "std", test))]
+    #[cfg(any(feature = "alloc", test))]
     #[track_caller]
     fn with_whatever_context<F, S, E>(self, context: F) -> Result<T, E>
     where
@@ -1216,7 +1225,7 @@ where
     }
 }
 
-#[cfg(any(feature = "std", test))]
+#[cfg(any(feature = "alloc", test))]
 impl<E> ErrorCompat for Box<E>
 where
     E: ErrorCompat,
@@ -1328,7 +1337,7 @@ where
 ///
 /// It is expected that most users of SNAFU will not directly interact
 /// with this trait.
-#[cfg(any(feature = "std", test))]
+#[cfg(any(feature = "alloc", test))]
 pub trait FromString {
     /// The underlying error
     type Source;
@@ -1635,16 +1644,16 @@ macro_rules! location {
 #[snafu(whatever)]
 #[snafu(display("{message}"))]
 #[snafu(provide(opt, ref, chain, dyn std::error::Error => source.as_deref()))]
-#[cfg(any(feature = "std", test))]
+#[cfg(any(feature = "alloc", test))]
 pub struct Whatever {
-    #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
+    #[snafu(source(from(Box<dyn crate::Error>, Some)))]
     #[snafu(provide(false))]
-    source: Option<Box<dyn std::error::Error>>,
+    source: Option<Box<dyn crate::Error>>,
     message: String,
     backtrace: Backtrace,
 }
 
-#[cfg(any(feature = "std", test))]
+#[cfg(any(feature = "alloc", test))]
 impl Whatever {
     /// Gets the backtrace from the deepest `Whatever` error. If none
     /// of the underlying errors are `Whatever`, returns the backtrace
