@@ -86,6 +86,26 @@ struct Provide {
     expr: syn::Expr,
 }
 
+enum ContextSelectorName {
+    Provided(syn::Ident),
+    Suffixed(SuffixKind),
+}
+
+impl Default for ContextSelectorName {
+    fn default() -> Self {
+        ContextSelectorName::Suffixed(SuffixKind::Default)
+    }
+}
+
+impl ContextSelectorName {
+    fn resolve_name(&self, def: &SuffixKind, base_name: &syn::Ident) -> syn::Ident {
+        match self {
+            ContextSelectorName::Provided(ident) => ident.clone(),
+            ContextSelectorName::Suffixed(suffix_kind) => suffix_kind.resolve_name(def, base_name),
+        }
+    }
+}
+
 enum SuffixKind {
     Default,
     None,
@@ -93,20 +113,34 @@ enum SuffixKind {
 }
 
 impl SuffixKind {
-    fn resolve_with_default<'a>(&'a self, def: &'a Self) -> &'a Self {
-        use SuffixKind::*;
+    const DEFAULT_SUFFIX: &'static str = "Snafu";
 
+    fn resolve_name(&self, def: &Self, base_name: &syn::Ident) -> syn::Ident {
+        let span = base_name.span();
+
+        let base_name = base_name.to_string();
+        let base_name = base_name.trim_end_matches("Error");
+
+        let suffix = self
+            .as_option()
+            .or_else(|| def.as_option())
+            .unwrap_or(&Self::DEFAULT_SUFFIX);
+
+        quote::format_ident!("{}{}", base_name, suffix, span = span)
+    }
+
+    fn as_option(&self) -> Option<&dyn quote::IdentFragment> {
         match self {
-            Default => def,
-            None => self,
-            Some(_) => self,
+            SuffixKind::Default => None,
+            SuffixKind::None => Some(&""),
+            SuffixKind::Some(s) => Some(s),
         }
     }
 }
 
 enum ContextSelectorKind {
     Context {
-        suffix: SuffixKind,
+        selector_name: ContextSelectorName,
         source_field: Option<SourceField>,
         user_fields: Vec<Field>,
     },
@@ -148,6 +182,20 @@ impl ContextSelectorKind {
             ContextSelectorKind::Whatever { message_field, .. } => Some(message_field),
             ContextSelectorKind::NoContext { .. } => None,
         }
+    }
+
+    fn resolve_name(&self, def: &SuffixKind, base_name: &syn::Ident) -> syn::Ident {
+        let selector_name_default;
+
+        let selector_name = match self {
+            ContextSelectorKind::Context { selector_name, .. } => selector_name,
+            _ => {
+                selector_name_default = ContextSelectorName::default();
+                &selector_name_default
+            }
+        };
+
+        selector_name.resolve_name(def, base_name)
     }
 }
 
@@ -629,6 +677,11 @@ const ATTR_CONTEXT_FLAG: OnlyValidOn = OnlyValidOn {
     valid_on: "enum variants or structs with named fields",
 };
 
+const ATTR_CONTEXT_NAME: OnlyValidOn = OnlyValidOn {
+    attribute: "context(name)",
+    valid_on: "enum variants or structs with named fields",
+};
+
 const ATTR_WHATEVER: OnlyValidOn = OnlyValidOn {
     attribute: "whatever",
     valid_on: "enum variants or structs with named fields",
@@ -686,6 +739,7 @@ fn parse_snafu_enum(
             Att::Context(tokens, c) => match c {
                 Context::Suffix(s) => default_suffixes.add(s, tokens),
                 Context::Flag(_) => enum_errors.add(tokens, ATTR_CONTEXT_FLAG),
+                Context::Name(_) => enum_errors.add(tokens, ATTR_CONTEXT_NAME),
             },
             Att::Module(tokens, v) => modules.add(v, tokens),
             Att::Provide(tokens, ProvideKind::Flag(..)) => {
@@ -1067,7 +1121,10 @@ fn field_container(
         (None, Some((_, t_tt))) => {
             // `transparent` implies `context(false)`. Treat `transparent` as if setting
             // `context(false)` as well.
-            is_context = Some(((false, SuffixKind::Default), t_tt.clone()));
+            is_context = Some((
+                (false, ContextSelectorName::Suffixed(SuffixKind::None)),
+                t_tt.clone(),
+            ));
             is_context_false_checks_source = "`transparent` errors";
         }
         (Some(((false, _), _)), Some(_)) | (_, None) => {}
@@ -1085,13 +1142,13 @@ fn field_container(
         }
 
         (Some(((true, suffix), _)), None) => ContextSelectorKind::Context {
-            suffix,
+            selector_name: suffix,
             source_field,
             user_fields,
         },
 
         (None, None) => ContextSelectorKind::Context {
-            suffix: SuffixKind::Default,
+            selector_name: ContextSelectorName::Suffixed(SuffixKind::Default),
             source_field,
             user_fields,
         },
@@ -1367,14 +1424,16 @@ fn parse_snafu_tuple_struct(
 
 enum Context {
     Flag(bool),
+    Name(syn::Ident),
     Suffix(SuffixKind),
 }
 
 impl Context {
-    fn into_enabled(self) -> (bool, SuffixKind) {
+    fn into_enabled(self) -> (bool, ContextSelectorName) {
         match self {
-            Context::Flag(b) => (b, SuffixKind::None),
-            Context::Suffix(suffix) => (true, suffix),
+            Context::Flag(b) => (b, ContextSelectorName::Suffixed(SuffixKind::None)),
+            Context::Name(name) => (true, ContextSelectorName::Provided(name)),
+            Context::Suffix(suffix) => (true, ContextSelectorName::Suffixed(suffix)),
         }
     }
 }
@@ -1691,7 +1750,7 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
             parameterized_error_name: &self.0.parameterized_name(),
             selector_doc_string: &selector_doc_string,
             selector_kind,
-            selector_name: variant_name,
+            selector_base_name: variant_name,
             user_fields: selector_kind.user_fields(),
             visibility: selector_visibility,
             where_clauses: &self.0.provided_where_clauses(),
@@ -1959,7 +2018,7 @@ impl NamedStructInfo {
             parameterized_error_name: &parameterized_struct_name,
             selector_doc_string: &selector_doc_string,
             selector_kind,
-            selector_name: &field_container.name,
+            selector_base_name: &field_container.name,
             user_fields,
             visibility: selector_visibility,
             where_clauses: &where_clauses,
