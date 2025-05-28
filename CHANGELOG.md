@@ -9,6 +9,35 @@ modifying code to account for new releases.
 
 [upgrading guide]: https://docs.rs/snafu/*/snafu/guide/upgrading/index.html
 
+## [0.8.6] - 2025-05-28
+
+### Added
+
+- A new `alloc` feature flag has been added as a subset of the
+  existing `std` feature flag. This allows SNAFU to be used in
+  environments that have access to an allocator but not the standard
+  library.
+
+- Context selectors may now be explicitly named. This allows
+  flexibility in edge cases, but also is understood by rust-analyzer
+  to help with renaming context selectors.
+
+### Fixed
+
+- Added `#[allow(dead_code)]` to the context selector's `fail`
+  method. This works around an issue with the `dead_code` lint in rare
+  usages involving declarative macros and explicit visibility
+  qualifiers.
+
+### Changed
+
+- Add top-level documentation on reporting errors using
+  `#[snafu::report]`.
+
+- Show the `cfg` options that control features on docs.rs.
+
+[0.8.6]: https://github.com/shepmaster/snafu/releases/tag/0.8.6
+
 ## [0.8.5] - 2024-09-23
 
 ### Added
