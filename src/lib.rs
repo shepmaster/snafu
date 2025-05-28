@@ -1,7 +1,7 @@
 #![deny(missing_docs)]
 #![allow(stable_features)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
-#![cfg_attr(not(any(feature = "std", test)), no_std)]
+#![no_std]
 #![cfg_attr(feature = "unstable-core-error", feature(error_in_core))]
 #![cfg_attr(
     feature = "unstable-provider-api",
@@ -271,6 +271,9 @@ use core::fmt;
 extern crate alloc;
 #[cfg(feature = "alloc")]
 use alloc::{boxed::Box, string::String};
+
+#[cfg(feature = "std")]
+extern crate std;
 
 pub mod prelude {
     //! Traits and macros used by most projects. Add `use

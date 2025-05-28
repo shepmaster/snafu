@@ -191,7 +191,7 @@ where
         match self.0 {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
-                eprintln!("Error: {}", ReportFormatter(&e));
+                std::eprintln!("Error: {}", ReportFormatter(&e));
 
                 #[cfg(feature = "unstable-provider-api")]
                 {
@@ -245,7 +245,7 @@ impl<'a> fmt::Display for ReportFormatter<'a> {
             use crate::error;
 
             if let Some(bt) = error::request_ref::<crate::Backtrace>(self.0) {
-                writeln!(f, "\nBacktrace:\n{}", bt)?;
+                std::writeln!(f, "\nBacktrace:\n{}", bt)?;
             }
         }
 
@@ -277,6 +277,8 @@ impl<'a> ReportFormatter<'a> {
 
     #[cfg(feature = "std")]
     fn cleaned_error_trace(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        use alloc::vec::Vec;
+
         const NOTE: char = '*';
 
         let mut any_cleaned = false;
