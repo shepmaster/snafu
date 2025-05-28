@@ -82,9 +82,7 @@ pub mod context_module {
 pub mod context_selector {
     use crate::{ContextSelectorKind, Field, SuffixKind};
     use proc_macro2::TokenStream;
-    use quote::{format_ident, quote, IdentFragment, ToTokens};
-
-    const DEFAULT_SUFFIX: &str = "Snafu";
+    use quote::{format_ident, quote, ToTokens};
 
     #[derive(Copy, Clone)]
     pub(crate) struct ContextSelector<'a> {
@@ -96,7 +94,7 @@ pub mod context_selector {
         pub parameterized_error_name: &'a dyn ToTokens,
         pub selector_doc_string: &'a str,
         pub selector_kind: &'a ContextSelectorKind,
-        pub selector_name: &'a proc_macro2::Ident,
+        pub selector_base_name: &'a proc_macro2::Ident,
         pub user_fields: &'a [Field],
         pub visibility: Option<&'a dyn ToTokens>,
         pub where_clauses: &'a [TokenStream],
@@ -149,24 +147,9 @@ pub mod context_selector {
         }
 
         fn parameterized_selector_name(&self) -> TokenStream {
-            let selector_name = self.selector_name.to_string();
-            let selector_name = selector_name.trim_end_matches("Error");
-            let suffix: &dyn IdentFragment = match self.selector_kind {
-                ContextSelectorKind::Context { suffix, .. } => {
-                    match suffix.resolve_with_default(self.default_suffix) {
-                        SuffixKind::Some(s) => s,
-                        SuffixKind::None => &"",
-                        SuffixKind::Default => &DEFAULT_SUFFIX,
-                    }
-                }
-                _ => &DEFAULT_SUFFIX,
-            };
-            let selector_name = format_ident!(
-                "{}{}",
-                selector_name,
-                suffix,
-                span = self.selector_name.span()
-            );
+            let selector_name = self
+                .selector_kind
+                .resolve_name(self.default_suffix, self.selector_base_name);
             let user_generics = self.user_field_generics();
 
             quote! { #selector_name<#(#user_generics,)*> }

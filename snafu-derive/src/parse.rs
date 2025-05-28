@@ -27,6 +27,7 @@ mod kw {
 
     custom_keyword!(from);
 
+    custom_keyword!(name);
     custom_keyword!(suffix);
 
     custom_keyword!(chain);
@@ -183,6 +184,7 @@ impl Context {
             None => Flag(true),
             Some(arg) => match arg {
                 ContextArg::Flag { value } => Flag(value.value),
+                ContextArg::Name { name, .. } => Name(name),
                 ContextArg::Suffix {
                     suffix:
                         SuffixArg::Flag {
@@ -226,6 +228,11 @@ enum ContextArg {
     Flag {
         value: LitBool,
     },
+    Name {
+        name_token: kw::name,
+        paren_token: token::Paren,
+        name: Ident,
+    },
     Suffix {
         suffix_token: kw::suffix,
         paren_token: token::Paren,
@@ -247,6 +254,13 @@ impl Parse for ContextArg {
                 paren_token: parenthesized!(content in input),
                 suffix: content.parse()?,
             })
+        } else if lookahead.peek(kw::name) {
+            let content;
+            Ok(ContextArg::Name {
+                name_token: input.parse()?,
+                paren_token: parenthesized!(content in input),
+                name: content.parse()?,
+            })
         } else {
             Err(lookahead.error())
         }
@@ -258,6 +272,16 @@ impl ToTokens for ContextArg {
         match self {
             ContextArg::Flag { value } => {
                 value.to_tokens(tokens);
+            }
+            ContextArg::Name {
+                name_token,
+                paren_token,
+                name,
+            } => {
+                name_token.to_tokens(tokens);
+                paren_token.surround(tokens, |tokens| {
+                    name.to_tokens(tokens);
+                });
             }
             ContextArg::Suffix {
                 suffix_token,
