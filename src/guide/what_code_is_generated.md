@@ -3,9 +3,9 @@
 This procedural macro:
 
 - produces the corresponding context selectors
-- implements the [`Error`][Error] trait
-- implements the [`Display`][Display] trait
-- implements the [`ErrorCompat`][ErrorCompat] trait
+- implements the [`Error`] trait
+- implements the [`Display`] trait
+- implements the [`ErrorCompat`] trait
 
 ## Detailed example
 
@@ -85,7 +85,7 @@ Notably:
    selector will not require curly braces.
 
 If the original variant had a `source` field, its context selector
-will have an implementation of [`IntoError`][IntoError]:
+will have an implementation of [`IntoError`]:
 
 ```rust,ignore
 impl<P> IntoError<Error> for OpenConfigSnafu<P>
@@ -94,7 +94,7 @@ where
 ```
 
 Otherwise, the context selector will have the inherent methods `build`
-and `fail` and can be used with the [`ensure`](ensure) macro:
+and `fail` and can be used with the [`ensure`] macro:
 
 ```rust,ignore
 impl<I> UserIdInvalidSnafu<I>
@@ -113,7 +113,7 @@ will be automatically constructed when either `IntoError` or
 
 #### `Error`
 
-[`Error::source`][source] will return the underlying error, if
+[`Error::source`] will return the underlying error, if
 there is one:
 
 ```rust,ignore
@@ -129,8 +129,8 @@ impl std::error::Error for Error {
 }
 ```
 
-[`Error::cause`][cause] will return the same as `source`. As
-[`Error::description`][description] is soft-deprecated, it will
+[`Error::cause`] will return the same as `source`. As
+[`Error::description`] is soft-deprecated, it will
 return a string matching the name of the variant.
 
 #### `Display`
@@ -176,10 +176,5 @@ impl snafu::ErrorCompat for Error {
 }
 ```
 
-[Display]: std::fmt::Display
-[ErrorCompat]: crate::ErrorCompat
-[Error]: std::error::Error
-[IntoError]: crate::IntoError
-[cause]: std::error::Error::cause
-[description]: std::error::Error::description
-[source]: std::error::Error::source
+[`Display`]: std::fmt::Display
+[`Error`]: std::error::Error

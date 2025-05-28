@@ -315,8 +315,8 @@ duplicated attributes.
 ### `Context` vs. `IntoError`
 
 The `Context` type and related `From` implementations have been
-removed in favor of the [`IntoError`](crate::IntoError) trait. If
-you were making use of this for custom conversions, you will need
+removed in favor of the [`IntoError`] trait.
+If you were making use of this for custom conversions, you will need
 to update your trait bounds:
 
 #### Before
