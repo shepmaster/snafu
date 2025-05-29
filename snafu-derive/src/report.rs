@@ -7,6 +7,7 @@ mod parse;
 struct Args {
     crate_root: Option<crate::UserInput>,
     env_name: Option<String>,
+    show_note: Option<bool>,
 }
 
 pub fn body(
@@ -18,6 +19,7 @@ pub fn body(
     let Args {
         crate_root,
         env_name,
+        show_note,
     } = args;
 
     let item = syn::parse::<Item>(item)?;
@@ -84,8 +86,15 @@ pub fn body(
         }
     });
 
+    let set_show_note = show_note.map(|show_note| {
+        quote! {
+            __snafu_report.show_note(#show_note);
+        }
+    });
+
     let set_report_options = quote! {
-       #set_env_name;
+        #set_env_name;
+        #set_show_note;
     };
 
     let block = if cfg!(feature = "rust_1_61") {

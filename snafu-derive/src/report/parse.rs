@@ -3,7 +3,7 @@ use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    token, LitStr, Path,
+    token, LitBool, LitStr, Path,
 };
 
 use super::Args;
@@ -13,6 +13,7 @@ mod kw {
 
     custom_keyword!(crate_root);
     custom_keyword!(env);
+    custom_keyword!(show_note);
 }
 
 fn set_once<T>(
@@ -52,6 +53,17 @@ impl Parse for Args {
                         let value = value.value();
                         set_once(&mut args.env_name, value, "env", arg)
                     }
+
+                    Arg::ShowNote { value, .. } => {
+                        let value = value.value;
+                        if value != false {
+                            return Err(syn::Error::new_spanned(
+                                arg,
+                                "`show_note` may only be set to `false`",
+                            ));
+                        }
+                        set_once(&mut args.show_note, value, "show_note", arg)
+                    }
                 }
             })
             .fold(Ok(()), |acc, r| match (acc, r) {
@@ -79,6 +91,12 @@ enum Arg {
         paren_token: token::Paren,
         value: LitStr,
     },
+
+    ShowNote {
+        show_note_token: kw::show_note,
+        paren_token: token::Paren,
+        value: LitBool,
+    },
 }
 
 impl Parse for Arg {
@@ -96,6 +114,13 @@ impl Parse for Arg {
             let content;
             Ok(Arg::EnvName {
                 env_token: input.parse()?,
+                paren_token: parenthesized!(content in input),
+                value: content.parse()?,
+            })
+        } else if lookahead.peek(kw::show_note) {
+            let content;
+            Ok(Arg::ShowNote {
+                show_note_token: input.parse()?,
                 paren_token: parenthesized!(content in input),
                 value: content.parse()?,
             })
@@ -125,6 +150,17 @@ impl ToTokens for Arg {
                 value,
             } => {
                 env_token.to_tokens(tokens);
+                paren_token.surround(tokens, |tokens| {
+                    value.to_tokens(tokens);
+                });
+            }
+
+            Arg::ShowNote {
+                show_note_token,
+                paren_token,
+                value,
+            } => {
+                show_note_token.to_tokens(tokens);
                 paren_token.surround(tokens, |tokens| {
                     value.to_tokens(tokens);
                 });

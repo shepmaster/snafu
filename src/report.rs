@@ -70,11 +70,16 @@ use alloc::string::{String, ToString};
 pub struct Report<E> {
     result: Result<(), E>,
     environment_variable_name: &'static str,
+    show_note: bool,
 }
 
 impl<E> Report<E> {
     const fn new(result: Result<(), E>) -> Self {
-        Self { result, environment_variable_name: SNAFU_RAW_ERROR_MESSAGES }
+        Self {
+            result,
+            environment_variable_name: SNAFU_RAW_ERROR_MESSAGES,
+            show_note: true,
+        }
     }
 
     /// Convert an error into a [`Report`][].
@@ -166,14 +171,27 @@ impl<E> Report<E> {
         self.environment_variable_name = name;
     }
 
+    #[expect(missing_docs)]
+    pub fn show_note(&mut self, show: bool) {
+        self.show_note = show;
+    }
+
     fn as_formatter(&self) -> Option<ReportFormatter<'_>>
-    where E: crate::Error {
-        let Self { result, environment_variable_name } = self;
+    where
+        E: crate::Error,
+    {
+        let Self {
+            ref result,
+            environment_variable_name,
+            show_note,
+        } = *self;
         match result {
             Ok(()) => None,
-            Err(error) => {
-                Some(ReportFormatter { error, environment_variable_name })
-            }
+            Err(error) => Some(ReportFormatter {
+                error,
+                environment_variable_name,
+                show_note,
+            }),
         }
     }
 }
@@ -248,6 +266,7 @@ impl<T, E> core::ops::FromResidual<Result<T, E>> for Report<E> {
 struct ReportFormatter<'a> {
     error: &'a dyn crate::Error,
     environment_variable_name: &'static str,
+    show_note: bool,
 }
 
 impl<'a> fmt::Display for ReportFormatter<'a> {
@@ -305,7 +324,7 @@ impl<'a> ReportFormatter<'a> {
     fn cleaned_error_trace(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         use alloc::vec::Vec;
 
-        const NOTE: char = '*';
+        let note = self.show_note.then_some('*');
 
         let mut any_cleaned = false;
         let mut any_removed = false;
@@ -317,8 +336,10 @@ impl<'a> ReportFormatter<'a> {
                 } else {
                     if cleaned {
                         any_cleaned = true;
-                        msg.push(' ');
-                        msg.push(NOTE);
+                        if let Some(note) = note {
+                            msg.push(' ');
+                            msg.push(note);
+                        }
                     }
                     Some(msg)
                 }
@@ -346,24 +367,26 @@ impl<'a> ReportFormatter<'a> {
             writeln!(f, "{:3}: {}", i, msg)?;
         }
 
-        if any_cleaned || any_removed {
-            write!(f, "\nNOTE: ")?;
+        if let Some(note) = note {
+            if any_cleaned || any_removed {
+                write!(f, "\nNOTE: ")?;
 
-            if any_cleaned {
-                write!(
+                if any_cleaned {
+                    write!(
+                        f,
+                        "Some redundant information has been removed from the lines marked with {}. ",
+                        note,
+                    )?;
+                } else {
+                    write!(f, "Some redundant information has been removed. ")?;
+                }
+
+                writeln!(
                     f,
-                    "Some redundant information has been removed from the lines marked with {}. ",
-                    NOTE,
+                    "Set {}=1 to disable this behavior.",
+                    self.environment_variable_name,
                 )?;
-            } else {
-                write!(f, "Some redundant information has been removed. ")?;
             }
-
-            writeln!(
-                f,
-                "Set {}=1 to disable this behavior.",
-                self.environment_variable_name,
-            )?;
         }
 
         Ok(())
