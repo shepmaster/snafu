@@ -8,7 +8,7 @@ failure 0.1.8][failure-guide].
 ## "Strings as errors"
 
 If you wanted to do something similar with SNAFU, you can use the
-[`Whatever`](crate::Whatever) type:
+[`Whatever`] type:
 
 ```rust
 use snafu::{prelude::*, Whatever};
