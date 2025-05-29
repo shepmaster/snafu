@@ -3,6 +3,7 @@
 //! [`TryFuture`]: futures_core_crate::future::TryFuture
 
 use crate::{Error, ErrorCompat, FromString, IntoError};
+use alloc::string::String;
 use core::{
     future::Future,
     marker::PhantomData,

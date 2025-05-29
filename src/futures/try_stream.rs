@@ -3,6 +3,7 @@
 //! [`TryStream`]: futures_core_crate::TryStream
 
 use crate::{Error, ErrorCompat, FromString, IntoError};
+use alloc::string::String;
 use core::{
     marker::PhantomData,
     pin::Pin,
