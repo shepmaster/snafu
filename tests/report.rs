@@ -238,6 +238,20 @@ fn procedural_macro_works_with_test_functions() -> Result<(), TestFunctionError>
     Ok(())
 }
 
+#[test]
+fn procedural_macro_accepts_alternate_environment_variable_names() {
+    #[derive(Debug, Snafu)]
+    struct InnerError;
+
+    #[snafu::report(env("AWESOME_PROGRAM_VERBOSE"))]
+    fn mainlike_result() -> Result<(), InnerError> {
+        InnerSnafu.fail()
+    }
+
+    let _: Report<_> = mainlike_result();
+}
+
+
 #[track_caller]
 fn assert_cleaning_step(iter: &mut CleanedErrorText, text: &str, removed_text: &str) {
     let (error, actual_text, actual_cleaned) =

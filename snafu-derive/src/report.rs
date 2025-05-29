@@ -1,10 +1,18 @@
 use quote::quote;
 use syn::{spanned::Spanned, Item, ItemFn, ReturnType, Signature};
 
+mod parse;
+
+#[derive(Debug, Default)]
+struct Args {
+    env_name: Option<String>,
+}
+
 pub fn body(
-    _attr: proc_macro::TokenStream,
+    attr: proc_macro::TokenStream,
     item: proc_macro::TokenStream,
 ) -> syn::Result<proc_macro2::TokenStream> {
+    let args = syn::parse::<Args>(attr)?;
     let item = syn::parse::<Item>(item)?;
 
     let f = match item {
@@ -61,18 +69,36 @@ pub fn body(
         let __snafu_body: #output_ty = #captured_original_body;
     };
 
+    let Args { env_name } = args;
+
+    let set_env_name = env_name.map(|env_name| {
+        quote! {
+            __snafu_report.environment_variable_name(#env_name);
+        }
+    });
+
+    let set_report_options = quote! {
+       #set_env_name;
+    };
+
     let block = if cfg!(feature = "rust_1_61") {
         quote! {
             {
                 #ascribed_original_result;
-                <::snafu::Report<_> as ::core::convert::From<_>>::from(__snafu_body)
+                let mut __snafu_report = <::snafu::Report<_> as ::core::convert::From<_>>::from(__snafu_body);
+                #set_report_options;
+                __snafu_report
             }
         }
     } else {
         quote! {
             {
                 #ascribed_original_result;
-                ::core::result::Result::map_err(__snafu_body, ::snafu::Report::from_error)
+                ::core::result::Result::map_err(__snafu_body, |e| {
+                    let mut __snafu_report = ::snafu::Report::from_error(e);
+                    #set_report_options;
+                    __snafu_report
+                })
             }
         }
     };

@@ -67,9 +67,16 @@ use alloc::string::{String, ToString};
 /// The exact content and format of a displayed `Report` are not
 /// stable, but this type strives to print the error and as much
 /// user-relevant information in an easily-consumable manner
-pub struct Report<E>(Result<(), E>);
+pub struct Report<E> {
+    result: Result<(), E>,
+    environment_variable_name: &'static str,
+}
 
 impl<E> Report<E> {
+    const fn new(result: Result<(), E>) -> Self {
+        Self { result, environment_variable_name: SNAFU_RAW_ERROR_MESSAGES }
+    }
+
     /// Convert an error into a [`Report`][].
     ///
     /// Recommended if you support versions of Rust before 1.61.
@@ -90,7 +97,7 @@ impl<E> Report<E> {
     /// }
     /// ```
     pub fn from_error(error: E) -> Self {
-        Self(Err(error))
+        Self::new(Err(error))
     }
 
     /// Executes a closure that returns a [`Result`][], converting the
@@ -146,18 +153,34 @@ impl<E> Report<E> {
     /// }
     /// ```
     pub fn capture(body: impl FnOnce() -> Result<(), E>) -> Self {
-        Self(body())
+        Self::new(body())
     }
 
     /// A [`Report`][] that indicates no error occurred.
     pub const fn ok() -> Self {
-        Self(Ok(()))
+        Self::new(Ok(()))
+    }
+
+    #[expect(missing_docs)]
+    pub fn environment_variable_name(&mut self, name: &'static str) {
+        self.environment_variable_name = name;
+    }
+
+    fn as_formatter(&self) -> Option<ReportFormatter<'_>>
+    where E: crate::Error {
+        let Self { result, environment_variable_name } = self;
+        match result {
+            Ok(()) => None,
+            Err(error) => {
+                Some(ReportFormatter { error, environment_variable_name })
+            }
+        }
     }
 }
 
 impl<E> From<Result<(), E>> for Report<E> {
     fn from(other: Result<(), E>) -> Self {
-        Self(other)
+        Self::new(other)
     }
 }
 
@@ -175,9 +198,9 @@ where
     E: crate::Error,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.0 {
-            Err(e) => fmt::Display::fmt(&ReportFormatter(e), f),
-            _ => Ok(()),
+        match self.as_formatter() {
+            Some(formatter) => fmt::Display::fmt(&formatter, f),
+            None => Ok(()),
         }
     }
 }
@@ -188,10 +211,10 @@ where
     E: crate::Error,
 {
     fn report(self) -> ExitCode {
-        match self.0 {
-            Ok(()) => ExitCode::SUCCESS,
-            Err(e) => {
-                std::eprintln!("Error: {}", ReportFormatter(&e));
+        match self.as_formatter() {
+            None => ExitCode::SUCCESS,
+            Some(formatter) => {
+                std::eprintln!("Error: {}", formatter);
 
                 #[cfg(feature = "unstable-provider-api")]
                 {
@@ -201,7 +224,7 @@ where
                     // error::request_value::<ExitCode>(&e)
                     //     .or_else(|| error::request_ref::<ExitCode>(&e).copied())
 
-                    error::request_ref::<ExitCode>(&e)
+                    error::request_ref::<ExitCode>(formatter.error)
                         .copied()
                         .unwrap_or(ExitCode::FAILURE)
                 }
@@ -222,13 +245,16 @@ impl<T, E> core::ops::FromResidual<Result<T, E>> for Report<E> {
     }
 }
 
-struct ReportFormatter<'a>(&'a dyn crate::Error);
+struct ReportFormatter<'a> {
+    error: &'a dyn crate::Error,
+    environment_variable_name: &'static str,
+}
 
 impl<'a> fmt::Display for ReportFormatter<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         #[cfg(feature = "std")]
         {
-            if trace_cleaning_enabled() {
+            if trace_cleaning_enabled(self.environment_variable_name) {
                 self.cleaned_error_trace(f)?;
             } else {
                 self.error_trace(f)?;
@@ -244,7 +270,7 @@ impl<'a> fmt::Display for ReportFormatter<'a> {
         {
             use crate::error;
 
-            if let Some(bt) = error::request_ref::<crate::Backtrace>(self.0) {
+            if let Some(bt) = error::request_ref::<crate::Backtrace>(self.error) {
                 std::writeln!(f, "\nBacktrace:\n{}", bt)?;
             }
         }
@@ -255,9 +281,9 @@ impl<'a> fmt::Display for ReportFormatter<'a> {
 
 impl<'a> ReportFormatter<'a> {
     fn error_trace(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        writeln!(f, "{}", self.0)?;
+        writeln!(f, "{}", self.error)?;
 
-        let sources = ChainCompat::new(self.0).skip(1);
+        let sources = ChainCompat::new(self.error).skip(1);
         let plurality = sources.clone().take(2).count();
 
         match plurality {
@@ -283,7 +309,7 @@ impl<'a> ReportFormatter<'a> {
 
         let mut any_cleaned = false;
         let mut any_removed = false;
-        let cleaned_messages: Vec<_> = CleanedErrorText::new(self.0)
+        let cleaned_messages: Vec<_> = CleanedErrorText::new(self.error)
             .flat_map(|(_, mut msg, cleaned)| {
                 if msg.is_empty() {
                     any_removed = true;
@@ -336,7 +362,7 @@ impl<'a> ReportFormatter<'a> {
             writeln!(
                 f,
                 "Set {}=1 to disable this behavior.",
-                SNAFU_RAW_ERROR_MESSAGES,
+                self.environment_variable_name,
             )?;
         }
 
@@ -348,12 +374,12 @@ impl<'a> ReportFormatter<'a> {
 const SNAFU_RAW_ERROR_MESSAGES: &str = "SNAFU_RAW_ERROR_MESSAGES";
 
 #[cfg(feature = "std")]
-fn trace_cleaning_enabled() -> bool {
+fn trace_cleaning_enabled(environment_variable_name: &str) -> bool {
     use crate::once_bool::OnceBool;
     use std::env;
 
     static DISABLED: OnceBool = OnceBool::new();
-    !DISABLED.get(|| env::var_os(SNAFU_RAW_ERROR_MESSAGES).map_or(false, |v| v == "1"))
+    !DISABLED.get(|| env::var_os(environment_variable_name).map_or(false, |v| v == "1"))
 }
 
 /// An iterator over an Error and its sources that removes duplicated
