@@ -3,8 +3,9 @@ use syn::{spanned::Spanned, Item, ItemFn, ReturnType, Signature};
 
 mod parse;
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 struct Args {
+    crate_root: Option<crate::UserInput>,
     env_name: Option<String>,
 }
 
@@ -13,6 +14,12 @@ pub fn body(
     item: proc_macro::TokenStream,
 ) -> syn::Result<proc_macro2::TokenStream> {
     let args = syn::parse::<Args>(attr)?;
+
+    let Args {
+        crate_root,
+        env_name,
+    } = args;
+
     let item = syn::parse::<Item>(item)?;
 
     let f = match item {
@@ -46,17 +53,19 @@ pub fn body(
         output,
     } = sig;
 
+    let crate_root = crate_root.unwrap_or_else(crate::default_crate_root);
+
     let output_ty = match output {
         ReturnType::Default => quote! { () },
         ReturnType::Type(_, ty) => quote! { #ty },
     };
 
-    let error_ty = quote! { <#output_ty as ::snafu::__InternalExtractErrorType>::Err };
+    let error_ty = quote! { <#output_ty as #crate_root::__InternalExtractErrorType>::Err };
 
     let output = if cfg!(feature = "rust_1_61") {
-        quote! { -> ::snafu::Report<#error_ty> }
+        quote! { -> #crate_root::Report<#error_ty> }
     } else {
-        quote! { -> ::core::result::Result<(), ::snafu::Report<#error_ty>> }
+        quote! { -> ::core::result::Result<(), #crate_root::Report<#error_ty>> }
     };
 
     let captured_original_body = if asyncness.is_some() {
@@ -68,8 +77,6 @@ pub fn body(
     let ascribed_original_result = quote! {
         let __snafu_body: #output_ty = #captured_original_body;
     };
-
-    let Args { env_name } = args;
 
     let set_env_name = env_name.map(|env_name| {
         quote! {
@@ -85,7 +92,7 @@ pub fn body(
         quote! {
             {
                 #ascribed_original_result;
-                let mut __snafu_report = <::snafu::Report<_> as ::core::convert::From<_>>::from(__snafu_body);
+                let mut __snafu_report = <#crate_root::Report<_> as ::core::convert::From<_>>::from(__snafu_body);
                 #set_report_options;
                 __snafu_report
             }
@@ -95,7 +102,7 @@ pub fn body(
             {
                 #ascribed_original_result;
                 ::core::result::Result::map_err(__snafu_body, |e| {
-                    let mut __snafu_report = ::snafu::Report::from_error(e);
+                    let mut __snafu_report = #crate_root::Report::from_error(e);
                     #set_report_options;
                     __snafu_report
                 })

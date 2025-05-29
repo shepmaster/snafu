@@ -3,7 +3,7 @@ use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    token, LitStr,
+    token, LitStr, Path,
 };
 
 use super::Args;
@@ -11,6 +11,7 @@ use super::Args;
 mod kw {
     use syn::custom_keyword;
 
+    custom_keyword!(crate_root);
     custom_keyword!(env);
 }
 
@@ -40,9 +41,17 @@ impl Parse for Args {
         let parser = Punctuated::<Arg, token::Comma>::parse_terminated;
         parser(input)?
             .into_iter()
-            .map(|arg| match &arg {
-                Arg::EnvName { value, .. } => {
-                    set_once(&mut args.env_name, value.value(), "env", arg)
+            .map(|arg| -> Result<(), syn::Error> {
+                match &arg {
+                    Arg::CrateRoot { value, .. } => {
+                        let value = Box::new(value.to_token_stream());
+                        set_once(&mut args.crate_root, value, "crate_root", arg)
+                    }
+
+                    Arg::EnvName { value, .. } => {
+                        let value = value.value();
+                        set_once(&mut args.env_name, value, "env", arg)
+                    }
                 }
             })
             .fold(Ok(()), |acc, r| match (acc, r) {
@@ -59,6 +68,12 @@ impl Parse for Args {
 }
 
 enum Arg {
+    CrateRoot {
+        crate_root_token: kw::crate_root,
+        paren_token: token::Paren,
+        value: Path,
+    },
+
     EnvName {
         env_token: kw::env,
         paren_token: token::Paren,
@@ -68,18 +83,42 @@ enum Arg {
 
 impl Parse for Arg {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let content;
-        Ok(Arg::EnvName {
-            env_token: input.parse()?,
-            paren_token: parenthesized!(content in input),
-            value: content.parse()?,
-        })
+        let lookahead = input.lookahead1();
+
+        if lookahead.peek(kw::crate_root) {
+            let content;
+            Ok(Arg::CrateRoot {
+                crate_root_token: input.parse()?,
+                paren_token: parenthesized!(content in input),
+                value: content.parse()?,
+            })
+        } else if lookahead.peek(kw::env) {
+            let content;
+            Ok(Arg::EnvName {
+                env_token: input.parse()?,
+                paren_token: parenthesized!(content in input),
+                value: content.parse()?,
+            })
+        } else {
+            Err(lookahead.error())
+        }
     }
 }
 
 impl ToTokens for Arg {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         match self {
+            Arg::CrateRoot {
+                crate_root_token,
+                paren_token,
+                value,
+            } => {
+                crate_root_token.to_tokens(tokens);
+                paren_token.surround(tokens, |tokens| {
+                    value.to_tokens(tokens);
+                });
+            }
+
             Arg::EnvName {
                 env_token,
                 paren_token,
