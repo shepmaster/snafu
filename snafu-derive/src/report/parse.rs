@@ -38,13 +38,23 @@ impl Parse for Args {
         let mut args = Args::default();
 
         let parser = Punctuated::<Arg, token::Comma>::parse_terminated;
-        for arg in parser(input)? {
-            match &arg {
+        parser(input)?
+            .into_iter()
+            .map(|arg| match &arg {
                 Arg::EnvName { value, .. } => {
-                    set_once(&mut args.env_name, value.value(), "env", arg)?;
+                    set_once(&mut args.env_name, value.value(), "env", arg)
                 }
-            }
-        }
+            })
+            .fold(Ok(()), |acc, r| {
+                match (acc, r) {
+                    (Ok(()), Ok(())) => Ok(()),
+                    (Ok(()), Err(e)) | (Err(e), Ok(())) => Err(e),
+                    (Err(mut e1), Err(e2)) => {
+                        e1.combine(e2);
+                        Err(e1)
+                    },
+                }
+            })?;
 
         Ok(args)
     }
