@@ -45,14 +45,12 @@ impl Parse for Args {
                     set_once(&mut args.env_name, value.value(), "env", arg)
                 }
             })
-            .fold(Ok(()), |acc, r| {
-                match (acc, r) {
-                    (Ok(()), Ok(())) => Ok(()),
-                    (Ok(()), Err(e)) | (Err(e), Ok(())) => Err(e),
-                    (Err(mut e1), Err(e2)) => {
-                        e1.combine(e2);
-                        Err(e1)
-                    },
+            .fold(Ok(()), |acc, r| match (acc, r) {
+                (Ok(()), Ok(())) => Ok(()),
+                (Ok(()), Err(e)) | (Err(e), Ok(())) => Err(e),
+                (Err(mut e1), Err(e2)) => {
+                    e1.combine(e2);
+                    Err(e1)
                 }
             })?;
 
