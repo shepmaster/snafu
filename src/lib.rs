@@ -1211,7 +1211,7 @@ pub trait ErrorCompat {
     ///
     /// To omit the current error and only traverse its sources,
     /// use `skip(1)`.
-    fn iter_chain(&self) -> ChainCompat
+    fn iter_chain(&self) -> ChainCompat<'_, '_>
     where
         Self: AsErrorSource,
     {
