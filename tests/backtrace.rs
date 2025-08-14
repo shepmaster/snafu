@@ -150,3 +150,50 @@ mod whatever_nested {
         );
     }
 }
+
+mod boxed {
+    use snafu::{prelude::*, Backtrace, ErrorCompat};
+    use std::{rc::Rc, sync::Arc};
+
+    #[derive(Debug, Snafu)]
+    struct BoxBacktrace {
+        backtrace: Box<Backtrace>,
+    }
+
+    #[test]
+    fn box_is_backtrace() {
+        let e = BoxBacktraceSnafu.build();
+        let text = ErrorCompat::backtrace(&e)
+            .map(ToString::to_string)
+            .unwrap_or_default();
+        assert!(text.contains("::box_is_backtrace"));
+    }
+
+    #[derive(Debug, Snafu)]
+    struct RcBacktrace {
+        backtrace: Rc<Backtrace>,
+    }
+
+    #[test]
+    fn rc_is_backtrace() {
+        let e = RcBacktraceSnafu.build();
+        let text = ErrorCompat::backtrace(&e)
+            .map(ToString::to_string)
+            .unwrap_or_default();
+        assert!(text.contains("::rc_is_backtrace"));
+    }
+
+    #[derive(Debug, Snafu)]
+    struct ArcBacktrace {
+        backtrace: Arc<Backtrace>,
+    }
+
+    #[test]
+    fn arc_is_backtrace() {
+        let e = ArcBacktraceSnafu.build();
+        let text = ErrorCompat::backtrace(&e)
+            .map(ToString::to_string)
+            .unwrap_or_default();
+        assert!(text.contains("::arc_is_backtrace"));
+    }
+}
