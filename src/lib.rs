@@ -443,6 +443,9 @@ mod fallback_error;
 #[doc(hidden)]
 pub use fallback_error::Error;
 
+#[cfg(any(feature = "alloc", test))]
+mod boxed_impls;
+
 /// Ensure a condition is true. If it is not, return from the function
 /// with an error.
 ///
@@ -1220,16 +1223,6 @@ pub trait ErrorCompat {
 }
 
 impl<'a, E> ErrorCompat for &'a E
-where
-    E: ErrorCompat,
-{
-    fn backtrace(&self) -> Option<&Backtrace> {
-        (**self).backtrace()
-    }
-}
-
-#[cfg(any(feature = "alloc", test))]
-impl<E> ErrorCompat for Box<E>
 where
     E: ErrorCompat,
 {
