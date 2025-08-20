@@ -9,6 +9,17 @@ modifying code to account for new releases.
 
 [upgrading guide]: https://docs.rs/snafu/*/snafu/guide/upgrading/index.html
 
+## [0.8.7] - 2025-08-20
+
+### Added
+
+- `GenerateImplicitData` and `AsBacktrace` are now implemented for
+  `Box<T>`, `Rc<T>`, and `Arc<T>` when `T` implements the same
+  trait. This allows you to use types like `Arc<Backtrace>` as a
+  backtrace field.
+
+[0.8.7]: https://github.com/shepmaster/snafu/releases/tag/0.8.7
+
 ## [0.8.6] - 2025-05-28
 
 ### Added
