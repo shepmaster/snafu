@@ -1,6 +1,6 @@
 [package]
 name = "snafu"
-version = "0.8.6"
+version = "0.8.7"
 authors = ["Jake Goulding <jake.goulding@gmail.com>"]
 edition = "2018"
 rust-version = "1.56"
@@ -74,7 +74,7 @@ guide = []
 exclude = ["compatibility-tests"]
 
 [dependencies]
-snafu-derive = { path = "snafu-derive", version = "0.8.6" }
+snafu-derive = { path = "snafu-derive", version = "0.8.7" }
 backtrace = { version = "0.3.0", optional = true }
 futures-crate = { package = "futures", version = "0.3.11", optional = true, default-features = false }
 futures-core-crate = { package = "futures-core", version = "0.3.0", optional = true, default-features = false }
