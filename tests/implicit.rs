@@ -188,3 +188,53 @@ mod converted_sources {
         assert_eq!(e.source.to_string(), "bad");
     }
 }
+
+mod boxed {
+    use snafu::prelude::*;
+    use std::{rc::Rc, sync::Arc};
+
+    #[derive(Debug, PartialEq)]
+    struct ImplicitData;
+
+    impl snafu::GenerateImplicitData for ImplicitData {
+        fn generate() -> Self {
+            ImplicitData
+        }
+    }
+
+    #[derive(Debug, Snafu)]
+    struct BoxImplicit {
+        #[snafu(implicit)]
+        data: Box<ImplicitData>,
+    }
+
+    #[test]
+    fn box_is_implicit() {
+        let e = BoxImplicitSnafu.build();
+        assert_eq!(e.data, Box::new(ImplicitData))
+    }
+
+    #[derive(Debug, Snafu)]
+    struct RcImplicit {
+        #[snafu(implicit)]
+        data: Rc<ImplicitData>,
+    }
+
+    #[test]
+    fn rc_is_implicit() {
+        let e = RcImplicitSnafu.build();
+        assert_eq!(e.data, Rc::new(ImplicitData))
+    }
+
+    #[derive(Debug, Snafu)]
+    struct ArcImplicit {
+        #[snafu(implicit)]
+        data: Arc<ImplicitData>,
+    }
+
+    #[test]
+    fn arc_is_implicit() {
+        let e = ArcImplicitSnafu.build();
+        assert_eq!(e.data, Arc::new(ImplicitData))
+    }
+}

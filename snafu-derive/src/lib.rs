@@ -540,7 +540,7 @@ where
     ///
     /// This can help with additional manual error checks beyond the duplication checks that
     /// `AtMostOne` handles for you.
-    fn iter(&self) -> std::collections::vec_deque::Iter<(T, U)> {
+    fn iter(&self) -> std::collections::vec_deque::Iter<'_, (T, U)> {
         self.values.iter()
     }
 
