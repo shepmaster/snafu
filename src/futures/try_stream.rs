@@ -2,8 +2,7 @@
 //!
 //! [`TryStream`]: futures_core_crate::TryStream
 
-use crate::{Error, ErrorCompat, FromString, IntoError};
-use alloc::string::String;
+use crate::{Error, ErrorCompat, IntoError};
 use core::{
     marker::PhantomData,
     pin::Pin,
@@ -11,6 +10,12 @@ use core::{
 };
 use futures_core_crate::stream::{Stream, TryStream};
 use pin_project::pin_project;
+
+#[cfg(any(feature = "alloc", test))]
+use alloc::string::String;
+
+#[cfg(any(feature = "alloc", test))]
+use crate::FromString;
 
 /// Additions to [`TryStream`].
 pub trait TryStreamExt: TryStream + Sized {
@@ -121,6 +126,7 @@ pub trait TryStreamExt: TryStream + Sized {
     /// # stream::empty()
     /// }
     /// ```
+    #[cfg(any(feature = "alloc", test))]
     fn whatever_context<S, E>(self, context: S) -> WhateverContext<Self, S, E>
     where
         S: Into<String>,
@@ -151,6 +157,7 @@ pub trait TryStreamExt: TryStream + Sized {
     /// # stream::empty()
     /// }
     /// ```
+    #[cfg(any(feature = "alloc", test))]
     fn with_whatever_context<F, S, E>(self, context: F) -> WithWhateverContext<Self, F, E>
     where
         F: FnMut(&mut Self::Error) -> S,
@@ -187,6 +194,7 @@ where
         }
     }
 
+    #[cfg(any(feature = "alloc", test))]
     fn whatever_context<S, E>(self, context: S) -> WhateverContext<Self, S, E>
     where
         S: Into<String>,
@@ -199,6 +207,7 @@ where
         }
     }
 
+    #[cfg(any(feature = "alloc", test))]
     fn with_whatever_context<F, S, E>(self, context: F) -> WithWhateverContext<Self, F, E>
     where
         F: FnMut(&mut Self::Error) -> S,
@@ -300,6 +309,7 @@ where
 #[pin_project]
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
+#[cfg(any(feature = "alloc", test))]
 pub struct WhateverContext<St, S, E> {
     #[pin]
     inner: St,
@@ -307,6 +317,7 @@ pub struct WhateverContext<St, S, E> {
     _e: PhantomData<E>,
 }
 
+#[cfg(any(feature = "alloc", test))]
 impl<St, S, E> Stream for WhateverContext<St, S, E>
 where
     St: TryStream,
@@ -343,6 +354,7 @@ where
 #[pin_project]
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
+#[cfg(any(feature = "alloc", test))]
 pub struct WithWhateverContext<St, F, E> {
     #[pin]
     inner: St,
@@ -350,6 +362,7 @@ pub struct WithWhateverContext<St, F, E> {
     _e: PhantomData<E>,
 }
 
+#[cfg(any(feature = "alloc", test))]
 impl<St, F, S, E> Stream for WithWhateverContext<St, F, E>
 where
     St: TryStream,
