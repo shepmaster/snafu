@@ -105,7 +105,7 @@ stable_no_std_test_task:
 rust_1_81_no_std_test_task:
   name: "Rust 1.81 (no_std)"
   container:
-    image: rust:latest
+    image: rust:1.81
     cpu: 1
     memory: 2Gi
   cargo_cache:
