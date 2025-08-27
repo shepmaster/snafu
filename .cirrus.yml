@@ -99,7 +99,8 @@ stable_no_std_test_task:
     - rustup target add thumbv6m-none-eabi
   our_error_test_script:
     - rustc --version
-    - cargo build --no-default-features --target thumbv6m-none-eabi
+    - cargo build --target thumbv6m-none-eabi --no-default-features
+    - cargo build --target thumbv6m-none-eabi --no-default-features --features=futures
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
 rust_1_81_no_std_test_task:
@@ -115,7 +116,8 @@ rust_1_81_no_std_test_task:
     - rustup target add thumbv6m-none-eabi
   core_error_test_script:
     - rustc --version
-    - cargo build --no-default-features --features=rust_1_81 --target thumbv6m-none-eabi
+    - cargo build --target thumbv6m-none-eabi --no-default-features --features=rust_1_81
+    - cargo build --target thumbv6m-none-eabi --no-default-features --features=rust_1_81,futures
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
 nightly_test_task:

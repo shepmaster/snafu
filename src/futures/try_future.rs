@@ -2,8 +2,7 @@
 //!
 //! [`TryFuture`]: futures_core_crate::future::TryFuture
 
-use crate::{Error, ErrorCompat, FromString, IntoError};
-use alloc::string::String;
+use crate::{Error, ErrorCompat, IntoError};
 use core::{
     future::Future,
     marker::PhantomData,
@@ -12,6 +11,12 @@ use core::{
 };
 use futures_core_crate::future::TryFuture;
 use pin_project::pin_project;
+
+#[cfg(feature = "alloc")]
+use alloc::string::String;
+
+#[cfg(feature = "alloc")]
+use crate::FromString;
 
 /// Additions to [`TryFuture`].
 pub trait TryFutureExt: TryFuture + Sized {
@@ -119,6 +124,7 @@ pub trait TryFutureExt: TryFuture + Sized {
     /// # futures::future::ok(42)
     /// }
     /// ```
+    #[cfg(any(feature = "alloc", test))]
     fn whatever_context<S, E>(self, context: S) -> WhateverContext<Self, S, E>
     where
         S: Into<String>,
@@ -148,6 +154,7 @@ pub trait TryFutureExt: TryFuture + Sized {
     /// # futures::future::ok(42)
     /// }
     /// ```
+    #[cfg(any(feature = "alloc", test))]
     fn with_whatever_context<F, S, E>(self, context: F) -> WithWhateverContext<Self, F, E>
     where
         F: FnOnce(&mut Self::Error) -> S,
@@ -184,6 +191,7 @@ where
         }
     }
 
+    #[cfg(any(feature = "alloc", test))]
     fn whatever_context<S, E>(self, context: S) -> WhateverContext<Self, S, E>
     where
         S: Into<String>,
@@ -196,6 +204,7 @@ where
         }
     }
 
+    #[cfg(any(feature = "alloc", test))]
     fn with_whatever_context<F, S, E>(self, context: F) -> WithWhateverContext<Self, F, E>
     where
         F: FnOnce(&mut Self::Error) -> S,
@@ -305,6 +314,7 @@ where
 #[pin_project]
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
+#[cfg(any(feature = "alloc", test))]
 pub struct WhateverContext<Fut, S, E> {
     #[pin]
     inner: Fut,
@@ -312,6 +322,7 @@ pub struct WhateverContext<Fut, S, E> {
     _e: PhantomData<E>,
 }
 
+#[cfg(any(feature = "alloc", test))]
 impl<Fut, S, E> Future for WhateverContext<Fut, S, E>
 where
     Fut: TryFuture,
@@ -352,6 +363,7 @@ where
 #[pin_project]
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
+#[cfg(any(feature = "alloc", test))]
 pub struct WithWhateverContext<Fut, F, E> {
     #[pin]
     inner: Fut,
@@ -359,6 +371,7 @@ pub struct WithWhateverContext<Fut, F, E> {
     _e: PhantomData<E>,
 }
 
+#[cfg(any(feature = "alloc", test))]
 impl<Fut, F, S, E> Future for WithWhateverContext<Fut, F, E>
 where
     Fut: TryFuture,
