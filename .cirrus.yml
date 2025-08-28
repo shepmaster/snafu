@@ -118,6 +118,8 @@ rust_1_81_no_std_test_task:
     - rustc --version
     - cargo build --target thumbv6m-none-eabi --no-default-features --features=rust_1_81
     - cargo build --target thumbv6m-none-eabi --no-default-features --features=rust_1_81,futures
+    - cargo build --target thumbv6m-none-eabi --no-default-features --features=rust_1_81,alloc
+    - cargo build --target thumbv6m-none-eabi --no-default-features --features=rust_1_81,alloc,futures
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
 nightly_test_task:
