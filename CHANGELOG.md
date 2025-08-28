@@ -9,6 +9,21 @@ modifying code to account for new releases.
 
 [upgrading guide]: https://docs.rs/snafu/*/snafu/guide/upgrading/index.html
 
+## [0.8.8] - 2025-08-28
+
+### Fixed
+
+- Gate `TryFuture::whatever_context`,
+  `TryFuture::with_whatever_context`, `TryStream::whatever_context`,
+  and `TryStream::with_whatever_context` behind the `alloc` feature
+  flag. This allows SNAFU's future and stream combinators to be used
+  in a no_std environment.
+
+- Only implement `GenerateImplicitData` and `AsBacktrace` for `Arc`
+  wrappers when the target platform has access to atomics and `Arc`.
+
+[0.8.8]: https://github.com/shepmaster/snafu/releases/tag/0.8.8
+
 ## [0.8.7] - 2025-08-20
 
 ### Added
