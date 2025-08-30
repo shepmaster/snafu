@@ -245,7 +245,7 @@ impl<'a> fmt::Display for ReportFormatter<'a> {
             use crate::error;
 
             if let Some(bt) = error::request_ref::<crate::Backtrace>(self.0) {
-                std::writeln!(f, "\nBacktrace:\n{}", bt)?;
+                writeln!(f, "\nBacktrace:\n{}", bt)?;
             }
         }
 
