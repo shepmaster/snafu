@@ -240,7 +240,7 @@ impl<'a> fmt::Display for ReportFormatter<'a> {
             self.error_trace(f)?;
         }
 
-        #[cfg(feature = "unstable-provider-api")]
+        #[cfg(all(feature = "unstable-provider-api", feature = "std"))]
         {
             use crate::error;
 
