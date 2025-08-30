@@ -1639,7 +1639,7 @@ macro_rules! location {
 #[snafu(crate_root(crate))]
 #[snafu(whatever)]
 #[snafu(display("{message}"))]
-#[snafu(provide(opt, ref, chain, dyn std::error::Error => source.as_deref()))]
+#[snafu(provide(opt, ref, chain, dyn crate::Error => source.as_deref()))]
 #[cfg(any(feature = "alloc", test))]
 pub struct Whatever {
     #[snafu(source(from(Box<dyn crate::Error>, Some)))]
