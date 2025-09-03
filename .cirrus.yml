@@ -136,6 +136,7 @@ rust_nightly_no_std_test_task:
     - rustc --version
   provider_api_test_script:
     - cargo +nightly build --target thumbv6m-none-eabi --no-default-features --features=rust_1_81,unstable-provider-api
+    - cargo +nightly build --target thumbv6m-none-eabi --no-default-features --features=rust_1_81,alloc,unstable-provider-api
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
 nightly_test_task:
