@@ -9,6 +9,15 @@ modifying code to account for new releases.
 
 [upgrading guide]: https://docs.rs/snafu/*/snafu/guide/upgrading/index.html
 
+## [0.8.9] - 2025-09-03
+
+### Fixed
+
+- Allow the `unstable-provider-api` feature to be used in a no_std
+  environment, both with and without the `alloc` feature flag enabled.
+
+[0.8.9]: https://github.com/shepmaster/snafu/releases/tag/0.8.9
+
 ## [0.8.8] - 2025-08-28
 
 ### Fixed
