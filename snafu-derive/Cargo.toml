@@ -1,6 +1,6 @@
 [package]
 name = "snafu-derive"
-version = "0.8.8"
+version = "0.8.9"
 authors = ["Jake Goulding <jake.goulding@gmail.com>"]
 edition = "2018"
 rust-version = "1.56"
