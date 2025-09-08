@@ -1553,7 +1553,7 @@ trait GenericAwareNames {
         Box::new(quote! { #enum_name<#(#original_generics,)*> })
     }
 
-    fn provided_generic_types_without_defaults(&self) -> Vec<proc_macro2::TokenStream> {
+    fn provided_generic_types_without_defaults(&self) -> impl Iterator<Item = proc_macro2::TokenStream> {
         use syn::TypeParam;
 
         self.generics()
@@ -1573,18 +1573,16 @@ trait GenericAwareNames {
                     #bounds
                 }
             })
-            .collect()
     }
 
     fn provided_generics_without_defaults(&self) -> Vec<proc_macro2::TokenStream> {
         self.provided_generic_lifetimes()
-            .into_iter()
             .chain(self.provided_generic_types_without_defaults())
             .chain(self.provided_generic_consts_without_defaults())
             .collect()
     }
 
-    fn provided_generic_lifetimes(&self) -> Vec<proc_macro2::TokenStream> {
+    fn provided_generic_lifetimes(&self) -> impl Iterator<Item = proc_macro2::TokenStream> {
         use syn::LifetimeParam;
 
         self.generics()
@@ -1598,10 +1596,9 @@ trait GenericAwareNames {
                     #lifetime
                 }
             })
-            .collect()
     }
 
-    fn provided_generic_consts_without_defaults(&self) -> Vec<proc_macro2::TokenStream> {
+    fn provided_generic_consts_without_defaults(&self) -> impl Iterator<Item = proc_macro2::TokenStream> {
         self.generics()
             .const_params()
             .map(|c| {
@@ -1621,7 +1618,6 @@ trait GenericAwareNames {
                     #ty
                 }
             })
-            .collect()
     }
 
     fn provided_generic_names(&self) -> Vec<proc_macro2::TokenStream> {
