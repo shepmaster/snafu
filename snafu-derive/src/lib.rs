@@ -2060,6 +2060,13 @@ impl TupleStructInfo {
     fn generate_snafu(self) -> proc_macro2::TokenStream {
         let parameterized_struct_name = self.parameterized_name();
 
+        let source_generic_name = quote! { __SnafuSource };
+        let extended_generics = self.provided_generic_lifetimes()
+            .chain([quote! { #source_generic_name }])
+            .chain(self.provided_generic_types_without_defaults())
+            .chain(self.provided_generic_consts_without_defaults())
+            .collect::<Vec<_>>();
+
         let TupleStructInfo {
             crate_root,
             generics,
@@ -2164,12 +2171,13 @@ impl TupleStructInfo {
         };
 
         let from_impl = quote! {
-            impl#generics ::core::convert::From<#inner_type> for #parameterized_struct_name
+            impl<#(#extended_generics,)*> ::core::convert::From<#source_generic_name> for #parameterized_struct_name
             where
+                #source_generic_name: ::core::convert::Into<#inner_type>,
                 #(#where_clauses),*
             {
-                fn from(other: #inner_type) -> Self {
-                    #name((#transformation)(other))
+                fn from(other: #source_generic_name) -> Self {
+                    #name((#transformation)(other.into()))
                 }
             }
         };
