@@ -1,9 +1,7 @@
 use snafu::prelude::*;
 
 #[derive(Debug, Snafu)]
-enum InnerError {
-    InnerVariant,
-}
+struct InnerError;
 
 #[derive(Debug, Snafu)]
 enum Error {
@@ -12,6 +10,12 @@ enum Error {
         #[snafu(source(5))]
         a: InnerError,
     },
+}
+
+#[derive(Debug, Snafu)]
+struct SourceFromTransformInvalidType {
+    #[snafu(source(from(Cow*, ?)))]
+    source: InnerError,
 }
 
 fn main() {}

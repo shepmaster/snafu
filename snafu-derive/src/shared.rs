@@ -134,10 +134,13 @@ impl quote::ToTokens for GenericsWithoutDefaults<'_> {
     }
 }
 
+const SOURCE_GENERIC_NAME: StaticIdent = StaticIdent("__SnafuSource");
+
 pub(crate) struct SourceInfo<'a> {
     pub source_field_type: &'a syn::Type,
     pub transform_source: proc_macro2::TokenStream,
     pub transfer_source_field: proc_macro2::TokenStream,
+    maybe_generic: Option<StaticIdent>,
 }
 
 impl<'a> SourceInfo<'a> {
@@ -160,11 +163,17 @@ impl<'a> SourceInfo<'a> {
         let transform_source =
             quote! { let error: #target_field_type = (#source_transformation)(error) };
         let transfer_source_field = quote! { #source_field_name: error, };
+        let maybe_generic = if transformation.is_generic() {
+            Some(SOURCE_GENERIC_NAME)
+        } else {
+            None
+        };
 
         Self {
             source_field_type,
             transform_source,
             transfer_source_field,
+            maybe_generic,
         }
     }
 }
@@ -447,7 +456,11 @@ pub mod context_selector {
                         source_field_type,
                         transform_source,
                         transfer_source_field,
+                        maybe_generic,
                     } = SourceInfo::from_source_field(source_field);
+
+                    assert!(maybe_generic.is_none(), "Internal error");
+
                     (
                         quote! { #source_field_type },
                         Some(transform_source),
@@ -594,15 +607,26 @@ pub mod no_context_selector {
                 source_field_type,
                 transform_source,
                 transfer_source_field,
+                maybe_generic,
             } = source_info;
 
+            let maybe_generic = maybe_generic.as_ref().map(|m| m as &dyn ToTokens);
+
+            let generics = match &maybe_generic {
+                Some(g) => generics.push(std::slice::from_ref(g)),
+                None => *generics,
+            };
+
+            let from_type = maybe_generic.unwrap_or(source_field_type);
+
             let no_context_selector = quote! {
-                impl<#generics> ::core::convert::From<#source_field_type> for #parameterized_error_name
+                impl<#generics> ::core::convert::From<#from_type> for #parameterized_error_name
                 where
+                    #from_type: ::core::convert::Into<#source_field_type>,
                     #(#where_clauses),*
                 {
                     #[track_caller]
-                    fn from(error: #source_field_type) -> Self {
+                    fn from(error: #from_type) -> Self {
                         #transform_source;
                         #error_constructor_name {
                             #construct_implicit_fields_with_source

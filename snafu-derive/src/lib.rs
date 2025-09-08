@@ -238,8 +238,10 @@ impl SourceField {
 
 enum Transformation {
     None {
-        ty: syn::Type,
+        target_ty: syn::Type,
+        from_is_generic: bool,
     },
+
     Transform {
         source_ty: syn::Type,
         target_ty: syn::Type,
@@ -250,23 +252,36 @@ enum Transformation {
 impl Transformation {
     fn source_ty(&self) -> &syn::Type {
         match self {
-            Transformation::None { ty } => ty,
+            Transformation::None { target_ty, .. } => target_ty,
             Transformation::Transform { source_ty, .. } => source_ty,
         }
     }
 
     fn target_ty(&self) -> &syn::Type {
         match self {
-            Transformation::None { ty } => ty,
+            Transformation::None { target_ty, .. } => target_ty,
             Transformation::Transform { target_ty, .. } => target_ty,
         }
     }
 
     fn transformation(&self) -> proc_macro2::TokenStream {
         match self {
-            Transformation::None { .. } => quote! { |v| v },
+            Transformation::None {
+                from_is_generic: false,
+                ..
+            } => quote! { |v| v },
+
+            Transformation::None {
+                from_is_generic: true,
+                ..
+            } => quote! { ::core::convert::Into::into },
+
             Transformation::Transform { expr, .. } => quote! { #expr },
         }
+    }
+
+    fn is_generic(&self) -> bool {
+        matches!(self, Transformation::None { from_is_generic, .. } if *from_is_generic)
     }
 }
 
@@ -831,8 +846,8 @@ impl TupleStructInfo {
             crate_root,
             generics,
             name,
-            transformation,
             provides,
+            transformation,
         } = self;
 
         let where_clauses: Vec<_> = generics

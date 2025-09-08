@@ -91,3 +91,74 @@ mod with_bounds {
         check::<Error<i32>>();
     }
 }
+
+mod with_exact_source {
+    use super::*;
+
+    #[derive(Debug, Snafu)]
+    #[snafu(transparent)]
+    struct Error {
+        #[snafu(source(from(exact)))]
+        source: AlphaError,
+    }
+
+    trait LocalTrait {}
+    impl LocalTrait for i32 {}
+
+    impl<T> From<T> for Error
+    where
+        T: LocalTrait,
+    {
+        fn from(_: T) -> Self {
+            Error { source: AlphaError }
+        }
+    }
+
+    #[test]
+    fn implements_error() {
+        check::<Error>();
+    }
+
+    #[test]
+    fn custom_from_implementation() {
+        let _error: Error = 42.into();
+    }
+}
+
+mod with_generic_source {
+    use super::*;
+
+    struct NotAlpha;
+
+    impl From<NotAlpha> for AlphaError {
+        fn from(_: NotAlpha) -> Self {
+            AlphaError
+        }
+    }
+
+    fn convertable_to_alpha() -> Result<(), NotAlpha> {
+        Ok(())
+    }
+
+    #[derive(Debug, Snafu)]
+    #[snafu(transparent)]
+    struct Error {
+        #[snafu(source(from(generic)))]
+        source: AlphaError,
+    }
+
+    #[test]
+    fn implements_error() {
+        check::<Error>();
+    }
+
+    #[test]
+    fn converted_to_alpha() {
+        fn converts_to_alpha() -> Result<(), Error> {
+            convertable_to_alpha()?;
+            Ok(())
+        }
+
+        converts_to_alpha().unwrap()
+    }
+}

@@ -1,13 +1,13 @@
 use snafu::prelude::*;
 
 #[derive(Debug, Snafu)]
-enum InnerError {
-    _Boom,
-}
+struct InnerError;
 
 fn inner() -> Result<(), InnerError> {
     Ok(())
 }
+
+fn check<T: std::error::Error>() {}
 
 mod enabling {
     use super::*;
@@ -45,9 +45,49 @@ mod enabling {
 
     #[test]
     fn implements_error() {
-        fn check<T: std::error::Error>() {}
         check::<Error>();
         example().unwrap_err();
+    }
+}
+
+// Corresponding `from(generic)` tests are in the compile-fail suite
+mod exact {
+    use super::*;
+
+    #[derive(Debug, Snafu)]
+    enum EnumError {
+        ExactMatch {
+            #[snafu(source(from(exact)))]
+            source: InnerError,
+        },
+    }
+
+    #[test]
+    fn enum_implements_error() {
+        fn example() -> Result<(), EnumError> {
+            inner().context(ExactMatchSnafu)?;
+            Ok(())
+        }
+
+        check::<EnumError>();
+        example().unwrap();
+    }
+
+    #[derive(Debug, Snafu)]
+    struct StructError {
+        #[snafu(source(from(exact)))]
+        source: InnerError,
+    }
+
+    #[test]
+    fn struct_implements_error() {
+        fn example() -> Result<(), StructError> {
+            inner().context(StructSnafu)?;
+            Ok(())
+        }
+
+        check::<StructError>();
+        example().unwrap();
     }
 }
 
@@ -86,7 +126,6 @@ mod transformation {
 
     #[test]
     fn implements_error() {
-        fn check<T: std::error::Error>() {}
         check::<Error>();
         example().unwrap();
     }
@@ -102,7 +141,6 @@ mod transformation {
 
     #[test]
     fn api_implements_error() {
-        fn check<T: std::error::Error>() {}
         check::<ApiError>();
         api_example().unwrap();
     }

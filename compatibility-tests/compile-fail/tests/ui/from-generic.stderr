@@ -1,0 +1,11 @@
+error: Cannot use `source(from(generic))` without disabling the context selector with `context(false)` or `transparent`
+ --> tests/ui/from-generic.rs:9:17
+  |
+9 |         #[snafu(source(from(generic)))]
+  |                 ^^^^^^^^^^^^^^^^^^^^^
+
+error: Cannot use `source(from(generic))` without disabling the context selector with `context(false)` or `transparent`
+  --> tests/ui/from-generic.rs:16:13
+   |
+16 |     #[snafu(source(from(generic)))]
+   |             ^^^^^^^^^^^^^^^^^^^^^
