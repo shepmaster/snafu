@@ -4,7 +4,7 @@ error: expected one of: `backtrace`, `context`, `crate_root`, `display`, `implic
 5 |     #[snafu(unknown_attribute)]
   |             ^^^^^^^^^^^^^^^^^
 
-error: `source` attribute is only valid on enum variant or struct fields with a name, not on a named struct
+error: `source(bool)` attribute is only valid on enum variant or struct fields with a name, not on a named struct
   --> tests/ui/structs/attribute-misuse.rs:13:13
    |
 13 |     #[snafu(source(true))]

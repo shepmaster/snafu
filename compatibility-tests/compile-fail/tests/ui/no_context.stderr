@@ -1,3 +1,9 @@
+error: Context selectors without context must have a source field
+  --> tests/ui/no_context.rs:10:5
+   |
+10 |     MissingSource {},
+   |     ^^^^^^^^^^^^^
+
 error: Context selectors without context must not have context fields
   --> tests/ui/no_context.rs:13:39
    |
@@ -9,9 +15,3 @@ error: Context selectors without context must not have context fields
    |
 13 |     HasUserFields { source: BoxError, a: i32, b: i32 },
    |                                               ^^^^^^
-
-error: Context selectors without context must have a source field
-  --> tests/ui/no_context.rs:10:5
-   |
-10 |     MissingSource {},
-   |     ^^^^^^^^^^^^^

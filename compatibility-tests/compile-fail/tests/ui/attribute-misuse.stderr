@@ -22,7 +22,7 @@ error: `backtrace` attribute is only valid on enum variant or struct fields with
 8 |     #[snafu(backtrace)]
   |             ^^^^^^^^^
 
-error: `context(bool)` attribute is only valid on enum variants or structs with named fields, not on an enum
+error: `context` attribute is only valid on enum variants or structs with named fields, not on an enum
  --> tests/ui/attribute-misuse.rs:9:13
   |
 9 |     #[snafu(context)]
@@ -64,7 +64,7 @@ error: `transparent` attribute is only valid on enum variants or structs with na
 15 |     #[snafu(transparent)]
    |             ^^^^^^^^^^^
 
-error: `source` attribute is only valid on enum variant or struct fields with a name, not on an enum variant
+error: `source(from)` attribute is only valid on enum variant or struct fields with a name, not on an enum variant
   --> tests/ui/attribute-misuse.rs:27:46
    |
 27 |         #[snafu(display("an error variant"), source(from(XXXX, Box::new)))]
@@ -112,31 +112,25 @@ error: `visibility` attribute is only valid on an enum, enum variants, or a stru
 44 |             #[snafu(visibility(pub))]
    |                     ^^^^^^^^^^^^^^^
 
-error: Incompatible attributes [`source(false)`, `source(from)`] specified on a field
-  --> tests/ui/attribute-misuse.rs:46:21
-   |
-46 |             #[snafu(source(from(XXXX, Box::new)))]
-   |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
 error: `context` attribute is only valid on enum variants or structs with named fields, not on a field
   --> tests/ui/attribute-misuse.rs:47:21
    |
 47 |             #[snafu(context)]
    |                     ^^^^^^^
 
-error: `context` attribute is only valid on enum variants or structs with named fields, not on a field
+error: `context(bool)` attribute is only valid on enum variants or structs with named fields, not on a field
   --> tests/ui/attribute-misuse.rs:48:21
    |
 48 |             #[snafu(context(false))]
    |                     ^^^^^^^^^^^^^^
 
-error: `context` attribute is only valid on enum variants or structs with named fields, not on a field
+error: `context(suffix)` attribute is only valid on enum variants or structs with named fields, not on a field
   --> tests/ui/attribute-misuse.rs:49:21
    |
 49 |             #[snafu(context(suffix(Suffix)))]
    |                     ^^^^^^^^^^^^^^^^^^^^^^^
 
-error: `context` attribute is only valid on enum variants or structs with named fields, not on a field
+error: `context(name)` attribute is only valid on enum variants or structs with named fields, not on a field
   --> tests/ui/attribute-misuse.rs:50:21
    |
 50 |             #[snafu(context(name(Name)))]
@@ -153,6 +147,18 @@ error: `transparent` attribute is only valid on enum variants or structs with na
    |
 52 |             #[snafu(transparent)]
    |                     ^^^^^^^^^^^
+
+error: `source(false)` and `source(from)` may not be provided together on a field
+  --> tests/ui/attribute-misuse.rs:45:21
+   |
+45 |             #[snafu(source(false))]
+   |                     ^^^^^^^^^^^^^
+
+error: `source(false)` and `source(from)` may not be provided together on a field
+  --> tests/ui/attribute-misuse.rs:46:21
+   |
+46 |             #[snafu(source(from(XXXX, Box::new)))]
+   |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: `provide(false)` attribute is only valid on a field named "source" or "backtrace", not on other fields
   --> tests/ui/attribute-misuse.rs:55:21
@@ -196,19 +202,19 @@ error: `context` attribute is only valid on enum variants or structs with named 
 76 |     #[snafu(context)]
    |             ^^^^^^^
 
-error: `context` attribute is only valid on enum variants or structs with named fields, not on a tuple struct
+error: `context(bool)` attribute is only valid on enum variants or structs with named fields, not on a tuple struct
   --> tests/ui/attribute-misuse.rs:77:13
    |
 77 |     #[snafu(context(false))]
    |             ^^^^^^^^^^^^^^
 
-error: `context` attribute is only valid on enum variants or structs with named fields, not on a tuple struct
+error: `context(suffix)` attribute is only valid on enum variants or structs with named fields, not on a tuple struct
   --> tests/ui/attribute-misuse.rs:78:13
    |
 78 |     #[snafu(context(suffix(Suffix)))]
    |             ^^^^^^^^^^^^^^^^^^^^^^^
 
-error: `context` attribute is only valid on enum variants or structs with named fields, not on a tuple struct
+error: `context(name)` attribute is only valid on enum variants or structs with named fields, not on a tuple struct
   --> tests/ui/attribute-misuse.rs:79:13
    |
 79 |     #[snafu(context(name(Name)))]
@@ -244,19 +250,19 @@ error: `context` attribute is only valid on enum variants or structs with named 
 92 |             #[snafu(context)]
    |                     ^^^^^^^
 
-error: `context` attribute is only valid on enum variants or structs with named fields, not on a tuple struct field
+error: `context(bool)` attribute is only valid on enum variants or structs with named fields, not on a tuple struct field
   --> tests/ui/attribute-misuse.rs:93:21
    |
 93 |             #[snafu(context(false))]
    |                     ^^^^^^^^^^^^^^
 
-error: `context` attribute is only valid on enum variants or structs with named fields, not on a tuple struct field
+error: `context(suffix)` attribute is only valid on enum variants or structs with named fields, not on a tuple struct field
   --> tests/ui/attribute-misuse.rs:94:21
    |
 94 |             #[snafu(context(suffix(Suffix)))]
    |                     ^^^^^^^^^^^^^^^^^^^^^^^
 
-error: `context` attribute is only valid on enum variants or structs with named fields, not on a tuple struct field
+error: `context(name)` attribute is only valid on enum variants or structs with named fields, not on a tuple struct field
   --> tests/ui/attribute-misuse.rs:95:21
    |
 95 |             #[snafu(context(name(Name)))]

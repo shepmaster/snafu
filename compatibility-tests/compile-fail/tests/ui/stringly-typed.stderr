@@ -1,10 +1,10 @@
-error: Cannot be both a `context` and `whatever` error
+error: `context(bool)` and `whatever` may not be provided together on a named struct
  --> tests/ui/stringly-typed.rs:5:13
   |
 5 |     #[snafu(context, whatever)]
   |             ^^^^^^^
 
-error: Cannot be both a `context` and `whatever` error
+error: `context(bool)` and `whatever` may not be provided together on a named struct
  --> tests/ui/stringly-typed.rs:5:22
   |
 5 |     #[snafu(context, whatever)]
@@ -16,13 +16,14 @@ error: expected `,`
 13 |     #[snafu(whatever(true))]
    |                     ^
 
-error: Whatever selectors must have a message field
+error: Whatever selectors must have exactly one message field
   --> tests/ui/stringly-typed.rs:21:5
    |
-21 |     #[snafu(whatever)]
-   |     ^
+21 | /     #[snafu(whatever)]
+22 | |     struct Error;
+   | |_________________^
 
-error: Multiple `message` attributes are not supported on a named struct
+error: Whatever selectors must have exactly one message field
   --> tests/ui/stringly-typed.rs:32:9
    |
 32 |         message: String,

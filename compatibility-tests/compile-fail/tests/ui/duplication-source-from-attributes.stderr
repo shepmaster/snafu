@@ -1,4 +1,4 @@
-error: Multiple `source` attributes are not supported on a field
+error: Multiple `source(from)` attributes are not supported on a field
  --> tests/ui/duplication-source-from-attributes.rs:8:17
   |
 8 |         #[snafu(source(from(EnumError, Box::new)))]

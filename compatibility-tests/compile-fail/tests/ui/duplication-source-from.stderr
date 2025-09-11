@@ -1,10 +1,10 @@
-error: Multiple `source` attributes are not supported within an enum variant
+error: Multiple source fields are not supported within an enum variant
   --> tests/ui/duplication-source-from.rs:10:17
    |
 10 |         #[snafu(source(from(EnumError, Box::new)))]
    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error: Multiple `source` attributes are not supported within an enum variant
+error: Multiple source fields are not supported within an enum variant
   --> tests/ui/duplication-source-from.rs:20:9
    |
 20 |         source: String,

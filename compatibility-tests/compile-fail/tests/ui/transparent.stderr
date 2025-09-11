@@ -1,3 +1,9 @@
+error: `transparent` errors must have a source field
+  --> tests/ui/transparent.rs:10:5
+   |
+10 |     MissingSource {},
+   |     ^^^^^^^^^^^^^
+
 error: `transparent` errors must not have context fields
   --> tests/ui/transparent.rs:13:39
    |
@@ -16,20 +22,14 @@ error: `transparent(false)` attribute has no effect
 15 |     #[snafu(transparent(false))]
    |             ^^^^^^^^^^^^^^^^^^
 
-error: `transparent` errors cannot have a display format because they delegate `Display` to their source
+error: `transparent` and `display` may not be provided together on an enum variant. Transparent errors delegate `Display` to their source.
   --> tests/ui/transparent.rs:19:13
    |
 19 |     #[snafu(display("Oh snap!"))]
    |             ^^^^^^^^^^^^^^^^^^^
 
-error: `transparent` errors cannot have a display format because they delegate `Display` to their source
+error: `transparent` and `display` may not be provided together on an enum variant. Transparent errors delegate `Display` to their source.
   --> tests/ui/transparent.rs:18:13
    |
 18 |     #[snafu(transparent)]
    |             ^^^^^^^^^^^
-
-error: `transparent` errors must have a source field
-  --> tests/ui/transparent.rs:10:5
-   |
-10 |     MissingSource {},
-   |     ^^^^^^^^^^^^^
