@@ -10,6 +10,15 @@ enum EnumError {
         #[snafu(backtrace)]
         my_backtrace: Backtrace,
     },
+
+    AnotherVariant {
+        // First backtrace, legitimate
+        #[snafu(backtrace)]
+        my_backtrace: Backtrace,
+
+        // Trying to declare another field as backtrace, should be a duplicate
+        backtrace: Backtrace,
+    },
 }
 
 fn main() {}

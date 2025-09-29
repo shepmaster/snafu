@@ -3,3 +3,9 @@ error: Multiple `source` attributes are not supported within an enum variant
    |
 10 |         #[snafu(source)]
    |                 ^^^^^^
+
+error: Multiple `source` attributes are not supported within an enum variant
+  --> tests/ui/duplication-source-attributes.rs:20:9
+   |
+20 |         source: String,
+   |         ^^^^^^^^^^^^^^
