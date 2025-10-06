@@ -487,6 +487,16 @@ pub mod display {
                         match *self {
                             #(#arms),*
                         }
+
+                        if #FORMATTER_ARG.alternate() {
+                            let mut current: Option<&dyn ::std::error::Error> = ::std::error::Error::source(self);
+                            while let Some(next) = current {
+                                write!(#FORMATTER_ARG, ": {next}")?;
+                                current = next.source()
+                            }
+                        }
+
+                        Ok(())
                     }
                 }
             };
@@ -561,7 +571,7 @@ pub mod display {
 
             let match_arm = quote! {
                 #pattern_ident { #(ref #field_names),* } => {
-                    write!(#FORMATTER_ARG, #format, #shorthand_assignments)
+                    write!(#FORMATTER_ARG, #format, #shorthand_assignments)?;
                 }
             };
 
