@@ -461,6 +461,7 @@ pub mod display {
     const FORMATTER_ARG: StaticIdent = StaticIdent("__snafu_display_formatter");
 
     pub(crate) struct Display<'a> {
+        pub(crate) crate_root: &'a dyn ToTokens,
         pub(crate) arms: &'a [TokenStream],
         pub(crate) original_generics: &'a [TokenStream],
         pub(crate) parameterized_error_name: &'a dyn ToTokens,
@@ -470,6 +471,7 @@ pub mod display {
     impl ToTokens for Display<'_> {
         fn to_tokens(&self, stream: &mut TokenStream) {
             let Self {
+                crate_root,
                 arms,
                 original_generics,
                 parameterized_error_name,
@@ -489,10 +491,9 @@ pub mod display {
                         }
 
                         if #FORMATTER_ARG.alternate() {
-                            let mut current: Option<&dyn ::std::error::Error> = ::std::error::Error::source(self);
-                            while let Some(next) = current {
-                                write!(#FORMATTER_ARG, ": {next}")?;
-                                current = next.source()
+                            let chain = #crate_root::ChainCompat::new(self).skip(1);
+                            for item in chain {
+                                write!(#FORMATTER_ARG, ": {item}")?;
                             }
                         }
 
