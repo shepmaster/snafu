@@ -3,6 +3,7 @@ name = "v1_56"
 version = "0.1.0"
 authors = ["Jake Goulding <jake.goulding@gmail.com>"]
 edition = "2018"
+rust-version = "1.56"
 
 [dependencies]
 snafu = { path = "../..", default-features = false, features = ["std"] }
