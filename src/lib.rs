@@ -1,6 +1,6 @@
 #![deny(missing_docs)]
 #![allow(stable_features)]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![no_std]
 #![cfg_attr(feature = "unstable-core-error", feature(error_in_core))]
 #![cfg_attr(

@@ -9,6 +9,6 @@ error[E0603]: module `error` is private
 note: the module `error` is defined here
   --> tests/ui/module-visibility.rs:4:21
    |
-4  |     #[derive(Debug, Snafu)]
+ 4 |     #[derive(Debug, Snafu)]
    |                     ^^^^^
    = note: this error originates in the derive macro `Snafu` (in Nightly builds, run with -Z macro-backtrace for more info)
