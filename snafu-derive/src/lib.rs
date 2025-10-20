@@ -387,77 +387,6 @@ trait GenericAwareNames {
         Box::new(quote! { #enum_name<#(#original_generics,)*> })
     }
 
-    fn provided_generic_types_without_defaults(&self) -> Vec<proc_macro2::TokenStream> {
-        use syn::TypeParam;
-
-        self.generics()
-            .type_params()
-            .map(|t| {
-                let TypeParam {
-                    attrs,
-                    ident,
-                    colon_token,
-                    bounds,
-                    ..
-                } = t;
-                quote! {
-                    #(#attrs)*
-                    #ident
-                    #colon_token
-                    #bounds
-                }
-            })
-            .collect()
-    }
-
-    fn provided_generics_without_defaults(&self) -> Vec<proc_macro2::TokenStream> {
-        self.provided_generic_lifetimes()
-            .into_iter()
-            .chain(self.provided_generic_types_without_defaults())
-            .chain(self.provided_generic_consts_without_defaults())
-            .collect()
-    }
-
-    fn provided_generic_lifetimes(&self) -> Vec<proc_macro2::TokenStream> {
-        use syn::LifetimeParam;
-
-        self.generics()
-            .lifetimes()
-            .map(|l| {
-                let LifetimeParam {
-                    attrs, lifetime, ..
-                } = l;
-                quote! {
-                    #(#attrs)*
-                    #lifetime
-                }
-            })
-            .collect()
-    }
-
-    fn provided_generic_consts_without_defaults(&self) -> Vec<proc_macro2::TokenStream> {
-        self.generics()
-            .const_params()
-            .map(|c| {
-                let syn::ConstParam {
-                    attrs,
-                    const_token,
-                    ident,
-                    colon_token,
-                    ty,
-                    ..
-                } = c;
-                quote! {
-                    #(#attrs)*
-                    #const_token
-                    #ident
-                    #colon_token
-                    #ty
-                }
-            })
-            .collect()
-    }
-
     fn provided_generic_names(&self) -> Vec<proc_macro2::TokenStream> {
         use syn::{ConstParam, GenericParam, LifetimeParam, TypeParam};
 
@@ -580,7 +509,9 @@ impl<'a> quote::ToTokens for ContextSelector<'a> {
             implicit_fields: &self.1.implicit_fields,
             crate_root: &self.0.crate_root,
             error_constructor_name: &quote! { #enum_name::#variant_name },
-            original_generics_without_defaults: &self.0.provided_generics_without_defaults(),
+            original_generics_without_defaults: shared::GenericsWithoutDefaults::new(
+                &self.0.generics,
+            ),
             parameterized_error_name: &self.0.parameterized_name(),
             selector_doc_string: &selector_doc_string,
             selector_kind,
@@ -631,7 +562,7 @@ impl<'a> quote::ToTokens for DisplayImpl<'a> {
 
         let display = Display {
             arms: &arms,
-            original_generics: &self.0.provided_generics_without_defaults(),
+            original_generics: shared::GenericsWithoutDefaults::new(self.0.generics()),
             parameterized_error_name: &self.0.parameterized_name(),
             where_clauses: &self.0.provided_where_clauses(),
         };
@@ -686,7 +617,7 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
             parameterized_error_name: &self.0.parameterized_name(),
             description_arms: &variants_to_description,
             source_arms: &variants_to_source,
-            original_generics: &self.0.provided_generics_without_defaults(),
+            original_generics: shared::GenericsWithoutDefaults::new(&self.0.generics),
             where_clauses: &self.0.provided_where_clauses(),
             provide_arms: &variants_to_provide,
         };
@@ -725,7 +656,7 @@ impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
             crate_root: &self.0.crate_root,
             parameterized_error_name: &self.0.parameterized_name(),
             backtrace_arms: &variants_to_backtrace,
-            original_generics: &self.0.provided_generics_without_defaults(),
+            original_generics: shared::GenericsWithoutDefaults::new(&self.0.generics),
             where_clauses: &self.0.provided_where_clauses(),
         };
 
@@ -738,7 +669,7 @@ impl<'a> quote::ToTokens for ErrorCompatImpl<'a> {
 impl NamedStructInfo {
     fn generate_snafu(self) -> proc_macro2::TokenStream {
         let parameterized_struct_name = self.parameterized_name();
-        let original_generics = self.provided_generics_without_defaults();
+        let original_generics = shared::GenericsWithoutDefaults::new(&self.generics);
         let where_clauses = self.provided_where_clauses();
 
         let Self {
@@ -785,7 +716,7 @@ impl NamedStructInfo {
         let error_impl = Error {
             crate_root: &crate_root,
             description_arms: &[error_description_match_arm],
-            original_generics: &original_generics,
+            original_generics,
             parameterized_error_name: &parameterized_struct_name,
             provide_arms: &[error_provide_match_arm],
             source_arms: &[error_source_match_arm],
@@ -806,7 +737,7 @@ impl NamedStructInfo {
             crate_root: &crate_root,
             parameterized_error_name: &parameterized_struct_name,
             backtrace_arms: &[match_arm],
-            original_generics: &original_generics,
+            original_generics,
             where_clauses: &where_clauses,
         };
 
@@ -824,7 +755,7 @@ impl NamedStructInfo {
 
         let display_impl = Display {
             arms: &[arm],
-            original_generics: &original_generics,
+            original_generics,
             parameterized_error_name: &parameterized_struct_name,
             where_clauses: &where_clauses,
         };
@@ -848,7 +779,9 @@ impl NamedStructInfo {
             implicit_fields,
             crate_root: &crate_root,
             error_constructor_name: &name,
-            original_generics_without_defaults: &original_generics,
+            original_generics_without_defaults: shared::GenericsWithoutDefaults::new(
+                self.generics(),
+            ),
             parameterized_error_name: &parameterized_struct_name,
             selector_doc_string: &selector_doc_string,
             selector_kind,
@@ -915,6 +848,8 @@ impl TupleStructInfo {
             .flat_map(|c| c.predicates.iter().map(|p| quote! { #p }))
             .collect();
 
+        let generics = shared::GenericsWithoutDefaults::new(&generics);
+
         let description_fn = quote! {
             fn description(&self) -> &str {
                 #crate_root::Error::description(&self.0)
@@ -968,7 +903,7 @@ impl TupleStructInfo {
 
         let error_impl = quote! {
             #[allow(single_use_lifetimes)]
-            impl#generics #crate_root::Error for #parameterized_struct_name
+            impl<#generics> #crate_root::Error for #parameterized_struct_name
             where
                 #(#where_clauses),*
             {
@@ -981,7 +916,7 @@ impl TupleStructInfo {
 
         let error_compat_impl = quote! {
             #[allow(single_use_lifetimes)]
-            impl#generics #crate_root::ErrorCompat for #parameterized_struct_name
+            impl<#generics> #crate_root::ErrorCompat for #parameterized_struct_name
             where
                 #(#where_clauses),*
             {
@@ -991,7 +926,7 @@ impl TupleStructInfo {
 
         let display_impl = quote! {
             #[allow(single_use_lifetimes)]
-            impl#generics ::core::fmt::Display for #parameterized_struct_name
+            impl<#generics> ::core::fmt::Display for #parameterized_struct_name
             where
                 #(#where_clauses),*
             {
@@ -1002,7 +937,7 @@ impl TupleStructInfo {
         };
 
         let from_impl = quote! {
-            impl#generics ::core::convert::From<#inner_type> for #parameterized_struct_name
+            impl<#generics> ::core::convert::From<#inner_type> for #parameterized_struct_name
             where
                 #(#where_clauses),*
             {

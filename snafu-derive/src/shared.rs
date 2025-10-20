@@ -35,6 +35,104 @@ impl<'a> AllFieldNames<'a> {
     }
 }
 
+#[derive(Copy, Clone)]
+pub(crate) struct GenericsWithoutDefaults<'a> {
+    pub generics: &'a syn::Generics,
+    extra: Option<ExtraGeneric<'a>>,
+}
+
+#[derive(Copy, Clone)]
+struct ExtraGeneric<'a> {
+    parent: &'a Option<Self>,
+    value: &'a [&'a dyn quote::ToTokens],
+}
+
+impl<'a> GenericsWithoutDefaults<'a> {
+    pub fn new(generics: &'a syn::Generics) -> Self {
+        Self {
+            generics,
+            extra: None,
+        }
+    }
+
+    fn push(&'a self, value: &'a [&'a dyn quote::ToTokens]) -> GenericsWithoutDefaults<'a> {
+        let Self { generics, extra } = self;
+        let extra = Some(ExtraGeneric {
+            parent: extra,
+            value,
+        });
+        GenericsWithoutDefaults { generics, extra }
+    }
+}
+
+impl quote::ToTokens for GenericsWithoutDefaults<'_> {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        use quote::quote;
+
+        let lifetimes = self.generics.lifetimes().map(|lt| {
+            let syn::LifetimeParam {
+                attrs, lifetime, ..
+            } = lt;
+            quote! {
+                #(#attrs)*
+                #lifetime
+            }
+        });
+
+        let types = self.generics.type_params().map(|t| {
+            let syn::TypeParam {
+                attrs,
+                ident,
+                colon_token,
+                bounds,
+                ..
+            } = t;
+            quote! {
+                #(#attrs)*
+                #ident
+                #colon_token
+                #bounds
+            }
+        });
+
+        let extra_types = std::iter::from_fn({
+            let mut extra = self.extra;
+            move || {
+                let ExtraGeneric { parent, value } = extra?;
+                extra = *parent;
+                Some(value)
+            }
+        });
+        let extra_types = extra_types.flatten().map(|et| quote! { #et });
+
+        let consts = self.generics.const_params().map(|c| {
+            let syn::ConstParam {
+                attrs,
+                const_token,
+                ident,
+                colon_token,
+                ty,
+                ..
+            } = c;
+            quote! {
+                #(#attrs)*
+                #const_token
+                #ident
+                #colon_token
+                #ty
+            }
+        });
+
+        let generics = lifetimes.chain(types).chain(extra_types).chain(consts);
+
+        let generics = quote! {
+            #(#generics),*
+        };
+
+        tokens.extend(generics);
+    }
+}
+
 pub mod context_module {
     use crate::ModuleName;
     use heck::ToSnakeCase;
@@ -80,9 +178,12 @@ pub mod context_module {
 }
 
 pub mod context_selector {
+    use super::{GenericsWithoutDefaults, StaticIdent};
     use crate::{ContextSelectorKind, Field, SuffixKind};
     use proc_macro2::TokenStream;
     use quote::{format_ident, quote, ToTokens};
+
+    const FAIL_GENERIC: StaticIdent = StaticIdent("__T");
 
     #[derive(Copy, Clone)]
     pub(crate) struct ContextSelector<'a> {
@@ -90,7 +191,7 @@ pub mod context_selector {
         pub implicit_fields: &'a [Field],
         pub crate_root: &'a dyn ToTokens,
         pub error_constructor_name: &'a dyn ToTokens,
-        pub original_generics_without_defaults: &'a [TokenStream],
+        pub original_generics_without_defaults: GenericsWithoutDefaults<'a>,
         pub parameterized_error_name: &'a dyn ToTokens,
         pub selector_doc_string: &'a str,
         pub selector_kind: &'a ContextSelectorKind,
@@ -253,12 +354,14 @@ pub mod context_selector {
             let transfer_user_fields = self.transfer_user_fields();
             let construct_implicit_fields = self.construct_implicit_fields();
 
+            let fail_generics = original_generics_without_defaults.push(&[&FAIL_GENERIC]);
+
             quote! {
                 impl<#(#user_field_generics,)*> #parameterized_selector_name {
                     #[doc = "Consume the selector and return the associated error"]
                     #[must_use]
                     #[track_caller]
-                    #visibility fn build<#(#original_generics_without_defaults,)*>(self) -> #parameterized_error_name
+                    #visibility fn build<#original_generics_without_defaults>(self) -> #parameterized_error_name
                     where
                         #(#extended_where_clauses),*
                     {
@@ -271,7 +374,7 @@ pub mod context_selector {
                     #[doc = "Consume the selector and return a `Result` with the associated error"]
                     #[allow(dead_code)]
                     #[track_caller]
-                    #visibility fn fail<#(#original_generics_without_defaults,)* __T>(self) -> ::core::result::Result<__T, #parameterized_error_name>
+                    #visibility fn fail<#fail_generics>(self) -> ::core::result::Result<#FAIL_GENERIC, #parameterized_error_name>
                     where
                         #(#extended_where_clauses),*
                     {
@@ -296,6 +399,12 @@ pub mod context_selector {
                 self.construct_implicit_fields()
             };
 
+            let user_field_generics = user_field_generics
+                .iter()
+                .map(|g| g as _)
+                .collect::<Vec<&dyn ToTokens>>();
+            let generics = original_generics_without_defaults.push(&user_field_generics);
+
             let (source_ty, transform_source, transfer_source_field) = match source_field {
                 Some(source_field) => {
                     let SourceInfo {
@@ -313,7 +422,7 @@ pub mod context_selector {
             };
 
             quote! {
-                impl<#(#original_generics_without_defaults,)* #(#user_field_generics,)*> #crate_root::IntoError<#parameterized_error_name> for #parameterized_selector_name
+                impl<#generics> #crate_root::IntoError<#parameterized_error_name> for #parameterized_selector_name
                 where
                     #parameterized_error_name: #crate_root::Error + #crate_root::ErrorCompat,
                     #(#extended_where_clauses),*
@@ -367,7 +476,7 @@ pub mod context_selector {
             let message_field_name = &message_field.name;
 
             quote! {
-                impl<#(#original_generics_without_defaults,)*> #crate_root::FromString for #parameterized_error_name
+                impl<#original_generics_without_defaults> #crate_root::FromString for #parameterized_error_name
                 where
                     #(#extended_where_clauses),*
                 {
@@ -401,6 +510,11 @@ pub mod context_selector {
                 self.construct_implicit_fields_with_source();
             let original_generics_without_defaults = self.original_generics_without_defaults;
             let user_field_generics = self.user_field_generics();
+            let user_field_generics = user_field_generics
+                .iter()
+                .map(|g| g as _)
+                .collect::<Vec<&dyn ToTokens>>();
+            let generics = original_generics_without_defaults.push(&user_field_generics);
             let where_clauses = self.where_clauses;
 
             let SourceInfo {
@@ -410,7 +524,7 @@ pub mod context_selector {
             } = build_source_info(source_field);
 
             quote! {
-                impl<#(#original_generics_without_defaults,)* #(#user_field_generics,)*> ::core::convert::From<#source_field_type> for #parameterized_error_name
+                impl<#generics> ::core::convert::From<#source_field_type> for #parameterized_error_name
                 where
                     #(#where_clauses),*
                 {
@@ -453,7 +567,7 @@ pub mod context_selector {
 }
 
 pub mod display {
-    use super::StaticIdent;
+    use super::{GenericsWithoutDefaults, StaticIdent};
     use proc_macro2::TokenStream;
     use quote::{quote, ToTokens};
     use std::collections::BTreeSet;
@@ -462,7 +576,7 @@ pub mod display {
 
     pub(crate) struct Display<'a> {
         pub(crate) arms: &'a [TokenStream],
-        pub(crate) original_generics: &'a [TokenStream],
+        pub(crate) original_generics: GenericsWithoutDefaults<'a>,
         pub(crate) parameterized_error_name: &'a dyn ToTokens,
         pub(crate) where_clauses: &'a [TokenStream],
     }
@@ -478,7 +592,7 @@ pub mod display {
 
             let display_impl = quote! {
                 #[allow(single_use_lifetimes)]
-                impl<#(#original_generics),*> ::core::fmt::Display for #parameterized_error_name
+                impl<#original_generics> ::core::fmt::Display for #parameterized_error_name
                 where
                     #(#where_clauses),*
                 {
@@ -571,7 +685,7 @@ pub mod display {
 }
 
 pub mod error {
-    use super::StaticIdent;
+    use super::{GenericsWithoutDefaults, StaticIdent};
     use crate::{FieldContainer, Provide, SourceField};
     use proc_macro2::TokenStream;
     use quote::{format_ident, quote, ToTokens};
@@ -581,7 +695,7 @@ pub mod error {
     pub(crate) struct Error<'a> {
         pub(crate) crate_root: &'a dyn ToTokens,
         pub(crate) description_arms: &'a [TokenStream],
-        pub(crate) original_generics: &'a [TokenStream],
+        pub(crate) original_generics: GenericsWithoutDefaults<'a>,
         pub(crate) parameterized_error_name: &'a dyn ToTokens,
         pub(crate) provide_arms: &'a [TokenStream],
         pub(crate) source_arms: &'a [TokenStream],
@@ -641,7 +755,7 @@ pub mod error {
 
             let error = quote! {
                 #[allow(single_use_lifetimes)]
-                impl<#(#original_generics),*> #crate_root::Error for #parameterized_error_name
+                impl<#original_generics> #crate_root::Error for #parameterized_error_name
                 where
                     Self: ::core::fmt::Debug + ::core::fmt::Display,
                     #(#where_clauses),*
@@ -928,6 +1042,7 @@ pub mod error {
 }
 
 pub mod error_compat {
+    use super::GenericsWithoutDefaults;
     use crate::{Field, FieldContainer, SourceField};
     use proc_macro2::TokenStream;
     use quote::{quote, ToTokens};
@@ -936,7 +1051,7 @@ pub mod error_compat {
         pub(crate) crate_root: &'a dyn ToTokens,
         pub(crate) parameterized_error_name: &'a dyn ToTokens,
         pub(crate) backtrace_arms: &'a [TokenStream],
-        pub(crate) original_generics: &'a [TokenStream],
+        pub(crate) original_generics: GenericsWithoutDefaults<'a>,
         pub(crate) where_clauses: &'a [TokenStream],
     }
 
@@ -960,7 +1075,7 @@ pub mod error_compat {
 
             let error_compat_impl = quote! {
                 #[allow(single_use_lifetimes)]
-                impl<#(#original_generics),*> #crate_root::ErrorCompat for #parameterized_error_name
+                impl<#original_generics> #crate_root::ErrorCompat for #parameterized_error_name
                 where
                     #(#where_clauses),*
                 {
