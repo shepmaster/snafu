@@ -839,9 +839,6 @@ impl TupleStructInfo {
             provides,
         } = self;
 
-        let inner_type = transformation.source_ty();
-        let transformation = transformation.transformation();
-
         let where_clauses: Vec<_> = generics
             .where_clause
             .iter()
@@ -936,15 +933,18 @@ impl TupleStructInfo {
             }
         };
 
-        let from_impl = quote! {
-            impl<#generics> ::core::convert::From<#inner_type> for #parameterized_struct_name
-            where
-                #(#where_clauses),*
-            {
-                fn from(other: #inner_type) -> Self {
-                    #name((#transformation)(other))
-                }
-            }
+        let tuple_field = quote! { 0 };
+        let source_info = shared::SourceInfo::from_transformation(&tuple_field, &transformation);
+        // FUTURE: Should we support implicit fields in opaque / tuple structs?
+        let construct_implicit_fields_with_source = quote! {};
+
+        let from_impl = shared::NoContextSelector {
+            source_info,
+            parameterized_error_name: &parameterized_struct_name,
+            generics,
+            where_clauses: &where_clauses,
+            error_constructor_name: &name,
+            construct_implicit_fields_with_source,
         };
 
         quote! {
