@@ -7,3 +7,7 @@ rust-version = "1.61"
 
 [dependencies]
 snafu = { path = "../..", default-features = false, features = ["std", "rust_1_61"] }
+
+# These versions are the last versions to support Rust 1.61
+quote = { version = "=1.0.41", default-features = false }
+syn = { version = "=2.0.106", default-features = false }
