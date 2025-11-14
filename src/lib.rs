@@ -1633,8 +1633,9 @@ macro_rules! location {
 /// field](Snafu#controlling-backtraces). If a best-effort attempt is
 /// sufficient, see the [`backtrace`][Self::backtrace] method.
 ///
-/// When the standard library stabilizes backtrace support, this
-/// behavior may change.
+/// When the standard library stabilizes support for the
+/// [provide API](https://doc.rust-lang.org/std/error/trait.Error.html#method.provide),
+/// this behavior may change.
 #[derive(Debug, Snafu)]
 #[snafu(crate_root(crate))]
 #[snafu(whatever)]
