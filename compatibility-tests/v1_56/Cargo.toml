@@ -10,3 +10,4 @@ snafu = { path = "../..", default-features = false, features = ["std"] }
 
 # These versions are the last versions to support Rust 1.56
 quote = { version = "=1.0.40", default-features = false }
+proc-macro2 = { version = "=1.0.101", default-features = false }
