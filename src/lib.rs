@@ -1656,17 +1656,10 @@ impl Whatever {
     /// of the underlying errors are `Whatever`, returns the backtrace
     /// from when this instance was created.
     pub fn backtrace(&self) -> Option<&Backtrace> {
-        let mut best_backtrace = &self.backtrace;
-
-        let mut source = self.source();
-        while let Some(s) = source {
-            if let Some(this) = s.downcast_ref::<Self>() {
-                best_backtrace = &this.backtrace;
-            }
-            source = s.source();
-        }
-
-        Some(best_backtrace)
+        ChainCompat::new(self)
+            .filter_map(|e| e.downcast_ref::<Self>())
+            .last()
+            .map(|w| &w.backtrace)
     }
 }
 
