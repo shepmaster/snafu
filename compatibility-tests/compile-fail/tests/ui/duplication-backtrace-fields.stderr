@@ -1,5 +1,11 @@
-error: Multiple `backtrace` attributes are not supported within an enum variant
+error: Multiple backtrace fields are not supported within an enum variant
   --> tests/ui/duplication-backtrace-fields.rs:10:17
    |
 10 |         #[snafu(backtrace)]
    |                 ^^^^^^^^^
+
+error: Multiple backtrace fields are not supported within an enum variant
+  --> tests/ui/duplication-backtrace-fields.rs:20:9
+   |
+20 |         backtrace: Backtrace,
+   |         ^^^^^^^^^^^^^^^^^^^^

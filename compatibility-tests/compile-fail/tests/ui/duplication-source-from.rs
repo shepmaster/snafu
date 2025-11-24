@@ -10,6 +10,15 @@ enum EnumError {
         #[snafu(source(from(EnumError, Box::new)))]
         source2: Box<EnumError>,
     },
+
+    AnotherVariant {
+        // source(from) implies source, legitimate
+        #[snafu(source(from(EnumError, Box::new)))]
+        source2: Box<EnumError>,
+
+        // Should be a duplicate
+        source: String,
+    },
 }
 
 fn main() {}

@@ -53,8 +53,10 @@ mod field_misuse {
             source: String,
 
             #[snafu(provide(false))]
+            not_a_source_1: bool,
+
             #[snafu(provide(u8 => 0))]
-            not_a_source: bool,
+            not_a_source_2: bool,
         },
     }
 }
