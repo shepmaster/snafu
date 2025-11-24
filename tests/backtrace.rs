@@ -126,11 +126,11 @@ mod delegation {
 mod whatever_nested {
     use snafu::{prelude::*, Whatever};
 
-    fn inner_outer() -> Result<(), Whatever> {
+    fn outer_whatever() -> Result<(), Whatever> {
         not_a_whatever().with_whatever_context(|_| format!("Outer failure"))
     }
 
-    fn not_a_whatever() -> Result<(), Box<dyn std::error::Error>> {
+    fn not_a_whatever() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         inner_whatever().map_err(Into::into)
     }
 
@@ -140,7 +140,35 @@ mod whatever_nested {
 
     #[test]
     fn backtrace_method_delegates_to_nested_whatever() {
-        let e = inner_outer().unwrap_err();
+        let e = outer_whatever().unwrap_err();
+        let bt = e.backtrace().expect("Must have a backtrace");
+        let text = bt.to_string();
+        assert!(
+            text.contains("::inner_whatever"),
+            "{:?} does not contain `::inner_whatever`",
+            text,
+        );
+    }
+}
+
+mod whatever_local_nested {
+    use snafu::{prelude::*, WhateverLocal};
+
+    fn outer_whatever() -> Result<(), WhateverLocal> {
+        not_a_whatever().with_whatever_context(|_| format!("Outer failure"))
+    }
+
+    fn not_a_whatever() -> Result<(), Box<dyn std::error::Error>> {
+        inner_whatever().map_err(Into::into)
+    }
+
+    fn inner_whatever() -> Result<(), WhateverLocal> {
+        whatever!("Inner failure");
+    }
+
+    #[test]
+    fn backtrace_method_delegates_to_nested_whatever() {
+        let e = outer_whatever().unwrap_err();
         let bt = e.backtrace().expect("Must have a backtrace");
         let text = bt.to_string();
         assert!(

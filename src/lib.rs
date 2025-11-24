@@ -1636,16 +1636,22 @@ macro_rules! location {
 /// When the standard library stabilizes support for the
 /// [provide API](https://doc.rust-lang.org/std/error/trait.Error.html#method.provide),
 /// this behavior may change.
+///
+/// ## Thread Safety
+///
+/// This type requires that contained errors implement [`Send`][] and
+/// [`Sync`][]. If this is burdensome, you may also use
+/// [`WhateverLocal`][].
 #[derive(Debug, Snafu)]
 #[snafu(crate_root(crate))]
 #[snafu(whatever)]
 #[snafu(display("{message}"))]
-#[snafu(provide(opt, ref, chain, dyn crate::Error => source.as_deref()))]
+#[snafu(provide(opt, ref, chain, dyn crate::Error + Send + Sync => source.as_deref()))]
 #[cfg(any(feature = "alloc", test))]
 pub struct Whatever {
-    #[snafu(source(from(Box<dyn crate::Error>, Some)))]
+    #[snafu(source(from(Box<dyn crate::Error + Send + Sync>, Some)))]
     #[snafu(provide(false))]
-    source: Option<Box<dyn crate::Error>>,
+    source: Option<Box<dyn crate::Error + Send + Sync>>,
     message: String,
     backtrace: Backtrace,
 }
@@ -1655,6 +1661,41 @@ impl Whatever {
     /// Gets the backtrace from the deepest `Whatever` error. If none
     /// of the underlying errors are `Whatever`, returns the backtrace
     /// from when this instance was created.
+    pub fn backtrace(&self) -> Option<&Backtrace> {
+        ChainCompat::new(self)
+            .filter_map(|e| e.downcast_ref::<Self>())
+            .last()
+            .map(|w| &w.backtrace)
+    }
+}
+
+/// A basic error type that you can use as a first step to better
+/// error handling when the error does not need to cross a thread
+/// boundary.
+///
+/// This type behaves the same as [`Whatever`][] except it does not
+/// require that the wrapped errors implement [`Send`][] or
+/// [`Sync`][]. See [`Whatever`][] and [`whatever!`][] for detailed
+/// usage instructions.
+#[derive(Debug, Snafu)]
+#[snafu(crate_root(crate))]
+#[snafu(whatever)]
+#[snafu(display("{message}"))]
+#[snafu(provide(opt, ref, chain, dyn crate::Error => source.as_deref()))]
+#[cfg(any(feature = "alloc", test))]
+pub struct WhateverLocal {
+    #[snafu(source(from(Box<dyn crate::Error>, Some)))]
+    #[snafu(provide(false))]
+    source: Option<Box<dyn crate::Error>>,
+    message: String,
+    backtrace: Backtrace,
+}
+
+#[cfg(any(feature = "alloc", test))]
+impl WhateverLocal {
+    /// Gets the backtrace from the deepest `WhateverLocal` error. If
+    /// none of the underlying errors are `WhateverLocal`, returns the
+    /// backtrace from when this instance was created.
     pub fn backtrace(&self) -> Option<&Backtrace> {
         ChainCompat::new(self)
             .filter_map(|e| e.downcast_ref::<Self>())
