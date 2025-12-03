@@ -116,27 +116,28 @@ mod bounds {
 mod const_generics {
     use snafu::prelude::*;
 
+    fn check_bounds<T: std::error::Error>() {}
+
     #[derive(Debug, Snafu)]
     #[snafu(display("Exceeded {N}"))]
     pub struct Error<const N: i32>;
 
+    fn make_one() -> Result<(), Error<1>> {
+        Snafu.fail()
+    }
+
+    fn make_two() -> Result<(), Error<2>> {
+        Snafu.fail()
+    }
+
     #[test]
     fn implements_error() {
-        fn check_bounds<T: std::error::Error>() {}
         check_bounds::<Error<1>>();
         check_bounds::<Error<2>>();
     }
 
     #[test]
     fn can_be_constructed() {
-        fn make_one() -> Result<(), Error<1>> {
-            Snafu.fail()
-        }
-
-        fn make_two() -> Result<(), Error<2>> {
-            Snafu.fail()
-        }
-
         assert!(make_one().is_err());
         assert!(make_two().is_err());
     }
@@ -147,30 +148,55 @@ mod const_generics {
         assert_eq!(e.to_string(), "Exceeded 42");
     }
 
+    #[derive(Debug, Snafu)]
+    struct OpaqueError<const N: i32>(Error<N>);
+
+    #[test]
+    fn opaque_implements_error() {
+        check_bounds::<OpaqueError<1>>();
+        check_bounds::<OpaqueError<2>>();
+    }
+
+    #[test]
+    fn opaque_construction() {
+        fn wrap_one() -> Result<(), OpaqueError<1>> {
+            make_one().map_err(Into::into)
+        }
+
+        fn wrap_two() -> Result<(), OpaqueError<2>> {
+            make_two()?;
+            Ok(())
+        }
+
+        assert!(wrap_one().is_err());
+        assert!(wrap_two().is_err());
+    }
+
     mod with_default {
         use snafu::prelude::*;
+
+        fn check_bounds<T: std::error::Error>() {}
 
         #[derive(Debug, Snafu)]
         #[snafu(display("Exceeded {N}"))]
         pub struct Error<const N: i32 = 42>;
 
+        fn make_forty_two() -> Result<(), Error> {
+            Snafu.fail()
+        }
+
+        fn make_ninety_nine() -> Result<(), Error<99>> {
+            Snafu.fail()
+        }
+
         #[test]
         fn implements_error() {
-            fn check_bounds<T: std::error::Error>() {}
             check_bounds::<Error>();
             check_bounds::<Error<99>>();
         }
 
         #[test]
         fn can_be_constructed() {
-            fn make_forty_two() -> Result<(), Error> {
-                Snafu.fail()
-            }
-
-            fn make_ninety_nine() -> Result<(), Error<99>> {
-                Snafu.fail()
-            }
-
             assert!(make_forty_two().is_err());
             assert!(make_ninety_nine().is_err());
         }
@@ -179,6 +205,30 @@ mod const_generics {
         fn can_use_const_in_display() {
             let e: Error = Snafu.build();
             assert_eq!(e.to_string(), "Exceeded 42");
+        }
+
+        #[derive(Debug, Snafu)]
+        struct OpaqueError<const N: i32 = 99>(Error<N>);
+
+        #[test]
+        fn opaque_implements_error() {
+            check_bounds::<OpaqueError<42>>();
+            check_bounds::<OpaqueError>();
+        }
+
+        #[test]
+        fn opaque_construction() {
+            fn wrap_forty_two() -> Result<(), OpaqueError<42>> {
+                make_forty_two().map_err(Into::into)
+            }
+
+            fn wrap_ninety_nine() -> Result<(), OpaqueError> {
+                make_ninety_nine()?;
+                Ok(())
+            }
+
+            assert!(wrap_forty_two().is_err());
+            assert!(wrap_ninety_nine().is_err());
         }
     }
 }
