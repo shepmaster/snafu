@@ -141,7 +141,7 @@ mod whatever_nested {
     #[test]
     fn backtrace_method_delegates_to_nested_whatever() {
         let e = outer_whatever().unwrap_err();
-        let bt = e.backtrace().expect("Must have a backtrace");
+        let bt = e.backtrace();
         let text = bt.to_string();
         assert!(
             text.contains("::inner_whatever"),
@@ -169,7 +169,7 @@ mod whatever_local_nested {
     #[test]
     fn backtrace_method_delegates_to_nested_whatever() {
         let e = outer_whatever().unwrap_err();
-        let bt = e.backtrace().expect("Must have a backtrace");
+        let bt = e.backtrace();
         let text = bt.to_string();
         assert!(
             text.contains("::inner_whatever"),

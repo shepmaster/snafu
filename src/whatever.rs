@@ -70,8 +70,8 @@ impl Whatever {
     /// [`WhateverLocal`][] error. If none of the underlying errors
     /// are one of these types, returns the backtrace from when this
     /// instance was created.
-    pub fn backtrace(&self) -> Option<&Backtrace> {
-        known_whatevers_backtrace(self)
+    pub fn backtrace(&self) -> &Backtrace {
+        known_whatevers_backtrace(self).unwrap_or(&self.backtrace)
     }
 }
 
@@ -101,8 +101,8 @@ impl WhateverLocal {
     /// [`WhateverLocal`][] error. If none of the underlying errors
     /// are one of these types, returns the backtrace from when this
     /// instance was created.
-    pub fn backtrace(&self) -> Option<&Backtrace> {
-        known_whatevers_backtrace(self)
+    pub fn backtrace(&self) -> &Backtrace {
+        known_whatevers_backtrace(self).unwrap_or(&self.backtrace)
     }
 }
 
@@ -110,6 +110,7 @@ fn known_whatevers_backtrace<'a>(
     root: &'a (dyn crate::Error + 'static),
 ) -> Option<&'a crate::Backtrace> {
     ChainCompat::new(root)
+        .skip(1)
         .filter_map(|e| {
             if let Some(e) = e.downcast_ref::<Whatever>() {
                 Some(&e.backtrace)
