@@ -179,6 +179,33 @@ mod whatever_local_nested {
     }
 }
 
+mod whatever_both_nested {
+    use snafu::{prelude::*, Whatever, WhateverLocal};
+
+    fn inner_whatever() -> Result<(), Whatever> {
+        whatever!("[Inner Whatever]")
+    }
+
+    fn outer_whatever_local() -> Result<(), WhateverLocal> {
+        inner_whatever().whatever_context("[Outer WhateverLocal]")
+    }
+
+    // Cannot put a `WhateverLocal` inside a `Whatever` so no tests
+    // for that.
+
+    #[test]
+    fn backtrace_method_delegates_to_nested_whatever() {
+        let e = outer_whatever_local().unwrap_err();
+        let bt = e.backtrace();
+        let text = bt.to_string();
+        assert!(
+            text.contains("::inner_whatever"),
+            "{:?} does not contain `::inner_whatever`",
+            text,
+        );
+    }
+}
+
 mod boxed {
     use snafu::{prelude::*, Backtrace, ErrorCompat};
     use std::{rc::Rc, sync::Arc};

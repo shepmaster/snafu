@@ -66,14 +66,12 @@ pub struct Whatever {
 }
 
 impl Whatever {
-    /// Gets the backtrace from the deepest `Whatever` error. If none
-    /// of the underlying errors are `Whatever`, returns the backtrace
-    /// from when this instance was created.
+    /// Gets the backtrace from the deepest [`Whatever`][] or
+    /// [`WhateverLocal`][] error. If none of the underlying errors
+    /// are one of these types, returns the backtrace from when this
+    /// instance was created.
     pub fn backtrace(&self) -> Option<&Backtrace> {
-        ChainCompat::new(self)
-            .filter_map(|e| e.downcast_ref::<Self>())
-            .last()
-            .map(|w| &w.backtrace)
+        known_whatevers_backtrace(self)
     }
 }
 
@@ -99,13 +97,27 @@ pub struct WhateverLocal {
 }
 
 impl WhateverLocal {
-    /// Gets the backtrace from the deepest `WhateverLocal` error. If
-    /// none of the underlying errors are `WhateverLocal`, returns the
-    /// backtrace from when this instance was created.
+    /// Gets the backtrace from the deepest [`Whatever`][] or
+    /// [`WhateverLocal`][] error. If none of the underlying errors
+    /// are one of these types, returns the backtrace from when this
+    /// instance was created.
     pub fn backtrace(&self) -> Option<&Backtrace> {
-        ChainCompat::new(self)
-            .filter_map(|e| e.downcast_ref::<Self>())
-            .last()
-            .map(|w| &w.backtrace)
+        known_whatevers_backtrace(self)
     }
+}
+
+fn known_whatevers_backtrace<'a>(
+    root: &'a (dyn crate::Error + 'static),
+) -> Option<&'a crate::Backtrace> {
+    ChainCompat::new(root)
+        .filter_map(|e| {
+            if let Some(e) = e.downcast_ref::<Whatever>() {
+                Some(&e.backtrace)
+            } else if let Some(e) = e.downcast_ref::<WhateverLocal>() {
+                Some(&e.backtrace)
+            } else {
+                None
+            }
+        })
+        .last()
 }
