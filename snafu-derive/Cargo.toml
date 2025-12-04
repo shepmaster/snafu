@@ -3,7 +3,7 @@ name = "snafu-derive"
 version = "0.8.9"
 authors = ["Jake Goulding <jake.goulding@gmail.com>"]
 edition = "2018"
-rust-version = "1.56"
+rust-version = "1.61"
 
 description = "An ergonomic error handling library"
 documentation = "https://docs.rs/snafu"
@@ -12,7 +12,6 @@ repository = "https://github.com/shepmaster/snafu"
 license = "MIT OR Apache-2.0"
 
 [features]
-rust_1_61 = []
 unstable-provider-api = []
 
 [lib]

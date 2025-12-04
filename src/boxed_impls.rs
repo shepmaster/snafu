@@ -1,9 +1,6 @@
 use alloc::{boxed::Box, rc::Rc};
 
-// `target_has_atomic` wasn't stabilized until 1.60. Thankfully, we
-// don't support no_std + alloc without Rust 1.81. After the MSRV is
-// bumped to >= 1.60, this can be simplified to `target_has_atomic`.
-#[cfg(any(feature = "std", all(feature = "rust_1_61", target_has_atomic = "ptr")))]
+#[cfg(target_has_atomic = "ptr")]
 use alloc::sync::Arc;
 
 use super::{AsBacktrace, Backtrace, ErrorCompat, GenerateImplicitData};
@@ -53,7 +50,7 @@ where
     }
 }
 
-#[cfg(any(feature = "std", all(feature = "rust_1_61", target_has_atomic = "ptr")))]
+#[cfg(target_has_atomic = "ptr")]
 impl<T> GenerateImplicitData for Arc<T>
 where
     T: GenerateImplicitData,
@@ -90,7 +87,7 @@ where
     }
 }
 
-#[cfg(any(feature = "std", all(feature = "rust_1_61", target_has_atomic = "ptr")))]
+#[cfg(target_has_atomic = "ptr")]
 impl<T> AsBacktrace for Arc<T>
 where
     T: AsBacktrace,

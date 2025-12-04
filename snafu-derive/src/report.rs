@@ -45,11 +45,7 @@ pub fn body(
 
     let error_ty = quote! { <#output_ty as ::snafu::__InternalExtractErrorType>::Err };
 
-    let output = if cfg!(feature = "rust_1_61") {
-        quote! { -> ::snafu::Report<#error_ty> }
-    } else {
-        quote! { -> ::core::result::Result<(), ::snafu::Report<#error_ty>> }
-    };
+    let output = quote! { -> ::snafu::Report<#error_ty> };
 
     let captured_original_body = if asyncness.is_some() {
         quote! { async #block.await }
@@ -61,19 +57,10 @@ pub fn body(
         let __snafu_body: #output_ty = #captured_original_body;
     };
 
-    let block = if cfg!(feature = "rust_1_61") {
-        quote! {
-            {
-                #ascribed_original_result;
-                <::snafu::Report<_> as ::core::convert::From<_>>::from(__snafu_body)
-            }
-        }
-    } else {
-        quote! {
-            {
-                #ascribed_original_result;
-                ::core::result::Result::map_err(__snafu_body, ::snafu::Report::from_error)
-            }
+    let block = quote! {
+        {
+            #ascribed_original_result;
+            <::snafu::Report<_> as ::core::convert::From<_>>::from(__snafu_body)
         }
     };
 

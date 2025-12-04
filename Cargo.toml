@@ -3,7 +3,7 @@ name = "snafu"
 version = "0.8.9"
 authors = ["Jake Goulding <jake.goulding@gmail.com>"]
 edition = "2018"
-rust-version = "1.56"
+rust-version = "1.61"
 
 readme = "README.md"
 description = "An ergonomic error handling library"
@@ -40,11 +40,8 @@ alloc = []
 # Implement the `core::error::Error` trait.
 unstable-core-error = []
 
-# Add support for `Termination` for `Report`
-rust_1_61 = ["snafu-derive/rust_1_61"]
-
 # `Backtrace` was stabilized
-rust_1_65 = ["rust_1_61"]
+rust_1_65 = []
 
 # `core::error` was stabilized
 rust_1_81 = ["rust_1_65"]
