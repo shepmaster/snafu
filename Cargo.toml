@@ -37,9 +37,6 @@ std = ["alloc"]
 # Support `Box<dyn Error>` and `String` (for `Whatever`, `CleanedErrorText`)
 alloc = []
 
-# Implement the `core::error::Error` trait.
-unstable-core-error = []
-
 # `core::error` was stabilized
 rust_1_81 = []
 
