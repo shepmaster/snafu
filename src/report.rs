@@ -1,7 +1,7 @@
 use crate::ChainCompat;
 use core::fmt;
 
-#[cfg(all(feature = "std", feature = "rust_1_61"))]
+#[cfg(feature = "std")]
 use std::process::{ExitCode, Termination};
 
 #[cfg(feature = "alloc")]
@@ -11,21 +11,11 @@ use alloc::string::{String, ToString};
 /// way. Useful as the return type from `main` and test functions.
 ///
 /// Most users will use the [`snafu::report`][] procedural macro
-/// instead of directly using this type, but you can if you do not
-/// wish to use the macro.
+/// instead of directly using this type. To use it directly, change
+/// the return type of the function to [`Report`][] and wrap the body
+/// of your function with [`Report::capture`][].
 ///
 /// [`snafu::report`]: macro@crate::report
-///
-/// ## Rust 1.61 and up
-///
-/// Change the return type of the function to [`Report`][] and wrap
-/// the body of your function with [`Report::capture`][].
-///
-/// ## Rust before 1.61
-///
-/// Use [`Report`][] as the error type inside of [`Result`][] and then
-/// call either [`Report::capture_into_result`][] or
-/// [`Report::from_error`][].
 ///
 /// ## Nightly Rust
 ///
@@ -35,13 +25,13 @@ use alloc::string::{String, ToString};
 /// ```rust
 /// use snafu::{prelude::*, Report};
 ///
-/// # #[cfg(all(feature = "unstable-try-trait", feature = "rust_1_61"))]
+/// # #[cfg(feature = "unstable-try-trait")]
 /// fn main() -> Report<PlaceholderError> {
 ///     let _v = may_fail_with_placeholder_error()?;
 ///
 ///     Report::ok()
 /// }
-/// # #[cfg(not(all(feature = "unstable-try-trait", feature = "rust_1_61")))] fn main() {}
+/// # #[cfg(not(feature = "unstable-try-trait"))] fn main() {}
 /// # #[derive(Debug, Snafu)]
 /// # struct PlaceholderError;
 /// # fn may_fail_with_placeholder_error() -> Result<u8, PlaceholderError> { Ok(42) }
@@ -72,8 +62,6 @@ pub struct Report<E>(Result<(), E>);
 impl<E> Report<E> {
     /// Convert an error into a [`Report`][].
     ///
-    /// Recommended if you support versions of Rust before 1.61.
-    ///
     /// ```rust
     /// use snafu::{prelude::*, Report};
     ///
@@ -93,45 +81,15 @@ impl<E> Report<E> {
         Self(Err(error))
     }
 
-    /// Executes a closure that returns a [`Result`][], converting the
-    /// error variant into a [`Report`][].
-    ///
-    /// Recommended if you support versions of Rust before 1.61.
-    ///
-    /// ```rust
-    /// use snafu::{prelude::*, Report};
-    ///
-    /// #[derive(Debug, Snafu)]
-    /// struct PlaceholderError;
-    ///
-    /// fn main() -> Result<(), Report<PlaceholderError>> {
-    ///     Report::capture_into_result(|| {
-    ///         let _v = may_fail_with_placeholder_error()?;
-    ///
-    ///         Ok(())
-    ///     })
-    /// }
-    ///
-    /// fn may_fail_with_placeholder_error() -> Result<u8, PlaceholderError> {
-    ///     Ok(42)
-    /// }
-    /// ```
-    pub fn capture_into_result<T>(body: impl FnOnce() -> Result<T, E>) -> Result<T, Self> {
-        body().map_err(Self::from_error)
-    }
-
     /// Executes a closure that returns a [`Result`][], converting any
     /// error to a [`Report`][].
     ///
-    /// Recommended if you only support Rust version 1.61 or above.
-    ///
     /// ```rust
     /// use snafu::{prelude::*, Report};
     ///
     /// #[derive(Debug, Snafu)]
     /// struct PlaceholderError;
     ///
-    /// # #[cfg(feature = "rust_1_61")]
     /// fn main() -> Report<PlaceholderError> {
     ///     Report::capture(|| {
     ///         let _v = may_fail_with_placeholder_error()?;
@@ -139,7 +97,6 @@ impl<E> Report<E> {
     ///         Ok(())
     ///     })
     /// }
-    /// # #[cfg(not(feature = "rust_1_61"))] fn main() {}
     ///
     /// fn may_fail_with_placeholder_error() -> Result<u8, PlaceholderError> {
     ///     Ok(42)
@@ -182,7 +139,7 @@ where
     }
 }
 
-#[cfg(all(feature = "std", feature = "rust_1_61"))]
+#[cfg(feature = "std")]
 impl<E> Termination for Report<E>
 where
     E: crate::Error,
