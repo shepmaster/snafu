@@ -577,7 +577,6 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
 
         let crate_root = &self.0.crate_root;
 
-        let mut variants_to_description = Vec::with_capacity(self.0.variants.len());
         let mut variants_to_source = Vec::with_capacity(self.0.variants.len());
         let mut variants_to_provide = Vec::with_capacity(self.0.variants.len());
 
@@ -585,10 +584,6 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
             let enum_name = &self.0.name;
             let variant_name = &field_container.name;
             let pattern_ident = &quote! { #enum_name::#variant_name };
-
-            let error_description_match_arm = quote! {
-                #pattern_ident { .. } => stringify!(#pattern_ident),
-            };
 
             let error_source_match_arm = ErrorSourceMatchArm {
                 field_container,
@@ -603,7 +598,6 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
             };
             let error_provide_match_arm = quote! { #error_provide_match_arm };
 
-            variants_to_description.push(error_description_match_arm);
             variants_to_source.push(error_source_match_arm);
             variants_to_provide.push(error_provide_match_arm);
         }
@@ -611,7 +605,6 @@ impl<'a> quote::ToTokens for ErrorImpl<'a> {
         let error_impl = Error {
             crate_root,
             parameterized_error_name: &self.0.parameterized_name(),
-            description_arms: &variants_to_description,
             source_arms: &variants_to_source,
             original_generics: shared::GenericsWithoutDefaults::new(&self.0.generics),
             where_clauses: &self.0.provided_where_clauses(),
@@ -692,10 +685,6 @@ impl NamedStructInfo {
 
         let pattern_ident = &quote! { Self };
 
-        let error_description_match_arm = quote! {
-            #pattern_ident { .. } => stringify!(#name),
-        };
-
         let error_source_match_arm = ErrorSourceMatchArm {
             field_container,
             pattern_ident,
@@ -711,7 +700,6 @@ impl NamedStructInfo {
 
         let error_impl = Error {
             crate_root: &crate_root,
-            description_arms: &[error_description_match_arm],
             original_generics,
             parameterized_error_name: &parameterized_struct_name,
             provide_arms: &[error_provide_match_arm],
