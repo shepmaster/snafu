@@ -20,6 +20,8 @@ stable_test_task:
     - cargo test --manifest-path compatibility-tests/alloc-only/Cargo.toml
   backtraces_impl_backtrace_crate_test_script:
     - cargo test --manifest-path compatibility-tests/backtraces-impl-backtrace-crate/Cargo.toml
+  backtraces_impl_inert_test_script:
+    - cargo test --manifest-path compatibility-tests/backtraces-impl-inert/Cargo.toml
   context_selectors_have_documentation_test_script:
     - cargo test --manifest-path compatibility-tests/context-selectors-have-documentation/Cargo.toml
   renamed_import_test_script:
@@ -185,10 +187,10 @@ nightly_test_task:
   before_cache_script: rm -rf $CARGO_HOME/registry/index
 
 # Our Minimal Supported Rust Version (MSRV)
-v1_61_test_task:
-  name: "Rust 1.61"
+v1_65_test_task:
+  name: "Rust 1.65"
   container:
-    image: rust:1.61
+    image: rust:1.65
     cpu: 1
     memory: 2Gi
   cargo_cache:
@@ -196,7 +198,7 @@ v1_61_test_task:
     fingerprint_script: cat Cargo.toml
   primary_test_script:
     - rustup self update
-    - cd compatibility-tests/v1_61/
+    - cd compatibility-tests/v1_65/
     - rustc --version
     - cargo test
   before_cache_script: rm -rf $CARGO_HOME/registry/index
