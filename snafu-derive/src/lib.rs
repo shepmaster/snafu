@@ -99,16 +99,12 @@ impl ContextSelectorName {
     }
 }
 
+#[derive(Default)]
 enum SuffixKind {
+    #[default]
     Default,
     None,
     Some(syn::Ident),
-}
-
-impl Default for SuffixKind {
-    fn default() -> Self {
-        SuffixKind::Default
-    }
 }
 
 impl SuffixKind {

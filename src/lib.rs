@@ -295,10 +295,7 @@ pub mod prelude {
     pub use crate::futures::{TryFutureExt as _, TryStreamExt as _};
 }
 
-#[cfg(not(any(
-    all(feature = "std", feature = "rust_1_65"),
-    feature = "backtraces-impl-backtrace-crate"
-)))]
+#[cfg(not(any(feature = "std", feature = "backtraces-impl-backtrace-crate")))]
 #[path = "backtrace_impl_inert.rs"]
 mod backtrace_impl;
 
@@ -306,11 +303,7 @@ mod backtrace_impl;
 #[path = "backtrace_impl_backtrace_crate.rs"]
 mod backtrace_impl;
 
-#[cfg(all(
-    feature = "std",
-    feature = "rust_1_65",
-    not(feature = "backtraces-impl-backtrace-crate")
-))]
+#[cfg(all(feature = "std", not(feature = "backtraces-impl-backtrace-crate")))]
 #[path = "backtrace_impl_std.rs"]
 mod backtrace_impl;
 
