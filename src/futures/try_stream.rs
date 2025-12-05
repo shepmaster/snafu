@@ -120,7 +120,7 @@ pub trait TryStreamExt: TryStream + Sized {
     ///     stock_prices().whatever_context("Couldn't get stock prices")
     /// }
     ///
-    /// # type ApiError = Box<dyn std::error::Error>;
+    /// # type ApiError = Box<dyn std::error::Error + Send + Sync>;
     /// fn stock_prices() -> impl TryStream<Ok = i32, Error = ApiError> {
     ///     /* ... */
     /// # stream::empty()
@@ -151,7 +151,7 @@ pub trait TryStreamExt: TryStream + Sized {
     ///         .with_whatever_context(move |_| format!("Couldn't get stock prices for {symbol}"))
     /// }
     ///
-    /// # type ApiError = Box<dyn std::error::Error>;
+    /// # type ApiError = Box<dyn std::error::Error + Send + Sync>;
     /// fn stock_prices(symbol: &'static str) -> impl TryStream<Ok = i32, Error = ApiError> {
     ///     /* ... */
     /// # stream::empty()

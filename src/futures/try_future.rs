@@ -118,7 +118,7 @@ pub trait TryFutureExt: TryFuture + Sized {
     ///     api_function().whatever_context("The API failed")
     /// }
     ///
-    /// # type ApiError = Box<dyn std::error::Error>;
+    /// # type ApiError = Box<dyn std::error::Error + Send + Sync>;
     /// fn api_function() -> impl TryFuture<Ok = i32, Error = ApiError> {
     ///     /* ... */
     /// # futures::future::ok(42)
@@ -148,7 +148,7 @@ pub trait TryFutureExt: TryFuture + Sized {
     ///         .with_whatever_context(move |_| format!("The API failed for argument {arg}"))
     /// }
     ///
-    /// # type ApiError = Box<dyn std::error::Error>;
+    /// # type ApiError = Box<dyn std::error::Error + Send + Sync>;
     /// fn api_function(arg: &'static str) -> impl TryFuture<Ok = i32, Error = ApiError> {
     ///     /* ... */
     /// # futures::future::ok(42)
