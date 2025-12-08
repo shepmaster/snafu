@@ -2,7 +2,6 @@
 #![allow(stable_features)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![no_std]
-#![cfg_attr(feature = "unstable-core-error", feature(error_in_core))]
 #![cfg_attr(
     feature = "unstable-provider-api",
     feature(error_generic_member_access)
@@ -398,41 +397,25 @@ generate_guide! {
     }
 }
 
-#[cfg(any(feature = "rust_1_81", feature = "unstable-core-error"))]
+#[cfg(feature = "rust_1_81")]
 #[doc(hidden)]
 pub use core::error;
 
-#[cfg(any(feature = "rust_1_81", feature = "unstable-core-error"))]
+#[cfg(feature = "rust_1_81")]
 #[doc(hidden)]
 pub use core::error::Error;
 
-#[cfg(all(
-    not(any(feature = "rust_1_81", feature = "unstable-core-error")),
-    any(feature = "std", test)
-))]
+#[cfg(all(not(feature = "rust_1_81"), any(feature = "std", test)))]
 #[doc(hidden)]
 pub use std::error;
 
-#[cfg(all(
-    not(any(feature = "rust_1_81", feature = "unstable-core-error")),
-    any(feature = "std", test)
-))]
+#[cfg(all(not(feature = "rust_1_81"), any(feature = "std", test)))]
 #[doc(hidden)]
 pub use std::error::Error;
 
-#[cfg(not(any(
-    feature = "rust_1_81",
-    feature = "unstable-core-error",
-    feature = "std",
-    test
-)))]
+#[cfg(not(any(feature = "rust_1_81", feature = "std", test)))]
 mod fallback_error;
-#[cfg(not(any(
-    feature = "rust_1_81",
-    feature = "unstable-core-error",
-    feature = "std",
-    test
-)))]
+#[cfg(not(any(feature = "rust_1_81", feature = "std", test)))]
 #[doc(hidden)]
 pub use fallback_error::Error;
 
