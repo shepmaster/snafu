@@ -465,7 +465,7 @@ fn whatever_errors_provide_the_source_error() {
     }
 
     let e = make().unwrap_err();
-    let inner = error::request_ref::<dyn snafu::Error>(&e);
+    let inner = error::request_ref::<dyn snafu::Error + Send + Sync>(&e);
 
     let inner = inner.map(ToString::to_string);
     let inner = inner.as_deref();
