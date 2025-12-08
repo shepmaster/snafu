@@ -24,6 +24,8 @@ stable_test_task:
     - cargo test --manifest-path compatibility-tests/backtraces-impl-inert/Cargo.toml
   context_selectors_have_documentation_test_script:
     - cargo test --manifest-path compatibility-tests/context-selectors-have-documentation/Cargo.toml
+  futures_test_script:
+    - cargo test --manifest-path compatibility-tests/futures/Cargo.toml
   renamed_import_test_script:
     - cargo test --manifest-path compatibility-tests/renamed-import/Cargo.toml
   compile_fail_test_script:
@@ -164,10 +166,6 @@ nightly_test_task:
   minimum_version_test_script:
     - cargo +nightly -Z minimal-versions update
     - cargo +stable test
-  futures_test_script:
-    - cd compatibility-tests/futures/
-    - rustc --version
-    - cargo test
   provider_api_test_script:
     - cd compatibility-tests/provider-api/
     - rustc --version
