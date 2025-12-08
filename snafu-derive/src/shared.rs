@@ -745,7 +745,6 @@ pub mod error {
 
     pub(crate) struct Error<'a> {
         pub(crate) crate_root: &'a dyn ToTokens,
-        pub(crate) description_arms: &'a [TokenStream],
         pub(crate) original_generics: GenericsWithoutDefaults<'a>,
         pub(crate) parameterized_error_name: &'a dyn ToTokens,
         pub(crate) provide_arms: &'a [TokenStream],
@@ -757,7 +756,6 @@ pub mod error {
         fn to_tokens(&self, stream: &mut TokenStream) {
             let Self {
                 crate_root,
-                description_arms,
                 original_generics,
                 parameterized_error_name,
                 provide_arms,
@@ -765,24 +763,10 @@ pub mod error {
                 where_clauses,
             } = *self;
 
-            let description_fn = quote! {
-                fn description(&self) -> &str {
-                    match *self {
-                        #(#description_arms)*
-                    }
-                }
-            };
-
             let source_body = quote! {
                 use #crate_root::AsErrorSource;
                 match *self {
                     #(#source_arms)*
-                }
-            };
-
-            let cause_fn = quote! {
-                fn cause(&self) -> ::core::option::Option<&dyn #crate_root::Error> {
-                    #source_body
                 }
             };
 
@@ -811,8 +795,6 @@ pub mod error {
                     Self: ::core::fmt::Debug + ::core::fmt::Display,
                     #(#where_clauses),*
                 {
-                    #description_fn
-                    #cause_fn
                     #source_fn
                     #provide_fn
                 }
