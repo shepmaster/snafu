@@ -5,6 +5,7 @@ pub(crate) use self::context_selector::ContextSelector;
 pub(crate) use self::display::{Display, DisplayMatchArm};
 pub(crate) use self::error::{Error, ErrorProvideMatchArm, ErrorSourceMatchArm};
 pub(crate) use self::error_compat::{ErrorCompat, ErrorCompatBacktraceMatchArm};
+pub(crate) use self::no_context_selector::NoContextSelector;
 
 pub(crate) struct StaticIdent(&'static str);
 
@@ -133,6 +134,41 @@ impl quote::ToTokens for GenericsWithoutDefaults<'_> {
     }
 }
 
+pub(crate) struct SourceInfo<'a> {
+    pub source_field_type: &'a syn::Type,
+    pub transform_source: proc_macro2::TokenStream,
+    pub transfer_source_field: proc_macro2::TokenStream,
+}
+
+impl<'a> SourceInfo<'a> {
+    // Assumes that the error is in a variable called "error"
+    fn from_source_field(source_field: &'a crate::SourceField) -> Self {
+        Self::from_transformation(source_field.name(), &source_field.transformation)
+    }
+
+    // Assumes that the error is in a variable called "error"
+    pub fn from_transformation(
+        source_field_name: &dyn quote::ToTokens,
+        transformation: &'a crate::Transformation,
+    ) -> Self {
+        use quote::quote;
+
+        let source_field_type = transformation.source_ty();
+        let target_field_type = transformation.target_ty();
+        let source_transformation = transformation.transformation();
+
+        let transform_source =
+            quote! { let error: #target_field_type = (#source_transformation)(error) };
+        let transfer_source_field = quote! { #source_field_name: error, };
+
+        Self {
+            source_field_type,
+            transform_source,
+            transfer_source_field,
+        }
+    }
+}
+
 pub mod context_module {
     use crate::ModuleName;
     use heck::ToSnakeCase;
@@ -178,7 +214,7 @@ pub mod context_module {
 }
 
 pub mod context_selector {
-    use super::{GenericsWithoutDefaults, StaticIdent};
+    use super::{GenericsWithoutDefaults, NoContextSelector, SourceInfo, StaticIdent};
     use crate::{ContextSelectorKind, Field, SuffixKind};
     use proc_macro2::TokenStream;
     use quote::{format_ident, quote, ToTokens};
@@ -411,7 +447,7 @@ pub mod context_selector {
                         source_field_type,
                         transform_source,
                         transfer_source_field,
-                    } = build_source_info(source_field);
+                    } = SourceInfo::from_source_field(source_field);
                     (
                         quote! { #source_field_type },
                         Some(transform_source),
@@ -504,26 +540,63 @@ pub mod context_selector {
         }
 
         fn generate_from_source(self, source_field: &crate::SourceField) -> TokenStream {
-            let parameterized_error_name = self.parameterized_error_name;
-            let error_constructor_name = self.error_constructor_name;
-            let construct_implicit_fields_with_source =
-                self.construct_implicit_fields_with_source();
-            let original_generics_without_defaults = self.original_generics_without_defaults;
             let user_field_generics = self.user_field_generics();
             let user_field_generics = user_field_generics
                 .iter()
                 .map(|g| g as _)
                 .collect::<Vec<&dyn ToTokens>>();
-            let generics = original_generics_without_defaults.push(&user_field_generics);
-            let where_clauses = self.where_clauses;
+            let generics = self
+                .original_generics_without_defaults
+                .push(&user_field_generics);
+
+            let source_info = SourceInfo::from_source_field(source_field);
+
+            NoContextSelector {
+                source_info,
+                parameterized_error_name: self.parameterized_error_name,
+                generics,
+                where_clauses: self.where_clauses,
+                error_constructor_name: self.error_constructor_name,
+                construct_implicit_fields_with_source: self.construct_implicit_fields_with_source(),
+            }
+            .to_token_stream()
+        }
+    }
+}
+
+pub mod no_context_selector {
+    use proc_macro2::TokenStream;
+    use quote::{quote, ToTokens};
+
+    use super::{GenericsWithoutDefaults, SourceInfo};
+
+    pub(crate) struct NoContextSelector<'a> {
+        pub source_info: SourceInfo<'a>,
+        pub parameterized_error_name: &'a dyn ToTokens,
+        pub generics: GenericsWithoutDefaults<'a>,
+        pub where_clauses: &'a [TokenStream],
+        pub error_constructor_name: &'a dyn ToTokens,
+        pub construct_implicit_fields_with_source: TokenStream,
+    }
+
+    impl ToTokens for NoContextSelector<'_> {
+        fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+            let Self {
+                source_info,
+                parameterized_error_name,
+                generics,
+                where_clauses,
+                error_constructor_name,
+                construct_implicit_fields_with_source,
+            } = self;
 
             let SourceInfo {
                 source_field_type,
                 transform_source,
                 transfer_source_field,
-            } = build_source_info(source_field);
+            } = source_info;
 
-            quote! {
+            let no_context_selector = quote! {
                 impl<#generics> ::core::convert::From<#source_field_type> for #parameterized_error_name
                 where
                     #(#where_clauses),*
@@ -537,31 +610,9 @@ pub mod context_selector {
                         }
                     }
                 }
-            }
-        }
-    }
+            };
 
-    struct SourceInfo<'a> {
-        source_field_type: &'a syn::Type,
-        transform_source: TokenStream,
-        transfer_source_field: TokenStream,
-    }
-
-    // Assumes that the error is in a variable called "error"
-    fn build_source_info(source_field: &crate::SourceField) -> SourceInfo<'_> {
-        let source_field_name = source_field.name();
-        let source_field_type = source_field.transformation.source_ty();
-        let target_field_type = source_field.transformation.target_ty();
-        let source_transformation = source_field.transformation.transformation();
-
-        let transform_source =
-            quote! { let error: #target_field_type = (#source_transformation)(error) };
-        let transfer_source_field = quote! { #source_field_name: error, };
-
-        SourceInfo {
-            source_field_type,
-            transform_source,
-            transfer_source_field,
+            tokens.extend(no_context_selector);
         }
     }
 }
