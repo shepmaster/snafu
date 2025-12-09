@@ -1,14 +1,10 @@
 use snafu::prelude::*;
 
 #[derive(Debug, Snafu)]
-enum AlphaError {
-    _AlphaDummy,
-}
+struct AlphaError;
 
 #[derive(Debug, Snafu)]
-enum BetaError {
-    _BetaDummy,
-}
+struct BetaError;
 
 #[derive(Debug, Snafu)]
 enum Error {
@@ -82,5 +78,81 @@ mod with_bounds {
     #[test]
     fn implements_error() {
         check::<Error<i32>>();
+    }
+}
+
+mod with_exact_source {
+    use super::*;
+
+    #[derive(Debug, Snafu)]
+    #[snafu(context(false))]
+    struct Error {
+        #[snafu(source(from(exact)))]
+        source: AlphaError,
+    }
+
+    #[test]
+    fn implements_error() {
+        check::<Error>();
+    }
+
+    trait LocalTrait {}
+    impl LocalTrait for i32 {}
+
+    impl<T> From<T> for Error
+    where
+        T: LocalTrait,
+    {
+        fn from(_: T) -> Self {
+            Error { source: AlphaError }
+        }
+    }
+
+    #[test]
+    fn custom_from_implementation() {
+        let _error: Error = 42.into();
+    }
+}
+
+mod with_generic_source {
+    use super::*;
+
+    struct NotAlpha;
+
+    impl From<NotAlpha> for AlphaError {
+        fn from(_: NotAlpha) -> Self {
+            AlphaError
+        }
+    }
+
+    fn convertable_to_alpha() -> Result<(), NotAlpha> {
+        Ok(())
+    }
+
+    #[derive(Debug, Snafu)]
+    enum Error {
+        #[snafu(context(false))]
+        Alpha {
+            #[snafu(source(from(generic)))]
+            source: AlphaError,
+        },
+
+        #[snafu(context(false))]
+        Beta { source: BetaError },
+    }
+
+    #[test]
+    fn implements_error() {
+        check::<Error>();
+    }
+
+    #[test]
+    fn converted_to_alpha() {
+        fn converts_to_alpha() -> Result<(), Error> {
+            convertable_to_alpha()?;
+            Ok(())
+        }
+
+        converts_to_alpha().unwrap()
     }
 }

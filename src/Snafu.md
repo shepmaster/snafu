@@ -47,15 +47,17 @@ it is valid. Detailed information on each attribute is below.
 
 ### Context fields
 
-| Option (inside `#[snafu(...)]`) | Description                                                                    |
-|---------------------------------|--------------------------------------------------------------------------------|
-| `source`                        | Marks a field as the source error (even if not called `source`)                |
-| `source(from(type, transform))` | As above, plus converting from `type` to the field type by calling `transform` |
-| `source(false)`                 | Marks a field that is named `source` as a regular field                        |
-| `backtrace`                     | Marks a field as backtrace (even if not called `backtrace`)                    |
-| `backtrace(false)`              | Marks a field that is named `backtrace` as a regular field                     |
-| `implicit`                      | Marks a field as implicit (Type needs to implement [`GenerateImplicitData`][]) |
-| `provide`                       | Marks a field as providing a reference to the type                             |
+| Option (inside `#[snafu(...)]`) | Description                                                                                             |
+|---------------------------------|---------------------------------------------------------------------------------------------------------|
+| `source`                        | Marks a field as the source error (even if not called `source`)                                         |
+| `source(from(type, transform))` | Marks a field as the source error and converts from `type` to the field type by calling `transform`     |
+| `source(from(generic))`         | Marks a field as the source error and converts from any type to the field type by calling ``Into::into` |
+| `source(from(exact))`           | Marks a field as the source error and performs no conversion to the field type                          |
+| `source(false)`                 | Marks a field that is named `source` as a regular field                                                 |
+| `backtrace`                     | Marks a field as backtrace (even if not called `backtrace`)                                             |
+| `backtrace(false)`              | Marks a field that is named `backtrace` as a regular field                                              |
+| `implicit`                      | Marks a field as implicit (Type needs to implement [`GenerateImplicitData`][])                          |
+| `provide`                       | Marks a field as providing a reference to the type                                                      |
 
 ## Controlling `Display`
 
@@ -461,10 +463,62 @@ enum Error {
 struct ApiError(Box<Error>);
 ```
 
-Note: If you specify `#[snafu(source(from(...)))]` then the field
+Note: If you specify `#[snafu(source(from(...)))]` then the field will
+be treated as a source, even if it's not named "source" - in other
+words, this option implies `#[snafu(source)]`.
+
+#### From an arbitrary type
+
+If you have an error that does not create a context selector, such as
+an opaque error or `context(false)` error, you may use
+`#[snafu(source(from(generic)))]` to create the wrapping error from
+any type that can be converted [`into`](Into::into) the wrapped error.
+
+```rust
+# use snafu::prelude::*;
+#[derive(Debug, Snafu)]
+struct InternalError {
+    code: i32,
+}
+
+impl From<i32> for InternalError {
+    fn from(code: i32) -> Self {
+        Self { code }
+    }
+}
+
+#[derive(Debug, Snafu)]
+#[snafu(context(false))]
+struct Error {
+    #[snafu(source(from(generic)))]
+    source: InternalError,
+}
+
+pub fn usage() -> Result<(), Error> {
+    let code: Result<(), i32> = Err(42);
+
+    // Converts the error type from `i32` to `InternalError` to `Error`.
+    code?;
+
+    Ok(())
+}
+```
+
+Using this option with errors that create context selectors will
+result in an error.
+
+Note: If you specify `#[snafu(source(from(generic)))]` then the field
 will be treated as a source, even if it's not named "source" - in
-other words, `#[snafu(source(from(...)))]` implies
-`#[snafu(source)]`.
+other words, this option implies `#[snafu(source)]`.
+
+#### Disabling source transformation
+
+`#[snafu(source(from(exact)))]` can be used to explicitly disable
+source transformation.
+
+Note: If you specify `#[snafu(source(from(exact)))]` then the field
+will be treated as a source, even if it's not named "source" - in
+other words, this option implies `#[snafu(source)]`.
 
 ## Controlling backtraces
 

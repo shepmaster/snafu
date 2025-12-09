@@ -221,6 +221,13 @@ pub(super) fn parse_field_container(
         _ => {} // no conflict
     }
 
+    if let Some(Sidecar(span, source_field)) = &source {
+        if source_field.transformation.is_generic() && !selector_kind.is_without_context() {
+            let txt = "Cannot use `source(from(generic))` without disabling the context selector with `context(false)` or `transparent`";
+            errors.push_new(span, txt);
+        }
+    }
+
     let source_field = source.map(|Sidecar(_, val)| val);
     let backtrace_field = backtrace.map(|Sidecar(_, val)| val);
     let is_transparent = selector_kind.is_transparent();
@@ -324,6 +331,10 @@ impl IntermediateSelectorKind {
                 source: WithoutContextSource::Transparent
             }
         )
+    }
+
+    fn is_without_context(&self) -> bool {
+        matches!(self, IntermediateSelectorKind::WithoutContext { .. })
     }
 }
 

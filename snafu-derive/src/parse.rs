@@ -54,6 +54,8 @@ mod kw {
     custom_keyword!(whatever);
 
     custom_keyword!(from);
+    custom_keyword!(exact);
+    custom_keyword!(generic);
 
     custom_keyword!(name);
     custom_keyword!(suffix);
@@ -1063,15 +1065,30 @@ struct SourceFrom {
 
 fn into_transformation(source_from: Option<SourceFrom>, target_ty: Type) -> Transformation {
     match source_from {
-        Some(SourceFrom { value, .. }) => {
-            let SourceFromArg { r#type, expr, .. } = value;
-            Transformation::Transform {
-                source_ty: r#type,
+        Some(SourceFrom { value, .. }) => match value.value {
+            SourceFromValue::Exact(_) => Transformation::None {
                 target_ty,
-                expr,
+                from_is_generic: false,
+            },
+
+            SourceFromValue::Generic(_) => Transformation::None {
+                target_ty,
+                from_is_generic: true,
+            },
+
+            SourceFromValue::Transform(SourceFromTransform { r#type, expr, .. }) => {
+                Transformation::Transform {
+                    source_ty: r#type,
+                    target_ty,
+                    expr,
+                }
             }
-        }
-        None => Transformation::None { ty: target_ty },
+        },
+
+        None => Transformation::None {
+            target_ty,
+            from_is_generic: false,
+        },
     }
 }
 
@@ -1134,39 +1151,6 @@ impl Parse for NestedSource {
     }
 }
 
-#[derive(Clone)]
-struct SourceFromArg {
-    from_token: kw::from,
-    paren_token: token::Paren,
-    r#type: Type,
-    comma_token: token::Comma,
-    expr: Expr,
-}
-
-impl Parse for SourceFromArg {
-    fn parse(input: ParseStream) -> Result<Self> {
-        let content;
-        Ok(SourceFromArg {
-            from_token: input.parse()?,
-            paren_token: parenthesized!(content in input),
-            r#type: content.parse()?,
-            comma_token: content.parse()?,
-            expr: content.parse()?,
-        })
-    }
-}
-
-impl ToTokens for SourceFromArg {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.from_token.to_tokens(tokens);
-        self.paren_token.surround(tokens, |tokens| {
-            self.r#type.to_tokens(tokens);
-            self.comma_token.to_tokens(tokens);
-            self.expr.to_tokens(tokens);
-        });
-    }
-}
-
 enum SourceArg {
     Flag { value: LitBool },
     From(SourceFromArg),
@@ -1184,6 +1168,102 @@ impl Parse for SourceArg {
         } else {
             Err(lookahead.error())
         }
+    }
+}
+
+#[derive(Clone)]
+struct SourceFromArg {
+    from_token: kw::from,
+    paren_token: token::Paren,
+    value: SourceFromValue,
+}
+
+impl Parse for SourceFromArg {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let content;
+
+        Ok(SourceFromArg {
+            from_token: input.parse()?,
+            paren_token: parenthesized!(content in input),
+            value: content.parse()?,
+        })
+    }
+}
+
+impl ToTokens for SourceFromArg {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.from_token.to_tokens(tokens);
+        self.paren_token.surround(tokens, |tokens| {
+            self.value.to_tokens(tokens);
+        });
+    }
+}
+
+#[derive(Clone)]
+enum SourceFromValue {
+    Exact(kw::exact),
+
+    Generic(kw::generic),
+
+    Transform(SourceFromTransform),
+}
+
+impl Parse for SourceFromValue {
+    fn parse(input: ParseStream) -> Result<Self> {
+        if input.peek(kw::exact) {
+            input.parse().map(Self::Exact)
+        } else if input.peek(kw::generic) {
+            input.parse().map(Self::Generic)
+        } else {
+            // We can't peek ahead for a type. If we fail, add our own
+            // error that mimics the lookahead error to tell the user
+            // that `exact` / `generic` are also possible here.
+            //
+            // FUTURE: Consider making transforms be keyword-prefixed (with a semver
+            // break?) e.g. `transform Type with Expr`
+            let span = input.span();
+            let txt = "expected one of: `exact`, `generic` or a type followed by a comma and an expression";
+            input.parse().map(Self::Transform).map_err(|e| {
+                let mut e1 = syn::Error::new(span, txt);
+                e1.combine(e);
+                e1
+            })
+        }
+    }
+}
+
+impl ToTokens for SourceFromValue {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            SourceFromValue::Exact(exact) => exact.to_tokens(tokens),
+            SourceFromValue::Generic(generic) => generic.to_tokens(tokens),
+            SourceFromValue::Transform(transform) => transform.to_tokens(tokens),
+        }
+    }
+}
+
+#[derive(Clone)]
+struct SourceFromTransform {
+    r#type: Type,
+    comma_token: token::Comma,
+    expr: Expr,
+}
+
+impl Parse for SourceFromTransform {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(Self {
+            r#type: input.parse()?,
+            comma_token: input.parse()?,
+            expr: input.parse()?,
+        })
+    }
+}
+
+impl ToTokens for SourceFromTransform {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.r#type.to_tokens(tokens);
+        self.comma_token.to_tokens(tokens);
+        self.expr.to_tokens(tokens);
     }
 }
 
