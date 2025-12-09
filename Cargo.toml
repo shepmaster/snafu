@@ -29,7 +29,7 @@ exclude = [
 features = ["futures", "guide"]
 
 [features]
-default = ["std"]
+default = ["std", "rust_1_81"]
 
 # Implement the `std::error::Error` trait.
 std = ["alloc"]
