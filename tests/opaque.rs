@@ -1,3 +1,5 @@
+fn check<T: std::error::Error>() {}
+
 mod inner {
     use snafu::prelude::*;
 
@@ -35,7 +37,6 @@ mod inner {
 
 #[test]
 fn implements_error() {
-    fn check<T: std::error::Error>() {}
     check::<inner::Error>();
     let e = inner::api().unwrap_err();
     assert!(e.to_string().contains("too big"));
@@ -55,4 +56,70 @@ fn ensure_boxed() {
 
     let e = inner::boxed_inner(2).unwrap_err();
     assert!(e.to_string().contains("too big"));
+}
+
+mod with_exact_source {
+    use super::*;
+    use snafu::prelude::*;
+
+    #[derive(Debug, Snafu)]
+    #[snafu(display("The inner error"))]
+    struct InnerError;
+
+    #[derive(Debug, Snafu)]
+    struct MiddleError(InnerError);
+
+    #[derive(Debug, Snafu)]
+    #[snafu(source(from(exact)))]
+    struct OuterError(MiddleError);
+
+    trait LocalTrait {}
+    impl LocalTrait for i32 {}
+
+    impl<T> From<T> for OuterError
+    where
+        T: LocalTrait,
+    {
+        fn from(_: T) -> Self {
+            OuterError(MiddleError(InnerError))
+        }
+    }
+
+    #[test]
+    fn usage() {
+        check::<OuterError>();
+        let e: OuterError = 42.into();
+        assert_eq!(e.to_string(), "The inner error");
+    }
+}
+
+mod with_generic_source {
+    use super::*;
+    use snafu::prelude::*;
+
+    #[derive(Debug, Snafu)]
+    #[snafu(display("The inner error"))]
+    struct InnerError;
+
+    #[derive(Debug, Snafu)]
+    struct MiddleError(InnerError);
+
+    #[derive(Debug, Snafu)]
+    #[snafu(source(from(generic)))]
+    struct OuterError(MiddleError);
+
+    fn make_inner() -> Result<(), InnerError> {
+        InnerSnafu.fail()
+    }
+
+    fn make_outer() -> Result<(), OuterError> {
+        Ok(make_inner()?)
+    }
+
+    #[test]
+    fn usage() {
+        check::<OuterError>();
+        let e: OuterError = make_outer().unwrap_err();
+        assert_eq!(e.to_string(), "The inner error");
+    }
 }

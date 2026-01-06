@@ -1,5 +1,17 @@
 error: expected boolean literal or `from`
-  --> tests/ui/attribute-unparseable.rs:12:24
+  --> tests/ui/attribute-unparseable.rs:10:24
    |
-12 |         #[snafu(source(5))]
+10 |         #[snafu(source(5))]
    |                        ^
+
+error: expected one of: `exact`, `generic` or a type followed by a comma and an expression
+  --> tests/ui/attribute-unparseable.rs:17:25
+   |
+17 |     #[snafu(source(from(Cow*, ?)))]
+   |                         ^^^
+
+error: expected `,`
+  --> tests/ui/attribute-unparseable.rs:17:28
+   |
+17 |     #[snafu(source(from(Cow*, ?)))]
+   |                            ^
