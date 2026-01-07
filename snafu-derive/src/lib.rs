@@ -572,6 +572,7 @@ impl<'a> quote::ToTokens for DisplayImpl<'a> {
             .collect();
 
         let display = Display {
+            crate_root: &self.0.crate_root,
             arms: &arms,
             original_generics: shared::GenericsWithoutDefaults::new(self.0.generics()),
             parameterized_error_name: &self.0.parameterized_name(),
@@ -753,6 +754,7 @@ impl NamedStructInfo {
         let arm = quote! { #arm };
 
         let display_impl = Display {
+            crate_root: &self.crate_root,
             arms: &[arm],
             original_generics,
             parameterized_error_name: &parameterized_struct_name,
