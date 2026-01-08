@@ -154,12 +154,8 @@ where
                 {
                     use crate::error;
 
-                    // Broken. https://github.com/rust-lang/rust/pull/114973
-                    // error::request_value::<ExitCode>(&e)
-                    //     .or_else(|| error::request_ref::<ExitCode>(&e).copied())
-
-                    error::request_ref::<ExitCode>(&e)
-                        .copied()
+                    error::request_value::<ExitCode>(&e)
+                        .or_else(|| error::request_ref::<ExitCode>(&e).copied())
                         .unwrap_or(ExitCode::FAILURE)
                 }
 

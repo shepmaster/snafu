@@ -1,13 +1,8 @@
 #![cfg(test)]
 #![feature(error_generic_member_access)]
 
+use core::error;
 use snafu::{prelude::*, Backtrace, IntoError};
-
-// https://github.com/rust-lang/rust/pull/114973
-mod error {
-    pub use core::error::request_value;
-    pub use snafu::error::{request_ref, Request};
-}
 
 #[test]
 fn provide_shorthand_on_fields_returns_a_reference() {
