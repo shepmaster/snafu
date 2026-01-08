@@ -1383,7 +1383,7 @@ impl GenerateImplicitData for Option<Backtrace> {
         {
             if !backtrace_collection_enabled() {
                 None
-            } else if error::request_ref::<Backtrace>(source).is_some() {
+            } else if backtraces(source).next().is_some() {
                 None
             } else {
                 Some(Backtrace::generate_with_source(source))
@@ -1571,6 +1571,11 @@ macro_rules! location {
     () => {
         $crate::Location::new(file!(), line!(), column!())
     };
+}
+
+#[cfg(feature = "unstable-provider-api")]
+fn backtraces(error: &dyn Error) -> impl Iterator<Item = &Backtrace> {
+    ChainCompat::new(error).filter_map(error::request_ref)
 }
 
 mod tests {
