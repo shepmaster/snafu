@@ -60,9 +60,7 @@ mod kw {
     custom_keyword!(name);
     custom_keyword!(suffix);
 
-    custom_keyword!(chain);
     custom_keyword!(opt);
-    custom_keyword!(priority);
 }
 
 #[derive(Default)]
@@ -851,12 +849,7 @@ impl Parse for Provide {
                         expr,
                     };
 
-                    if p.flags.is_chain() && !p.flags.is_ref() {
-                        let txt = "May only chain to references; please add `ref` flag";
-                        return Err(syn::Error::new_spanned(p, txt));
-                    } else {
-                        Provide::Expression(p)
-                    }
+                    Provide::Expression(p)
                 }
             },
         })
@@ -887,9 +880,7 @@ struct ProvideExpression {
 impl ProvideExpression {
     fn into_provide(self) -> crate::Provide {
         crate::Provide {
-            is_chain: self.flags.is_chain(),
             is_opt: self.flags.is_opt(),
-            is_priority: self.flags.is_priority(),
             is_ref: self.flags.is_ref(),
             ty: self.ty,
             expr: self.expr,
@@ -941,16 +932,8 @@ impl Parse for ProvideArg {
 struct ProvideFlags(Punctuated<ProvideFlagInner, token::Comma>);
 
 impl ProvideFlags {
-    fn is_chain(&self) -> bool {
-        self.0.iter().any(ProvideFlagInner::is_chain)
-    }
-
     fn is_opt(&self) -> bool {
         self.0.iter().any(ProvideFlagInner::is_opt)
-    }
-
-    fn is_priority(&self) -> bool {
-        self.0.iter().any(ProvideFlagInner::is_priority)
     }
 
     fn is_ref(&self) -> bool {
@@ -978,30 +961,17 @@ impl ToTokens for ProvideFlags {
 }
 
 enum ProvideFlagInner {
-    Chain(kw::chain),
     Opt(kw::opt),
-    Priority(kw::priority),
     Ref(token::Ref),
 }
 
 impl ProvideFlagInner {
     fn peek(input: ParseStream) -> bool {
-        input.peek(kw::chain)
-            || input.peek(kw::opt)
-            || input.peek(kw::priority)
-            || input.peek(token::Ref)
-    }
-
-    fn is_chain(&self) -> bool {
-        matches!(self, ProvideFlagInner::Chain(_))
+        input.peek(kw::opt) || input.peek(token::Ref)
     }
 
     fn is_opt(&self) -> bool {
         matches!(self, ProvideFlagInner::Opt(_))
-    }
-
-    fn is_priority(&self) -> bool {
-        matches!(self, ProvideFlagInner::Priority(_))
     }
 
     fn is_ref(&self) -> bool {
@@ -1013,12 +983,8 @@ impl Parse for ProvideFlagInner {
     fn parse(input: ParseStream) -> Result<Self> {
         let lookahead = input.lookahead1();
 
-        if lookahead.peek(kw::chain) {
-            input.parse().map(ProvideFlagInner::Chain)
-        } else if lookahead.peek(kw::opt) {
+        if lookahead.peek(kw::opt) {
             input.parse().map(ProvideFlagInner::Opt)
-        } else if lookahead.peek(kw::priority) {
-            input.parse().map(ProvideFlagInner::Priority)
         } else if lookahead.peek(token::Ref) {
             input.parse().map(ProvideFlagInner::Ref)
         } else {
@@ -1030,9 +996,7 @@ impl Parse for ProvideFlagInner {
 impl ToTokens for ProvideFlagInner {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            ProvideFlagInner::Chain(v) => v.to_tokens(tokens),
             ProvideFlagInner::Opt(v) => v.to_tokens(tokens),
-            ProvideFlagInner::Priority(v) => v.to_tokens(tokens),
             ProvideFlagInner::Ref(v) => v.to_tokens(tokens),
         }
     }

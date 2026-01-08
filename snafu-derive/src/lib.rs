@@ -75,9 +75,7 @@ impl FieldContainer {
 }
 
 struct Provide {
-    is_chain: bool,
     is_opt: bool,
-    is_priority: bool,
     is_ref: bool,
     ty: syn::Type,
     expr: syn::Expr,
@@ -873,22 +871,13 @@ impl TupleStructInfo {
         let provide_fn = if cfg!(feature = "unstable-provider-api") {
             use shared::error::PROVIDE_ARG;
 
-            let provides = shared::error::enhance_provider_list(&provides);
-            let cached_expressions = shared::error::quote_cached_expressions(&provides);
-            let user_chained = shared::error::quote_chained(&crate_root, &provides);
-
-            let (hi_explicit_calls, lo_explicit_calls) =
-                shared::error::build_explicit_provide_calls(&provides);
+            let explicit_calls = shared::error::quote_provides(&provides);
 
             Some(quote! {
                 fn provide<'a>(&'a self, #PROVIDE_ARG: &mut #crate_root::error::Request<'a>) {
                     match self {
                         Self(v) => {
-                            #(#cached_expressions;)*
-                            #(#hi_explicit_calls;)*
-                            v.provide(#PROVIDE_ARG);
-                            #(#user_chained;)*
-                            #(#lo_explicit_calls;)*
+                            #(#explicit_calls;)*
                         }
                     };
                 }

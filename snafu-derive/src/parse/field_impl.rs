@@ -20,7 +20,7 @@ fn is_implicit_backtrace(name: &proc_macro2::Ident) -> bool {
 }
 
 fn is_implicit_provide(name: &proc_macro2::Ident) -> bool {
-    is_implicit_source(name) || is_implicit_backtrace(name)
+    is_implicit_backtrace(name)
 }
 
 struct Attributes {
