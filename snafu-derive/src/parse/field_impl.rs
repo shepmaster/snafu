@@ -205,7 +205,7 @@ pub(super) fn parse_field(syn_field: &syn::Field) -> syn::Result<FieldKind> {
             name, ty, provide, ..
         } = field;
 
-        let transformation = into_transformation(source_from, ty);
+        let transformation = into_transformation(source_from, ty, false);
         // Specifying `backtrace` on a source field is how you request
         // delegation of the backtrace to the source error type.
         let backtrace_delegate = backtrace.is_some();

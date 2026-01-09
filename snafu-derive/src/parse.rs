@@ -1063,7 +1063,11 @@ struct SourceFrom {
     value: SourceFromArg,
 }
 
-fn into_transformation(source_from: Option<SourceFrom>, target_ty: Type) -> Transformation {
+fn into_transformation(
+    source_from: Option<SourceFrom>,
+    target_ty: Type,
+    default_from_is_generic: bool,
+) -> Transformation {
     match source_from {
         Some(SourceFrom { value, .. }) => match value.value {
             SourceFromValue::Exact(_) => Transformation::None {
@@ -1087,7 +1091,7 @@ fn into_transformation(source_from: Option<SourceFrom>, target_ty: Type) -> Tran
 
         None => Transformation::None {
             target_ty,
-            from_is_generic: false,
+            from_is_generic: default_from_is_generic,
         },
     }
 }

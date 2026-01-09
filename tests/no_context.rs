@@ -112,6 +112,40 @@ mod with_exact_source {
     fn custom_from_implementation() {
         let _error: Error = 42.into();
     }
+
+    // This should basically be the same as the parent module, but
+    // without the explicit `from(...)` attribute.
+    mod is_default_behavior {
+        use super::*;
+
+        #[derive(Debug, Snafu)]
+        #[snafu(context(false))]
+        struct Error {
+            source: AlphaError,
+        }
+
+        #[test]
+        fn implements_error() {
+            check::<Error>();
+        }
+
+        trait LocalTrait {}
+        impl LocalTrait for i32 {}
+
+        impl<T> From<T> for Error
+        where
+            T: LocalTrait,
+        {
+            fn from(_: T) -> Self {
+                Error { source: AlphaError }
+            }
+        }
+
+        #[test]
+        fn custom_from_implementation() {
+            let _error: Error = 42.into();
+        }
+    }
 }
 
 mod with_generic_source {

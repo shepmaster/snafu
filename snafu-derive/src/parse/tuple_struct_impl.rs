@@ -83,7 +83,7 @@ pub(crate) fn parse_tuple_struct(
         .into_iter()
         .map(|p| p.into_provide())
         .collect();
-    let transformation = into_transformation(source_from, field_ty);
+    let transformation = into_transformation(source_from, field_ty, true);
 
     Ok(TupleStructInfo {
         crate_root,
