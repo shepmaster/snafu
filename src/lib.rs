@@ -264,8 +264,6 @@
 //! capabilities, then read the [user's guide](guide) for deeper
 //! understanding.
 
-use core::fmt;
-
 #[cfg(feature = "alloc")]
 extern crate alloc;
 #[cfg(feature = "alloc")]
@@ -1420,18 +1418,19 @@ fn backtrace_collection_enabled() -> bool {
     })
 }
 
-/// The source code location where the error was reported.
-///
-/// To use it, add a field of type `Location` to your error and
-/// register it as [implicitly generated data][implicit]. When
-/// constructing the error, you do not need to provide the location:
+pub use core::panic::Location;
+
+/// To use this, add a field of type `&'static Location<'static>` to
+/// your error and register it as [implicitly generated
+/// data][implicit]. When constructing the error, you do not need to
+/// provide the location:
 ///
 /// ```rust
 /// # use snafu::prelude::*;
 /// #[derive(Debug, Snafu)]
 /// struct NeighborhoodError {
 ///     #[snafu(implicit)]
-///     loc: snafu::Location,
+///     loc: &'static snafu::Location<'static>,
 /// }
 ///
 /// fn check_next_door() -> Result<(), NeighborhoodError> {
@@ -1470,8 +1469,8 @@ fn backtrace_collection_enabled() -> bool {
 /// combinator's library.
 ///
 /// There are two workarounds:
-/// 1. Use the [`location!`] macro
-/// 1. Use [`ResultExt`] instead
+/// 1. Avoid combinators and use the non-async [`ResultExt`]
+/// 1. Construct the location explicitly, such as by the [`location!`] macro
 ///
 /// ```rust
 /// # #[cfg(feature = "futures")] {
@@ -1495,81 +1494,31 @@ fn backtrace_collection_enabled() -> bool {
 /// struct ImplicitLocationError {
 ///     source: AnotherError,
 ///     #[snafu(implicit)]
-///     location: Location,
+///     location: &'static Location<'static>,
 /// }
 ///
 /// #[derive(Debug, Snafu)]
 /// struct ExplicitLocationError {
 ///     source: AnotherError,
-///     location: Location,
+///     location: &'static Location<'static>,
 /// }
 /// # }
 /// ```
-#[derive(Copy, Clone)]
-#[non_exhaustive]
-pub struct Location {
-    /// The file where the error was reported
-    pub file: &'static str,
-    /// The line where the error was reported
-    pub line: u32,
-    /// The column where the error was reported
-    pub column: u32,
-}
-
-impl Location {
-    /// Constructs a `Location` using the given information
-    pub fn new(file: &'static str, line: u32, column: u32) -> Self {
-        Self { file, line, column }
-    }
-}
-
-impl Default for Location {
-    #[track_caller]
-    fn default() -> Self {
-        let loc = core::panic::Location::caller();
-        Self {
-            file: loc.file(),
-            line: loc.line(),
-            column: loc.column(),
-        }
-    }
-}
-
-impl GenerateImplicitData for Location {
+impl GenerateImplicitData for &'static Location<'static> {
     #[inline]
     #[track_caller]
     fn generate() -> Self {
-        Self::default()
-    }
-}
-
-impl fmt::Debug for Location {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Location")
-            .field("file", &self.file)
-            .field("line", &self.line)
-            .field("column", &self.column)
-            .finish()
-    }
-}
-
-impl fmt::Display for Location {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{file}:{line}:{column}",
-            file = self.file,
-            line = self.line,
-            column = self.column,
-        )
+        Location::caller()
     }
 }
 
 /// Constructs a [`Location`] using the current file, line, and column.
+///
+/// See the [documentation for the implementation of `GenerateImplicitData`](struct.Location.html#impl-GenerateImplicitData-for-Location%3C'static%3E) for details.
 #[macro_export]
 macro_rules! location {
     () => {
-        $crate::Location::new(file!(), line!(), column!())
+        $crate::Location::caller()
     };
 }
 
