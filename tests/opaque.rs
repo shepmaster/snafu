@@ -122,4 +122,35 @@ mod with_generic_source {
         let e: OuterError = make_outer().unwrap_err();
         assert_eq!(e.to_string(), "The inner error");
     }
+
+    // This should basically be the same as the parent module, but
+    // without the explicit `from(...)` attribute.
+    mod is_default_behavior {
+        use super::*;
+
+        #[derive(Debug, Snafu)]
+        #[snafu(display("The inner error"))]
+        struct InnerError;
+
+        #[derive(Debug, Snafu)]
+        struct MiddleError(InnerError);
+
+        #[derive(Debug, Snafu)]
+        struct OuterError(MiddleError);
+
+        fn make_inner() -> Result<(), InnerError> {
+            InnerSnafu.fail()
+        }
+
+        fn make_outer() -> Result<(), OuterError> {
+            Ok(make_inner()?)
+        }
+
+        #[test]
+        fn usage() {
+            check::<OuterError>();
+            let e: OuterError = make_outer().unwrap_err();
+            assert_eq!(e.to_string(), "The inner error");
+        }
+    }
 }
