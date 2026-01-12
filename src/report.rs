@@ -1,5 +1,5 @@
 use crate::ChainCompat;
-use core::fmt;
+use core::{fmt, panic::Location};
 
 #[cfg(feature = "std")]
 use std::process::{ExitCode, Termination};
@@ -45,10 +45,13 @@ use alloc::string::{String, ToString};
 /// [`unstable-provider-api` feature flag][provider-ff], additional
 /// capabilities will be added:
 ///
+/// 1. If provided, a [`Location`][] will be appended to each error
+///    message.
 /// 1. If provided, a [`Backtrace`][] will be included in the output.
 /// 1. If provided, a [`ExitCode`][] will be used as the return value.
 ///
 /// [provider-ff]: crate::guide::feature_flags#unstable-provider-api
+/// [`Location`]: crate::Location
 /// [`Backtrace`]: crate::Backtrace
 /// [`ExitCode`]: std::process::ExitCode
 ///
@@ -156,7 +159,7 @@ where
 
                     ChainCompat::new(&e)
                         .find_map(|e| {
-                            error::request_value(&e).or_else(|| error::request_ref(&e).copied())
+                            error::request_value(e).or_else(|| error::request_ref(e).copied())
                         })
                         .unwrap_or(ExitCode::FAILURE)
                 }
@@ -167,6 +170,24 @@ where
                 }
             }
         }
+    }
+}
+
+fn request_location(e: &dyn crate::Error) -> Option<&Location<'static>> {
+    #[cfg(feature = "unstable-provider-api")]
+    {
+        use crate::error;
+
+        error::request_ref::<&'static Location>(e)
+            .copied()
+            .or_else(|| error::request_ref::<Location>(e))
+            .or_else(|| error::request_value::<&'static Location>(e))
+    }
+
+    #[cfg(not(feature = "unstable-provider-api"))]
+    {
+        let _e = e;
+        None
     }
 }
 
@@ -208,7 +229,7 @@ impl<'a> fmt::Display for ReportFormatter<'a> {
 
 impl<'a> ReportFormatter<'a> {
     fn error_trace(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        writeln!(f, "{}", self.0)?;
+        writeln!(f, "{}", AddLocation(self.0))?;
 
         let sources = ChainCompat::new(self.0).skip(1);
         let plurality = sources.clone().take(2).count();
@@ -222,7 +243,7 @@ impl<'a> ReportFormatter<'a> {
         for (i, source) in sources.enumerate() {
             // Let's use 1-based indexing for presentation
             let i = i + 1;
-            writeln!(f, "{:3}: {}", i, source)?;
+            writeln!(f, "{:3}: {}", i, AddLocation(source))?;
         }
 
         Ok(())
@@ -237,11 +258,16 @@ impl<'a> ReportFormatter<'a> {
         let mut any_cleaned = false;
         let mut any_removed = false;
         let cleaned_messages: Vec<_> = CleanedErrorText::new(self.0)
-            .flat_map(|(_, mut msg, cleaned)| {
+            .flat_map(|(e, mut msg, cleaned)| {
                 if msg.is_empty() {
                     any_removed = true;
                     None
                 } else {
+                    if let Some(l) = request_location(e) {
+                        use core::fmt::Write;
+                        write!(msg, " ({})", l).unwrap();
+                    }
+
                     if cleaned {
                         any_cleaned = true;
                         msg.push(' ');
@@ -293,6 +319,18 @@ impl<'a> ReportFormatter<'a> {
             )?;
         }
 
+        Ok(())
+    }
+}
+
+struct AddLocation<E>(E);
+
+impl<E: crate::Error> fmt::Display for AddLocation<E> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)?;
+        if let Some(l) = request_location(&self.0) {
+            write!(f, " ({})", l)?;
+        }
         Ok(())
     }
 }
