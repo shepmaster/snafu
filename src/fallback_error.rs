@@ -21,6 +21,25 @@ pub trait Error: Debug + Display {
     }
 }
 
+impl<E> Error for &E
+where
+    E: Error + ?Sized,
+{
+    fn description(&self) -> &str {
+        #[expect(deprecated)]
+        E::description(self)
+    }
+
+    fn cause(&self) -> Option<&dyn Error> {
+        #[expect(deprecated)]
+        E::cause(self)
+    }
+
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        E::source(self)
+    }
+}
+
 macro_rules! impl_error {
     ($($e:path),*) => {
         $(
