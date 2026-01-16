@@ -45,7 +45,7 @@ mod try_future {
             let wrapped_error = wrapped_error_future.await.unwrap_err();
 
             assert_eq!(
-                wrapped_error.location.line,
+                wrapped_error.location.line(),
                 base_line + 3,
                 "Actual location: {}",
                 wrapped_error.location,
@@ -62,7 +62,7 @@ mod try_future {
             let wrapped_error = wrapped_error_future.await.unwrap_err();
 
             assert_eq!(
-                wrapped_error.location.line,
+                wrapped_error.location.line(),
                 base_line + 2,
                 "Actual location: {}",
                 wrapped_error.location,
@@ -81,7 +81,7 @@ mod try_future {
             // `.await` calls our implementation of `poll`, so the
             // location corresponds to that line.
             assert_eq!(
-                wrapped_error.location.line,
+                wrapped_error.location.line(),
                 base_line + 3,
                 "Actual location: {}",
                 wrapped_error.location,
@@ -100,7 +100,7 @@ mod try_future {
             // `.await` calls our implementation of `poll`, so the
             // location corresponds to that line.
             assert_eq!(
-                wrapped_error.location.line,
+                wrapped_error.location.line(),
                 base_line + 3,
                 "Actual location: {}",
                 wrapped_error.location,
@@ -119,7 +119,7 @@ mod try_future {
             // `.await` calls our implementation of `poll`, so the
             // location corresponds to that line.
             assert_eq!(
-                wrapped_error.location.line,
+                wrapped_error.location.line(),
                 base_line + 3,
                 "Actual location: {}",
                 wrapped_error.location,
@@ -138,7 +138,7 @@ mod try_future {
             // `.await` calls our implementation of `poll`, so the
             // location corresponds to that line.
             assert_eq!(
-                wrapped_error.location.line,
+                wrapped_error.location.line(),
                 base_line + 3,
                 "Actual location: {}",
                 wrapped_error.location,
@@ -161,7 +161,7 @@ mod try_stream {
             let wrapped_error = wrapped_error_stream.next().await.unwrap().unwrap_err();
 
             assert_eq!(
-                wrapped_error.location.line,
+                wrapped_error.location.line(),
                 base_line + 3,
                 "Actual location: {}",
                 wrapped_error.location,
@@ -178,7 +178,7 @@ mod try_stream {
             let wrapped_error = wrapped_error_stream.next().await.unwrap().unwrap_err();
 
             assert_eq!(
-                wrapped_error.location.line,
+                wrapped_error.location.line(),
                 base_line + 2,
                 "Actual location: {}",
                 wrapped_error.location,
@@ -196,7 +196,7 @@ mod try_stream {
             // `StreamExt::next` doesn't have `[track_caller]`, so the
             // location is inside the futures library.
             assert!(
-                wrapped_error.location.file.contains("/futures-util-"),
+                wrapped_error.location.file().contains("/futures-util-"),
                 "Actual location: {}",
                 wrapped_error.location,
             );
@@ -213,7 +213,7 @@ mod try_stream {
             // `StreamExt::next` doesn't have `[track_caller]`, so the
             // location is inside the futures library.
             assert!(
-                wrapped_error.location.file.contains("/futures-util-"),
+                wrapped_error.location.file().contains("/futures-util-"),
                 "Actual location: {}",
                 wrapped_error.location,
             );
@@ -230,7 +230,7 @@ mod try_stream {
             // `StreamExt::next` doesn't have `[track_caller]`, so the
             // location is inside the futures library.
             assert!(
-                wrapped_error.location.file.contains("/futures-util-"),
+                wrapped_error.location.file().contains("/futures-util-"),
                 "Actual location: {}",
                 wrapped_error.location,
             );
@@ -247,7 +247,7 @@ mod try_stream {
             // `StreamExt::next` doesn't have `[track_caller]`, so the
             // location is inside the futures library.
             assert!(
-                wrapped_error.location.file.contains("/futures-util-"),
+                wrapped_error.location.file().contains("/futures-util-"),
                 "Actual location: {}",
                 wrapped_error.location,
             );
