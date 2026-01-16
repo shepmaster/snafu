@@ -104,7 +104,7 @@ pub(super) struct Provide;
 impl Provide {
     pub(super) const FALSE_ON_WRONG_FIELD: WrongField = WrongField {
         attribute: "provide(false)",
-        valid_field: r#"source" or "backtrace"#,
+        valid_field: "backtrace",
     };
 }
 

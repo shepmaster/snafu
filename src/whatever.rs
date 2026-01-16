@@ -56,10 +56,8 @@ use crate::{Backtrace, ChainCompat, Snafu};
 #[snafu(crate_root(crate))]
 #[snafu(whatever)]
 #[snafu(display("{message}"))]
-#[snafu(provide(opt, ref, chain, dyn crate::Error + Send + Sync => source.as_deref()))]
 pub struct Whatever {
     #[snafu(source(from(Box<dyn crate::Error + Send + Sync>, Some)))]
-    #[snafu(provide(false))]
     source: Option<Box<dyn crate::Error + Send + Sync>>,
     message: String,
     backtrace: Backtrace,
@@ -87,10 +85,8 @@ impl Whatever {
 #[snafu(crate_root(crate))]
 #[snafu(whatever)]
 #[snafu(display("{message}"))]
-#[snafu(provide(opt, ref, chain, dyn crate::Error => source.as_deref()))]
 pub struct WhateverLocal {
     #[snafu(source(from(Box<dyn crate::Error>, Some)))]
-    #[snafu(provide(false))]
     source: Option<Box<dyn crate::Error>>,
     message: String,
     backtrace: Backtrace,

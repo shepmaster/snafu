@@ -573,6 +573,7 @@ allows arbitrary data to be associated with an error instance,
 expanding the abilities of the receiver of the error:
 
 ```rust,ignore
+use core::error;
 use snafu::prelude::*;
 
 #[derive(Debug)]
@@ -590,16 +591,14 @@ enum ApiError {
         user_id: UserId,
     },
 
-    NetworkUnreachable {
-        source: std::io::Error,
-    },
+    NetworkUnreachable { source: std::io::Error },
 }
 
 let e = LoginSnafu { user_id: UserId(0) }.build();
 match error::request_ref::<UserId>(&e) {
     // Present when ApiError::Login or ApiError::Logout
-    Some(user_id) => {
-        println!("{user_id:?} experienced an error");
+    Some(UserId(user_id)) => {
+        println!("{user_id} experienced an error");
     }
     // Absent when ApiError::NetworkUnreachable
     None => {
@@ -618,43 +617,50 @@ support for stable Rust.
 
 ### Automatically provided data
 
-By default, `source` and `backtrace` fields are exposed to the
-provider API. Additionally, any data provided by the wrapped error
-will be available on the wrapping error:
+By default, `backtrace` fields are exposed to the provider API:
 
 ```rust,ignore
-use snafu::{prelude::*, IntoError};
+use core::error;
+use snafu::prelude::*;
 
-#[derive(Debug)]
-struct UserId(u8);
+#[derive(Debug, Snafu)]
+struct AuthorizationError {
+    backtrace: snafu::Backtrace,
+}
+
+let e = AuthorizationSnafu.build();
+
+// We can get the backtrace
+error::request_ref::<snafu::Backtrace>(&e).expect("Must have a backtrace");
+```
+
+The backtrace from the current error will be provided. Most usages of
+a backtrace will want to walk the error chain to find the deepest
+possible backtrace:
+
+```rust,ignore
+use core::error;
+use snafu::{prelude::*, ErrorCompat, IntoError};
 
 #[derive(Debug, Snafu)]
 struct InnerError {
-    #[snafu(provide)]
-    user_id: UserId,
     backtrace: snafu::Backtrace,
 }
 
 #[derive(Debug, Snafu)]
 struct OuterError {
     source: InnerError,
+    backtrace: snafu::Backtrace,
 }
 
-let outer = OuterSnafu.into_error(InnerSnafu { user_id: UserId(0) }.build());
+let e = OuterSnafu.into_error(InnerSnafu.build());
 
-// We can get the source error and downcast it at once
-error::request_ref::<InnerError>(&outer).expect("Must have a source");
-
-// We can get the deepest backtrace
-error::request_ref::<snafu::Backtrace>(&outer).expect("Must have a backtrace");
-
-// We can get arbitrary values from sources as well
-error::request_ref::<UserId>(&outer).expect("Must have a user id");
+// Get the deepest backtrace
+ErrorCompat::iter_chain(&e)
+    .filter_map(error::request_ref::<snafu::Backtrace>)
+    .last()
+    .expect("Must have a backtrace");
 ```
-
-By default, SNAFU will gather the provided data from the source first,
-before providing any data from the current error. This can be
-overridden through the [`priority` flag][provide-flag-priority].
 
 ### Manually provided data
 
@@ -665,6 +671,7 @@ can be placed on the error struct or enum variant. In this location,
 you supply a type and an expression that will generate that type:
 
 ```rust,ignore
+use core::error;
 use snafu::prelude::*;
 
 #[derive(Debug, PartialEq)]
@@ -683,6 +690,7 @@ assert_eq!(Some(HTTP_NOT_FOUND), error::request_value::<HttpCode>(&e));
 The expression may access any field of the error as well as `self`:
 
 ```rust,ignore
+use core::error;
 use snafu::prelude::*;
 
 #[derive(Debug, PartialEq)]
@@ -717,6 +725,7 @@ Provides the data as a reference instead of as a value. The reference
 must live as long as the error itself.
 
 ```rust,ignore
+use core::error;
 use snafu::prelude::*;
 
 #[derive(Debug, Snafu)]
@@ -738,6 +747,7 @@ If the data being provided is an `Option<T>`, the `opt` flag will
 flatten the data, allowing you to request `T` instead of `Option<T>`.
 
 ```rust,ignore
+use core::error;
 use snafu::prelude::*;
 
 #[derive(Debug, Snafu)]
@@ -749,74 +759,6 @@ struct OptFlagExampleError {
 let e = OptFlagExampleSnafu { char_code: b'x' }.build();
 
 assert_eq!(Some('x'), error::request_value::<char>(&e));
-```
-
-#### `provide(priority, ...`
-
-[provide-flag-priority]: #providepriority-
-
-[`Error::provide`][] works by types and can only return one piece of
-data for a type. When there are multiple pieces of data for the same
-type, the one that is provided *first* will be used.
-
-By default, SNAFU provides data from any source error or
-[chained][provide-flag-chain] fields before any data from the current
-error. This means that the *deepest* matching data is returned.
-
-Specifying the `priority` flag will cause that data to take precedence
-over the chained data, resulting in the *shallower* data being
-returned.
-
-```rust,ignore
-use snafu::{prelude::*, IntoError};
-
-#[derive(Debug, PartialEq)]
-struct Fatal(bool);
-
-#[derive(Debug, Snafu)]
-#[snafu(provide(Fatal => Fatal(true)))]
-struct InnerError;
-
-#[derive(Debug, Snafu)]
-#[snafu(provide(priority, Fatal => Fatal(false)))]
-struct PriorityFlagExampleError {
-    source: InnerError,
-}
-
-let e = PriorityFlagExampleSnafu.into_error(InnerError);
-
-assert_eq!(Some(Fatal(false)), error::request_value::<Fatal>(&e));
-```
-
-#### `provide(chain, ...`
-
-[provide-flag-chain]: #providechain-
-
-If a member of your error implements [`Error`][] and you'd like for
-its data to be included when providing data for your error, but it
-isn't automatically provided because it's not a source error, you may
-add the `chain` flag. This flag must always be combined with the
-[`ref` flag][provide-flag-ref].
-
-```rust,ignore
-use snafu::prelude::*;
-
-#[derive(Debug, Snafu)]
-#[snafu(provide(u8 => 1))]
-struct NotTheSourceError;
-
-#[derive(Debug, Snafu)]
-#[snafu(provide(ref, chain, NotTheSourceError => data))]
-struct ChainFlagExampleError {
-    data: NotTheSourceError,
-}
-
-let e = ChainFlagExampleSnafu {
-    data: NotTheSourceError,
-}
-.build();
-
-assert_eq!(Some(1), error::request_value::<u8>(&e));
 ```
 
 ### API stability concerns

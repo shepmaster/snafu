@@ -160,7 +160,7 @@ error: `source(false)` and `source(from)` may not be provided together on a fiel
 46 |             #[snafu(source(from(XXXX, Box::new)))]
    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error: `provide(false)` attribute is only valid on a field named "source" or "backtrace", not on other fields
+error: `provide(false)` attribute is only valid on a field named "backtrace", not on other fields
   --> tests/ui/attribute-misuse.rs:55:21
    |
 55 |             #[snafu(provide(false))]
