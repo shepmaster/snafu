@@ -9,6 +9,72 @@ modifying code to account for new releases.
 
 [upgrading guide]: https://docs.rs/snafu/*/snafu/guide/upgrading/index.html
 
+## [0.9.0] - 2026-XX-XX
+
+### Added
+
+- `WhateverLocal` is an alternate to `Whatever` that does not
+  implement or require `Send` or `Sync`.
+
+- Errors that do not use context selectors (e.g. opaque errors,
+  `#[snafu(context(false))]` errors, or `#[snafu(transparent)]`
+  errors) may now be constructed using a generic value when they are
+  annotated with the `#[snafu(source(from(generic)))]` attribute.
+
+- When using the `unstable-provider-api` feature flag, `Report` will
+  check if each error provides a `Location`. When it does, the
+  `Location` will be appended to the error message.
+
+### Fixed
+
+- Opaque errors which use const generics with default values are now
+  supported.
+
+### Changed
+
+- Rust 1.65 is now the *minimum* supported Rust version. This is a
+  **breaking change**.
+
+- Rust 1.81 is now the *default* supported Rust version. This is a
+  **breaking change**.
+
+- `Whatever` implements `Send` and `Sync`, allowing it to be sent
+  between threads. This requires that wrapped errors also implement
+  `Send` and `Sync`. This is a **breaking change**.
+
+- `snafu::Location` has been replaced with a type alias to the
+  standard library's `Location` (specifically a reference to that
+  type: `&'static core::panic::Location<'static>`). This improves
+  interoperability and access to features. This is a **breaking
+  change**.
+
+- Opaque errors default to allowing construction from any value that
+  implements `Into` for the wrapped type. The previous behavior can be
+  restored with `#[snafu(source(from(exact)))]`. This is a **breaking
+  change**.
+
+- The internal implementation of `#[snafu]` attribute parsing has been
+  rewritten. This should largely be unnoticeable, but some error
+  messages and spans have been improved, and memory usage may be
+  slightly reduced.
+
+### Removed
+
+- The deprecated `Error::description` and `Error::cause` methods are
+  no longer generated.
+
+- The `rust_1_61`, `rust_1_65`, and `unstable-core-error` feature
+  flags have been removed.
+
+- When using the `unstable-provider-api` feature flag, the source
+  error is no longer provided by default. This impacts regular and
+  opaque errors, as well as `Whatever` and `WhateverLocal`.
+
+- When using the `unstable-provider-api` feature flag, provided values
+  may no longer be chained or have chaining priority assigned.
+
+[0.9.0]: https://github.com/shepmaster/snafu/releases/tag/0.9.0
+
 ## [0.8.9] - 2025-09-03
 
 ### Fixed

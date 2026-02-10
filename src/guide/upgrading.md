@@ -1,5 +1,6 @@
 # Upgrading from previous releases
 
+- [Version 0.8 → 0.9](#version-08--09)
 - [Version 0.7 → 0.8](#version-07--08)
 - [Version 0.6 → 0.7](#version-06--07)
 - [Version 0.5 → 0.6](#version-05--06)
@@ -7,6 +8,87 @@
 - [Version 0.3 → 0.4](#version-03--04)
 - [Version 0.2 → 0.3](#version-02--03)
 - [Version 0.1 → 0.2](#version-01--02)
+
+## Version 0.8 → 0.9
+
+### `Whatever` vs `WhateverLocal`
+
+Previously, [`Whatever`][] did not implement the [`Send`][] or
+[`Sync`][] traits, which caused some friction when using it in
+multithreaded environments, including in many popular asynchronous
+executors.
+
+`Whatever` now implements `Send` and `Sync`, which in turn requires
+that any wrapped errors also implement those traits. If you were
+relying on the absence of those traits, the sibling type
+[`WhateverLocal`][] has been introduced and can be used as a drop-in
+replacement.
+
+### `snafu::Location`
+
+Previously, [`Location`][] was a type defined by SNAFU. With this
+release, `Location` becomes a type alias to a reference to
+[`core::panic::Location`][].
+
+If you were accessing a field of `Location` such as `line` or
+`column`, you will need to call the method of the same name instead.
+
+If you were constructing a `Location` via `Location::new` with the
+current source location, consider using the [`location!`][] macro or
+[`core::panic::Location::caller`][]. Even better, mark the field as
+[implicit][] and let SNAFU automatically capture the location data for
+you.
+
+If you were constructing a `Location` with something other than the
+current source location, there is no direct replacement; if you still
+need that capability, you will need to create your own type.
+
+[implicit]: Snafu#controlling-implicitly-generated-data
+
+### Opaque errors may be built from generic types by default
+
+Opaque errors now implement [`From`][] for any type that can be
+converted into the wrapped error type. For example:
+
+```rust
+#[derive(Debug, Snafu)]
+struct SomeOpaqueError(InnerError);
+
+// The `Snafu` macro generates code equivalent to this:
+impl From<E> for SomeOpaqueError
+where
+    E: Into<InnerError>,
+```
+
+This blanket `From` implementation will conflict with any existing
+implementation of `From` on the opaque error type. In some cases, the
+existing `From` implementation can be replaced with the generated
+implementation, but in other cases you may need to [disable the
+transformation][disable-source-transform] using
+`#[snafu(source(from(exact)))]`.
+
+[disable-source-transform]: Snafu#disabling-source-transformation
+
+### Building errors from generic types
+
+If you used source transformation for an error type with the
+non-idiomatic name `exact` or `generic`, that will now be treated as a
+keyword for the macro. You'll need to refer to it using the raw
+identifier syntax as `r#exact` or `r#generic`.
+
+### The Provider API
+
+Previously, the source error was provided by default. If you were
+relying on this, you can add an explicit `#[snafu(provide)]` to the
+source error field, but it is more idiomatic to use
+[`Error::source`][] combined with downcasting instead.
+
+Previously, errors could "chain" provided values from a wrapped
+error. Instead, walk the sources of the iterator yourself and check
+for the value you need. This aligns with how you would iterate through
+the sources to get the error to display and allows the caller to
+decide if the shallowest or deepest provided value should take
+precedence.
 
 ## Version 0.7 → 0.8
 
