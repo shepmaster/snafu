@@ -69,7 +69,7 @@ mod track_caller {
         let base_line = line!();
         let inner = InnerSnafu.build();
         assert_eq!(
-            inner.location.line,
+            inner.location.line(),
             base_line + 1,
             "Actual location: {}",
             inner.location,
@@ -81,7 +81,7 @@ mod track_caller {
         let base_line = line!();
         let inner = InnerSnafu.fail::<()>().unwrap_err();
         assert_eq!(
-            inner.location.line,
+            inner.location.line(),
             base_line + 1,
             "Actual location: {}",
             inner.location,
@@ -97,7 +97,7 @@ mod track_caller {
         }
         let inner = x().unwrap_err();
         assert_eq!(
-            inner.location.line,
+            inner.location.line(),
             base_line + 2,
             "Actual location: {}",
             inner.location,
@@ -112,7 +112,7 @@ mod track_caller {
         }
         let inner = x().unwrap_err();
         assert_eq!(
-            inner.location.line,
+            inner.location.line(),
             base_line + 2,
             "Actual location: {}",
             inner.location,
@@ -127,7 +127,7 @@ mod track_caller {
             .context(WrapNoUserFieldsSnafu)
             .unwrap_err();
         assert_eq!(
-            wrap_no_user_fields.location.line,
+            wrap_no_user_fields.location.line(),
             base_line + 3,
             "Actual location: {}",
             wrap_no_user_fields.location,
@@ -142,7 +142,7 @@ mod track_caller {
             .with_context(|_| WrapNoUserFieldsSnafu)
             .unwrap_err();
         assert_eq!(
-            wrap_no_user_fields.location.line,
+            wrap_no_user_fields.location.line(),
             base_line + 3,
             "Actual location: {}",
             wrap_no_user_fields.location,
@@ -154,7 +154,7 @@ mod track_caller {
         let base_line = line!();
         let wrap_no_context: WrapNoContext = InnerSnafu.build().into();
         assert_eq!(
-            wrap_no_context.location.line,
+            wrap_no_context.location.line(),
             base_line + 1,
             "Actual location: {}",
             wrap_no_context.location,
@@ -169,7 +169,7 @@ mod track_caller {
             .whatever_context("bang")
             .unwrap_err();
         assert_eq!(
-            whatever.location.line,
+            whatever.location.line(),
             base_line + 3,
             "Actual location: {}",
             whatever.location,
@@ -184,7 +184,7 @@ mod track_caller {
             .with_whatever_context(|_| "bang")
             .unwrap_err();
         assert_eq!(
-            whatever.location.line,
+            whatever.location.line(),
             base_line + 3,
             "Actual location: {}",
             whatever.location,
@@ -196,7 +196,7 @@ mod track_caller {
         let base_line = line!();
         let option_to_error_no_user_fields = None::<()>.context(InnerSnafu).unwrap_err();
         assert_eq!(
-            option_to_error_no_user_fields.location.line,
+            option_to_error_no_user_fields.location.line(),
             base_line + 1,
             "Actual location: {}",
             option_to_error_no_user_fields.location,
@@ -208,7 +208,7 @@ mod track_caller {
         let base_line = line!();
         let option_to_error_no_user_fields = None::<()>.with_context(|| InnerSnafu).unwrap_err();
         assert_eq!(
-            option_to_error_no_user_fields.location.line,
+            option_to_error_no_user_fields.location.line(),
             base_line + 1,
             "Actual location: {}",
             option_to_error_no_user_fields.location,
@@ -220,7 +220,7 @@ mod track_caller {
         let base_line = line!();
         let whatever: MyWhatever = None::<()>.whatever_context("bang").unwrap_err();
         assert_eq!(
-            whatever.location.line,
+            whatever.location.line(),
             base_line + 1,
             "Actual location: {}",
             whatever.location,
@@ -232,7 +232,7 @@ mod track_caller {
         let base_line = line!();
         let whatever: MyWhatever = None::<()>.with_whatever_context(|| "bang").unwrap_err();
         assert_eq!(
-            whatever.location.line,
+            whatever.location.line(),
             base_line + 1,
             "Actual location: {}",
             whatever.location,
