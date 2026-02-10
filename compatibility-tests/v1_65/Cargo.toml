@@ -12,3 +12,4 @@ snafu = { path = "../..", default-features = false, features = ["std"] }
 quote = { version = "=1.0.41", default-features = false }
 syn = { version = "=2.0.106", default-features = false }
 proc-macro2 = { version = "=1.0.103", default-features = false }
+unicode-ident = { version = "=1.0.22", default-features = false }
