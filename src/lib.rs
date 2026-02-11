@@ -1520,21 +1520,32 @@ fn backtrace_collection_enabled() -> bool {
 /// 1. Construct the location explicitly, such as by the [`location!`] macro
 ///
 /// ```rust
-/// # #[cfg(feature = "futures")] {
+/// # #[cfg(all(feature = "futures", feature = "internal-dev-dependencies"))] {
+/// # use futures_crate as futures;
 /// # use snafu::{prelude::*, Location, location};
+/// # let body = async {
 /// // Non-ideal: will report where `wrapped_error_future` is `.await`ed.
+/// # let base_location = location!();
 /// # let error_future = async { AnotherSnafu.fail::<()>() };
 /// let wrapped_error_future = error_future.context(ImplicitLocationSnafu);
+/// # let wrapped_error = wrapped_error_future.await.unwrap_err();
+/// # assert_eq!(wrapped_error.location.line(), base_location.line() + 3);
 ///
 /// // Better: will report the location of `.context`.
+/// # let base_location = location!();
 /// # let error_future = async { AnotherSnafu.fail::<()>() };
 /// let wrapped_error_future = async { error_future.await.context(ImplicitLocationSnafu) };
+/// # let wrapped_error = wrapped_error_future.await.unwrap_err();
+/// # assert_eq!(wrapped_error.location.line(), base_location.line() + 2);
 ///
 /// // Better: Will report the location of `location!`
+/// # let base_location = location!();
 /// # let error_future = async { AnotherSnafu.fail::<()>() };
 /// let wrapped_error_future = error_future.with_context(|_| ExplicitLocationSnafu {
 ///     location: location!(),
 /// });
+/// # let wrapped_error = wrapped_error_future.await.unwrap_err();
+/// # assert_eq!(wrapped_error.location.line(), base_location.line() + 3);
 ///
 /// # #[derive(Debug, Snafu)] struct AnotherError;
 /// #[derive(Debug, Snafu)]
@@ -1549,6 +1560,8 @@ fn backtrace_collection_enabled() -> bool {
 ///     source: AnotherError,
 ///     location: snafu::Location,
 /// }
+/// # };
+/// # futures::executor::block_on(body);
 /// # }
 /// ```
 pub type Location = &'static core::panic::Location<'static>;
