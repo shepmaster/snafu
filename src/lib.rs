@@ -1443,12 +1443,60 @@ fn backtrace_collection_enabled() -> bool {
 ///
 /// ## Limitations
 ///
-/// ### Disabled context selectors
+/// Implicitly generated data, including `Location`, is generated when
+/// the wrapping error value is constructed:
 ///
-/// If you have [disabled the context selector][disabled], SNAFU will
-/// not be able to capture an accurate location.
+/// ```rust
+/// # use snafu::{prelude::*, Location, location};
+/// # fn fallible_code() -> Result<(), InnerError> { Err(InnerError) }
+/// # #[derive(Debug, Snafu)] struct InnerError;
+/// # #[derive(Debug, Snafu)]
+/// # struct InterestingError {
+/// #   source: InnerError,
+/// #   #[snafu(implicit)] location: Location,
+/// # }
+/// # let base_loc = location!();
+/// # let r: Result<(), InterestingError> = (|| {
+/// // The first we know about the error is on this line:
+/// let e = fallible_code();
+/// // but the location will correspond to this line:
+/// e.context(InterestingSnafu)?;
+/// # Ok(())
+/// # })();
+/// # let e = r.unwrap_err();
+/// # assert_eq!(e.location.line(), base_loc.line() + 5);
+/// ```
 ///
-/// As a workaround, re-enable the context selector.
+/// If you have [disabled the context selector][disabled], the
+/// `Location` will correspond to where the `From` implementation is
+/// invoked. This is usually part of the `?` operator:
+///
+/// ```rust
+/// # use snafu::{prelude::*, Location, location};
+/// # fn fallible_code() -> Result<(), InnerError> { Err(InnerError) }
+/// # #[derive(Debug, Snafu)] struct InnerError;
+/// # #[derive(Debug, Snafu)]
+/// # #[snafu(context(false))]
+/// # struct InterestingError {
+/// #   source: InnerError,
+/// #   #[snafu(implicit)] location: Location,
+/// # }
+/// # let base_loc = location!();
+/// # let r: Result<(), InterestingError> = (|| {
+/// // The first we know about the error is on this line:
+/// let e = fallible_code();
+/// // but the location will correspond to this line:
+/// e?;
+/// # Ok(())
+/// # })();
+/// # let e = r.unwrap_err();
+/// # assert_eq!(e.location.line(), base_loc.line() + 5);
+/// ```
+///
+/// Inspecting the code at the generated `Location` will usually
+/// quickly lead back to the original error, but it's recommended to
+/// create the wrapping error as close to the original error location
+/// to reduce confusion.
 ///
 /// [disabled]: Snafu#disabling-the-context-selector
 ///
@@ -1472,21 +1520,32 @@ fn backtrace_collection_enabled() -> bool {
 /// 1. Construct the location explicitly, such as by the [`location!`] macro
 ///
 /// ```rust
-/// # #[cfg(feature = "futures")] {
+/// # #[cfg(all(feature = "futures", feature = "internal-dev-dependencies"))] {
+/// # use futures_crate as futures;
 /// # use snafu::{prelude::*, Location, location};
+/// # let body = async {
 /// // Non-ideal: will report where `wrapped_error_future` is `.await`ed.
+/// # let base_location = location!();
 /// # let error_future = async { AnotherSnafu.fail::<()>() };
 /// let wrapped_error_future = error_future.context(ImplicitLocationSnafu);
+/// # let wrapped_error = wrapped_error_future.await.unwrap_err();
+/// # assert_eq!(wrapped_error.location.line(), base_location.line() + 3);
 ///
 /// // Better: will report the location of `.context`.
+/// # let base_location = location!();
 /// # let error_future = async { AnotherSnafu.fail::<()>() };
 /// let wrapped_error_future = async { error_future.await.context(ImplicitLocationSnafu) };
+/// # let wrapped_error = wrapped_error_future.await.unwrap_err();
+/// # assert_eq!(wrapped_error.location.line(), base_location.line() + 2);
 ///
 /// // Better: Will report the location of `location!`
+/// # let base_location = location!();
 /// # let error_future = async { AnotherSnafu.fail::<()>() };
 /// let wrapped_error_future = error_future.with_context(|_| ExplicitLocationSnafu {
 ///     location: location!(),
 /// });
+/// # let wrapped_error = wrapped_error_future.await.unwrap_err();
+/// # assert_eq!(wrapped_error.location.line(), base_location.line() + 3);
 ///
 /// # #[derive(Debug, Snafu)] struct AnotherError;
 /// #[derive(Debug, Snafu)]
@@ -1501,6 +1560,8 @@ fn backtrace_collection_enabled() -> bool {
 ///     source: AnotherError,
 ///     location: snafu::Location,
 /// }
+/// # };
+/// # futures::executor::block_on(body);
 /// # }
 /// ```
 pub type Location = &'static core::panic::Location<'static>;
