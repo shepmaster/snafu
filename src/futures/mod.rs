@@ -3,8 +3,8 @@
 //! This module is only available when the `futures` [feature flag] is
 //! enabled.
 //!
-//! [`TryFuture`]: futures_core_crate::TryFuture
-//! [`TryStream`]: futures_core_crate::TryStream
+//! [`TryFuture`]: futures_core::TryFuture
+//! [`TryStream`]: futures_core::TryStream
 //! [feature flag]: crate::guide::feature_flags
 
 pub mod try_future;

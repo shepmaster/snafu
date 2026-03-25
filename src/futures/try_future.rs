@@ -1,6 +1,6 @@
 //! Additions to the [`TryFuture`] trait.
 //!
-//! [`TryFuture`]: futures_core_crate::future::TryFuture
+//! [`TryFuture`]: futures_core::future::TryFuture
 
 use crate::{Error, ErrorCompat, IntoError};
 use core::{
@@ -9,7 +9,7 @@ use core::{
     pin::Pin,
     task::{Context as TaskContext, Poll},
 };
-use futures_core_crate::future::TryFuture;
+use futures_core::future::TryFuture;
 use pin_project::pin_project;
 
 #[cfg(feature = "alloc")]
@@ -25,7 +25,6 @@ pub trait TryFutureExt: TryFuture + Sized {
     ///
     /// ```rust
     /// # #[cfg(feature = "internal-dev-dependencies")] {
-    /// # use futures_crate as futures;
     /// use futures::future::TryFuture;
     /// use snafu::prelude::*;
     ///
@@ -65,7 +64,6 @@ pub trait TryFutureExt: TryFuture + Sized {
     ///
     /// ```rust
     /// # #[cfg(feature = "internal-dev-dependencies")] {
-    /// # use futures_crate as futures;
     /// use futures::future::TryFuture;
     /// use snafu::prelude::*;
     ///
@@ -115,7 +113,6 @@ pub trait TryFutureExt: TryFuture + Sized {
     ///
     /// ```rust
     /// # #[cfg(feature = "internal-dev-dependencies")] {
-    /// # use futures_crate as futures;
     /// use futures::future::TryFuture;
     /// use snafu::{prelude::*, Whatever};
     ///
@@ -146,7 +143,6 @@ pub trait TryFutureExt: TryFuture + Sized {
     ///
     /// ```rust
     /// # #[cfg(feature = "internal-dev-dependencies")] {
-    /// # use futures_crate as futures;
     /// use futures::future::TryFuture;
     /// use snafu::{prelude::*, Whatever};
     ///

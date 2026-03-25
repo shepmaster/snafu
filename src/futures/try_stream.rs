@@ -1,6 +1,6 @@
 //! Additions to the [`TryStream`] trait.
 //!
-//! [`TryStream`]: futures_core_crate::TryStream
+//! [`TryStream`]: futures_core::TryStream
 
 use crate::{Error, ErrorCompat, IntoError};
 use core::{
@@ -8,7 +8,7 @@ use core::{
     pin::Pin,
     task::{Context as TaskContext, Poll},
 };
-use futures_core_crate::stream::{Stream, TryStream};
+use futures_core::stream::{Stream, TryStream};
 use pin_project::pin_project;
 
 #[cfg(any(feature = "alloc", test))]
@@ -24,7 +24,6 @@ pub trait TryStreamExt: TryStream + Sized {
     ///
     /// ```rust
     /// # #[cfg(feature = "internal-dev-dependencies")] {
-    /// # use futures_crate as futures;
     /// use futures::TryStream;
     /// # use futures::stream;
     /// use snafu::prelude::*;
@@ -65,7 +64,6 @@ pub trait TryStreamExt: TryStream + Sized {
     ///
     /// ```rust
     /// # #[cfg(feature = "internal-dev-dependencies")] {
-    /// # use futures_crate as futures;
     /// use futures::TryStream;
     /// # use futures::stream;
     /// use snafu::prelude::*;
@@ -116,7 +114,6 @@ pub trait TryStreamExt: TryStream + Sized {
     ///
     /// ```rust
     /// # #[cfg(feature = "internal-dev-dependencies")] {
-    /// # use futures_crate as futures;
     /// use futures::TryStream;
     /// # use futures::stream;
     /// use snafu::{prelude::*, Whatever};
@@ -148,7 +145,6 @@ pub trait TryStreamExt: TryStream + Sized {
     ///
     /// ```rust
     /// # #[cfg(feature = "internal-dev-dependencies")] {
-    /// # use futures_crate as futures;
     /// use futures::TryStream;
     /// # use futures::stream;
     /// use snafu::{prelude::*, Whatever};
