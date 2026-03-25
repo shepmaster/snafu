@@ -1,5 +1,4 @@
 #![cfg(test)]
-#![feature(try_trait_v2)]
 
 use snafu::{prelude::*, Report};
 
