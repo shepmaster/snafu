@@ -1521,7 +1521,6 @@ fn backtrace_collection_enabled() -> bool {
 ///
 /// ```rust
 /// # #[cfg(all(feature = "futures", feature = "internal-dev-dependencies"))] {
-/// # use futures_crate as futures;
 /// # use snafu::{prelude::*, Location, location};
 /// # let body = async {
 /// // Non-ideal: will report where `wrapped_error_future` is `.await`ed.

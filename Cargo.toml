@@ -41,7 +41,7 @@ alloc = []
 rust_1_81 = []
 
 # The backtrace type becomes `backtrace::Backtrace`
-backtraces-impl-backtrace-crate = ["backtrace"]
+backtraces-impl-backtrace-crate = ["dep:backtrace"]
 
 # The std::error::Error provider API will be implemented.
 unstable-provider-api = ["snafu-derive/unstable-provider-api"]
@@ -50,14 +50,21 @@ unstable-provider-api = ["snafu-derive/unstable-provider-api"]
 unstable-try-trait = []
 
 # The standard library's implementation of futures
-futures = ["futures-core-crate", "pin-project"]
+futures = ["dep:futures-core", "dep:pin-project"]
 
 # Include the built-in user guide documentation
 guide = []
 
 # No public user should make use of this feature
 # https://github.com/rust-lang/cargo/issues/1596
-"internal-dev-dependencies" = ["futures-crate"]
+"internal-dev-dependencies" = ["dep:futures"]
+
+# these do nothing and should be removed with the next breaking release
+# they only exist for backwards compatibility with prior implicit features
+backtrace = []
+futures-crate = []
+futures-core-crate = []
+pin-project = []
 
 [workspace]
 # The compatibility tests each set feature flags for the library and
@@ -67,6 +74,6 @@ exclude = ["compatibility-tests"]
 [dependencies]
 snafu-derive = { path = "snafu-derive", version = "0.9.0" }
 backtrace = { version = "0.3.0", optional = true, default-features = false, features = ["std"] }
-futures-crate = { package = "futures", version = "0.3.11", optional = true, default-features = false, features = ["executor"] }
-futures-core-crate = { package = "futures-core", version = "0.3.0", optional = true, default-features = false }
+futures = { version = "0.3.11", optional = true, default-features = false, features = ["executor"] }
+futures-core = { version = "0.3.0", optional = true, default-features = false }
 pin-project = { version = "1.0.2", optional = true, default-features = false }
