@@ -541,7 +541,7 @@ macro_rules! whatever {
             $crate::FromString::without_source(
                 $crate::__format!($fmt$(, $($arg),*)*),
             )
-        });
+        })
     };
     ($source:expr, $fmt:literal$(, $($arg:expr),* $(,)?)*) => {
         match $source {
