@@ -1,6 +1,6 @@
 [package]
 name = "snafu"
-version = "0.9.1"
+version = "0.9.2"
 authors = ["Jake Goulding <jake.goulding@gmail.com>"]
 edition = "2018"
 rust-version = "1.65"
@@ -72,7 +72,7 @@ pin-project = []
 exclude = ["compatibility-tests"]
 
 [dependencies]
-snafu-derive = { path = "snafu-derive", version = "0.9.1" }
+snafu-derive = { path = "snafu-derive", version = "0.9.2" }
 backtrace = { version = "0.3.0", optional = true, default-features = false, features = ["std"] }
 futures = { version = "0.3.11", optional = true, default-features = false, features = ["executor"] }
 futures-core = { version = "0.3.0", optional = true, default-features = false }
