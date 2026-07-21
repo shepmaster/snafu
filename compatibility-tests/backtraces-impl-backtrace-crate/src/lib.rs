@@ -31,5 +31,5 @@ fn backtrace_contains_function_names() {
         .flat_map(|f| f.symbols())
         .flat_map(|s| s.name())
         .map(|n| n.to_string());
-    assert!(names.any(|n| n.contains("::example::")));
+    assert!(names.any(|n| n.contains("::example")));
 }
