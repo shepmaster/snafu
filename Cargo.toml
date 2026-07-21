@@ -16,7 +16,7 @@ keywords = ["error", "ergonomic", "library", "no_std"]
 categories = ["rust-patterns", "no-std"]
 
 exclude = [
-  "/.cirrus.yml",
+  "/.github",
   "/.gitignore",
   "/rust-toolchain",
 ]
