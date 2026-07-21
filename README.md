@@ -47,5 +47,5 @@ a full description.
 [Doc Logo]: https://docs.rs/snafu/badge.svg
 [Guide]: https://docs.rs/snafu/*/snafu/guide/index.html
 
-[CI]: https://cirrus-ci.com/github/shepmaster/snafu
-[CI Logo]: https://api.cirrus-ci.com/github/shepmaster/snafu.svg
+[CI]: https://github.com/shepmaster/snafu/actions/workflows/ci.yml
+[CI Logo]: https://github.com/shepmaster/snafu/actions/workflows/ci.yml/badge.svg

@@ -1,0 +1,268 @@
+name: "Continuous Integration"
+on: [push, pull_request]
+
+env:
+  RUSTFLAGS: -D warnings
+  RUSTDOCFLAGS: -D warnings
+
+jobs:
+  stable:
+    name: "Tests (Rust Stable)"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Check out code"
+        uses: actions/checkout@v7.0.1
+
+      - name: "Configure Rust"
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: rustfmt
+
+      - name: "Cache Rust compilation"
+        uses: Swatinem/rust-cache@v2.9.1
+
+      - name: "Tests"
+        run: cargo test --all
+
+      - name: "Compatibility tests (alloc-only)"
+        working-directory: compatibility-tests/alloc-only
+        run: cargo test
+
+      - name: "Compatibility tests (backtraces-impl-backtrace-crate)"
+        working-directory: compatibility-tests/backtraces-impl-backtrace-crate
+        run: cargo test
+
+      - name: "Compatibility tests (backtraces_impl_inert)"
+        working-directory: compatibility-tests/backtraces-impl-inert
+        run: cargo test
+
+      - name: "Compatibility tests (context_selectors_have_documentation)"
+        working-directory: compatibility-tests/context-selectors-have-documentation
+        run: cargo test
+
+      - name: "Compatibility tests (futures)"
+        working-directory: compatibility-tests/futures
+        run: cargo test
+
+      - name: "Compatibility tests (renamed_import)"
+        working-directory: compatibility-tests/renamed-import
+        run: cargo test
+
+      - name: "Compatibility tests (compile_fail)"
+        working-directory: compatibility-tests/compile-fail
+        run: cargo test
+
+      - name: "Formatting"
+        run: >-
+          for i in $(find . -name 'Cargo.toml'); do
+            pushd $(dirname $i);
+            cargo +stable fmt --all -- --check;
+            popd;
+          done
+
+      - name: "All compatibility tests executed"
+        run: >-
+          for n in compatibility-tests/*; do
+            n=$(basename $n);
+            if grep -q $n .github/workflows/ci.yml; then
+              echo "$n found";
+            else
+              echo "$n missing";
+              exit 1;
+            fi;
+          done
+
+  docs:
+    name: "Documentation (Rust Nightly)"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Check out code"
+        uses: actions/checkout@v7.0.1
+
+      - name: "Configure Rust"
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+
+      - name: "Cache Rust compilation"
+        uses: Swatinem/rust-cache@v2.9.1
+
+      - name: "Generate documentation"
+        run: cargo +nightly doc
+
+      - name: "Generate documentation (backtraces-impl-backtrace-crate)"
+        run: cargo +nightly doc --features=backtraces-impl-backtrace-crate
+
+      - name: "Generate documentation (futures)"
+        run: cargo +nightly doc --features=futures
+
+  doctests:
+    name: "Documentation Tests (Rust Nightly)"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Check out code"
+        uses: actions/checkout@v7.0.1
+
+      - name: "Configure Rust"
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+
+      - name: "Cache Rust compilation"
+        uses: Swatinem/rust-cache@v2.9.1
+
+      - name: "Doctests (backtraces-impl-backtrace-crate)"
+        run: cargo +nightly test --doc --features=backtraces-impl-backtrace-crate
+
+      - name: "Doctests (futures)"
+        run: cargo +nightly test --doc --features=futures,internal-dev-dependencies
+
+  no_std_stable:
+    name: "no_std (Rust Stable)"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Check out code"
+        uses: actions/checkout@v7.0.1
+
+      - name: "Configure Rust"
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          targets: thumbv6m-none-eabi
+
+      - name: "Cache Rust compilation"
+        uses: Swatinem/rust-cache@v2.9.1
+
+      - name: "Build"
+        run: cargo build --target thumbv6m-none-eabi --no-default-features
+
+      - name: "Build (futures)"
+        run: cargo build --target thumbv6m-none-eabi --no-default-features --features=futures
+
+  no_std_1_81:
+    name: "no_std (Rust 1.81)"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Check out code"
+        uses: actions/checkout@v7.0.1
+
+      - name: "Configure Rust"
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.81
+          targets: thumbv6m-none-eabi
+
+      - name: "Cache Rust compilation"
+        uses: Swatinem/rust-cache@v2.9.1
+
+      - name: "Build"
+        run: cargo +1.81 build --target thumbv6m-none-eabi --no-default-features --features=rust_1_81
+
+      - name: "Build (futures)"
+        run: cargo +1.81 build --target thumbv6m-none-eabi --no-default-features --features=rust_1_81,futures
+
+      - name: "Build (alloc)"
+        run: cargo +1.81 build --target thumbv6m-none-eabi --no-default-features --features=rust_1_81,alloc
+
+      - name: "Build (alloc,futures)"
+        run: cargo +1.81 build --target thumbv6m-none-eabi --no-default-features --features=rust_1_81,alloc,futures
+
+  no_std_nightly:
+    name: "no_std (Rust Nightly)"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Check out code"
+        uses: actions/checkout@v7.0.1
+
+      - name: "Configure Rust"
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          targets: thumbv6m-none-eabi
+
+      - name: "Cache Rust compilation"
+        uses: Swatinem/rust-cache@v2.9.1
+
+      - name: "Build (unstable-provider-api)"
+        run: cargo +nightly build --target thumbv6m-none-eabi --no-default-features --features=rust_1_81,unstable-provider-api
+
+      - name: "Build (alloc,unstable-provider-api)"
+        run: cargo +nightly build --target thumbv6m-none-eabi --no-default-features --features=rust_1_81,alloc,unstable-provider-api
+
+  nightly:
+    name: "Tests (Rust Nightly)"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Check out code"
+        uses: actions/checkout@v7.0.1
+
+      - name: "Configure Rust"
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+
+      - name: "Install Rust Stable"
+        run: rustup toolchain add stable --profile minimal
+
+      - name: "Cache Rust compilation"
+        uses: Swatinem/rust-cache@v2.9.1
+
+      - name: "Tests"
+        run: cargo +nightly test
+
+      - name: "Minimum versions (snafu-derive)"
+        run: >-
+          cp -R snafu-derive snafu-derive-non-workspace;
+          cd snafu-derive-non-workspace;
+          echo '[workspace]' >> Cargo.toml;
+          cargo +nightly -Z minimal-versions update;
+          cargo +stable build;
+
+      - name: "Minimum versions (snafu)"
+        run: >-
+          cargo +nightly -Z minimal-versions update;
+          cargo +stable test;
+
+      - name: "Compatibility tests (provider-api)"
+        working-directory: compatibility-tests/provider-api
+        run: cargo test
+
+      - name: "Compatibility tests (report-provider-api)"
+        working-directory: compatibility-tests/report-provider-api
+        run: cargo test
+
+      - name: "Compatibility tests (report-try-trait)"
+        working-directory: compatibility-tests/report-try-trait
+        run: cargo test
+
+      - name: "Compatibility tests (backtrace-provider-api)"
+        working-directory: compatibility-tests/backtrace-provider-api
+        run: cargo test
+
+  msrv:
+    name: "Minimal Supported Rust Version / MSRV (Rust 1.65)"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Check out code"
+        uses: actions/checkout@v7.0.1
+
+      - name: "Configure Rust"
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.65
+
+      - name: "Cache Rust compilation"
+        uses: Swatinem/rust-cache@v2.9.1
+
+      - name: "Compatibility tests (v1_65)"
+        working-directory: compatibility-tests/v1_65
+        run: cargo test
