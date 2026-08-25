@@ -866,6 +866,39 @@ pub trait ResultExt<T, E>: Sized {
     fn boxed_local<'a>(self) -> Result<T, Box<dyn Error + 'a>>
     where
         E: Error + 'a;
+
+    /// Unwrap this result, returning the contained [`Ok`] value.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is an [`Err`], after printing the error as a
+    /// [`Report`]. Unlike [`Result::unwrap`], which formats the error with
+    /// its `Debug` implementation, this formats the error and its source
+    /// chain with their `Display` implementation, which is usually the more
+    /// readable choice when reporting an error to a person.
+    ///
+    /// ```rust
+    /// use snafu::prelude::*;
+    ///
+    /// #[derive(Debug, Snafu)]
+    /// struct PlaceholderError;
+    ///
+    /// fn may_succeed() -> Result<u8, PlaceholderError> {
+    ///     Ok(42)
+    /// }
+    ///
+    /// let value = may_succeed().unwrap_report();
+    /// assert_eq!(value, 42);
+    /// ```
+    ///
+    /// [`Ok`]: std::result::Result::Ok
+    /// [`Err`]: std::result::Result::Err
+    /// [`Result::unwrap`]: std::result::Result::unwrap
+    /// [`Report`]: crate::Report
+    #[track_caller]
+    fn unwrap_report(self) -> T
+    where
+        E: Error;
 }
 
 impl<T, E> ResultExt<T, E> for Result<T, E> {
@@ -947,6 +980,17 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
         E: Error + 'a,
     {
         self.map_err(|e| Box::new(e) as _)
+    }
+
+    #[track_caller]
+    fn unwrap_report(self) -> T
+    where
+        E: Error,
+    {
+        match self {
+            Ok(v) => v,
+            Err(e) => panic!("{}", Report::from_error(e)),
+        }
     }
 }
 

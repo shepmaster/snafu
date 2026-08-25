@@ -293,3 +293,31 @@ fn cleaning_nested_errors_removes_duplication() {
     assert_cleaning_step(&mut iter, "But I am only C", "");
     assert!(iter.next().is_none());
 }
+
+#[test]
+fn unwrap_report_returns_the_ok_value() {
+    #[derive(Debug, Snafu)]
+    #[snafu(display("This is my Display text!"))]
+    struct Error;
+
+    let r: Result<u8, Error> = Ok(42);
+    assert_eq!(r.unwrap_report(), 42);
+}
+
+#[test]
+#[should_panic(expected = "This is my inner Display")]
+fn unwrap_report_panics_with_the_report_display() {
+    #[derive(Debug, Snafu)]
+    #[snafu(display("This is my inner Display"))]
+    struct InnerError;
+
+    #[derive(Debug, Snafu)]
+    #[snafu(display("This is my outer Display"))]
+    struct OuterError {
+        source: InnerError,
+    }
+
+    let e = OuterSnafu.into_error(InnerError);
+    let r: Result<(), OuterError> = Err(e);
+    r.unwrap_report();
+}
